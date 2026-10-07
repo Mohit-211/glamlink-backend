@@ -1,10 +1,7 @@
 const httpStatus = require('http-status');
-const jwt = require('jsonwebtoken');
 
-const { User, OTP, UserToken, Profile, Role, UserAttachment, Speciality, Availability } = require('../models');
-const validateEmail = require('../helpers/validateEmail');
-const validatePassword = require('../helpers/validatePassword');
-const { tokenTypes, otpTypes, availabilityRuleTypes, daysOfWeek } = require('../config/types');
+const { User, Availability } = require('../models');
+const { daysOfWeek } = require('../config/types');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 
@@ -33,10 +30,6 @@ const validateCreateScheduleBody = catchAsync(async (req, res, next) => {
 
     try {
         const { user, timezone, slot_duration_in_minuites, start_time, end_time, day, maximum_available_seats } = req.body;
-
-        // if (!timezone || !slot_duration_in_minuites || !start_time || !end_time || !day || !maximum_available_seats) {
-        //     return responseWrapper(res, '', 'Please Enter Required Fields : [ timezone || slot_duration_in_minuites || start_time || end_time || day || maximum_available_seats]', httpStatus.BAD_REQUEST);
-        // };
 
         if (user.role_id !== Number(config.CLLR_ROLE_ID)) {
             return responseWrapper(res, '', 'Only Counselor can access this route.', httpStatus.BAD_REQUEST);

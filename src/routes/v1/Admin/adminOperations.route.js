@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 
 const {  adminOperationsController } = require('../../../controllers');
-const { adminAuthMiddleware } = require('../../../middlewares');
 
 router.post('/posts/getLikesByPostId',  adminOperationsController.getLikesByPostId);
 router.post('/posts/getCommentsByPostId',  adminOperationsController.getCommentsByPostId);

@@ -42,13 +42,6 @@ const rolesTypes = {
     CLLR: 'Counselor'
 };
 
-const bookingTypes = {
-    PENDING: 'PENDING',
-    SUCCESS: 'SUCCESS',
-    REJECTED: 'REJECTED',
-    ESTIMATE: 'ESTIMATE'
-};
-
 const tokenTypes = {
     ACCESS: 'access',
     REFRESH: 'refresh',
@@ -66,7 +59,6 @@ const currancyTypes = {
     CHF: 'CHF',
     KYD: 'KYD'
 };
-const currancyTypesArr = ['USD', 'INR', 'EUR', 'OMR', 'CHF', 'KYD'];
 
 const caseTypes = {
     ACCEPTED: 'ACCEPTED',
@@ -215,10 +207,8 @@ module.exports = {
     otpTypes,
     paymentStatusTypes,
     rolesTypes,
-    bookingTypes,
     tokenTypes,
     currancyTypes,
-    currancyTypesArr,
     caseTypes,
     appointmentTypes,
     callTypes,

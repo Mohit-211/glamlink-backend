@@ -5,7 +5,6 @@ const contactUsController = require("./contactUs.controller");
 const countryController = require("./country.controller");
 const stateController = require("./state.controller");
 const cityController = require("./city.controller");
-const paymentController = require("./payment.controller");
 const reviewController = require("./review.controller");
 const languageController = require("./language.controller");
 const appointmentController = require("./appointment.controller");
@@ -31,7 +30,6 @@ const productReviewController = require("./productReview.controller");
 const wishlistController = require("./wishlist.controller");
 const cartController = require("./cart.controller");
 const orderController = require("./order.controller");
-const squarePaymentController = require("./squareOrderPayment.controller");
 const brandController = require("./brand.controller");
 const vendorController = require("./vendor.controller");
 const productTypeController = require("./productType.controller");
@@ -75,7 +73,6 @@ module.exports = {
   countryController,
   stateController,
   cityController,
-  paymentController,
   reviewController,
   languageController,
   appointmentController,
@@ -100,7 +97,6 @@ module.exports = {
   wishlistController,
   cartController,
   orderController,
-  squarePaymentController,
   brandController,
   vendorController,
   productTypeController,

@@ -62,10 +62,6 @@ Customer.init(
 		user_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
 			allowNull: true,
-			// references: {
-			// 	model: "users",
-			// 	key: "id",
-			// },
 		},
 		professional_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
@@ -96,28 +92,7 @@ Customer.init(
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
-		// preference_type: {
-		// 	type: DataTypes.ENUM("service", "product"),
-		// 	allowNull: true,
-		// },
 
-		// preferences_services: {
-		// 	type: DataTypes.STRING(255), // e.g. "waxing,facial,haircut"
-		// 	allowNull: true,
-		// },
-		// preferences_products: {
-		// 	type: DataTypes.STRING(255), // e.g. "skincare,shampoo,serum"
-		// 	allowNull: true,
-		// },
-
-		// last_service_date: {
-		// 	type: DataTypes.DATE,
-		// 	allowNull: true,
-		// },
-		// budget_range: {
-		// 	type: DataTypes.STRING(50), // e.g. "under 50$", "50-100$", "premium"
-		// 	allowNull: true,
-		// },
 		is_active: {
 			type: DataTypes.BOOLEAN,
 			defaultValue: true,

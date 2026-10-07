@@ -12,12 +12,6 @@ BlogAttachment.init({
     blog_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
-        // onDelete: 'CASCADE',
-        // onUpdate: 'CASCADE',
-        // references: {
-        //     model: 'blogs',
-        //     key: 'id',
-        // },
     },
     file_type: {
         type: DataTypes.STRING,

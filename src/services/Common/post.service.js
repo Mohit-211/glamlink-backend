@@ -1,8 +1,7 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const slugify = require("slugify");
-const { Sequelize, Op } = require("sequelize");
+const { Sequelize } = require("sequelize");
 const moment = require("moment-timezone");
 
 const {
@@ -346,7 +345,6 @@ const editPost = async (body, params, files) => {
 		let { user, content, postDoc, deleted_image_ids } = body;
 		const { id } = params;
 
-		// deleted_image_ids = deleted_image_ids ? JSON.parse(deleted_image_ids) : [];
 		if (
 			content &&
 			typeof content === "string" &&
@@ -360,12 +358,6 @@ const editPost = async (body, params, files) => {
 		allImagesDoc.map(async (elm) => {
 			await elm.destroy();
 		});
-		// if (Array.isArray(deleted_image_ids) && deleted_image_ids.length !== 0) {
-		//     let allImagesDoc = await PostAttachment.findAll({ where: { post_id: id, is_active: true } })
-		//     allImagesDoc.map(async (elm) => {
-		//         await elm.destroy();
-		//     })
-		// }
 
 		if (
 			files &&
@@ -753,128 +745,6 @@ const postDetailsById = async (params, header, body) => {
 		);
 	}
 };
-
-// const postDetailsById = async (params, header, body) => {
-
-//     try {
-//         const { id } = params;
-//         const { user } = body;
-//         const { timezone } = header;
-
-//         const postDoc = await Post.findOne(
-//             {
-//                 attributes: ['id', 'user_id', 'content', 'type', 'likes_count', 'comment_count', 'created_at'],
-//                 where: { id: id, is_active: true },
-//                 include: [
-//                     {
-//                         model: User,
-//                         as: 'created_by',
-//                         attributes: ['id'],
-//                         include: [
-//                             {
-//                                 model: Profile,
-//                                 as: 'user_profile',
-//                                 attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'about', 'overall_ratings', 'no_of_user_rated', 'no_of_user_reviewed', 'user_coin_balances'],
-//                             },
-//                             {
-//                                 model: UserAttachment,
-//                                 as: 'user_attachments',
-//                                 attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
-//                                 where: { title: 'Profile Image' },
-//                                 order: [['id', 'desc']],
-//                                 limit: 1,
-//                             },
-//                         ]
-//                     },
-//                     {
-//                         model: PostAttachment,
-//                         as: 'attachements',
-//                         attributes: ['id', 'file_type', 'file_name', 'file_uri']
-//                     },
-//                     {
-//                         model: PostLike,
-//                         as: 'likes',
-//                         where: { user_id: user.id, is_active: true },
-//                         attributes: ['id', 'user_id'],
-//                         required: false
-//                     },
-//                     {
-//                         model: PostFavorite,
-//                         as: 'saves',
-//                         where: { user_id: user.id, is_active: true },
-//                         attributes: ['id', 'user_id'],
-//                         required: false
-//                     },
-//                     {
-//                         model: PostComment,
-//                         as: 'comments',
-//                         attributes: ['id', 'comment', 'user_id',
-//                             [Sequelize.fn('date_format', Sequelize.col('comments.created_at'), '%d %b, %Y'), 'created_at']
-//                         ],
-//                         include: [
-//                             {
-//                                 model: User,
-//                                 as: 'commented_by',
-//                                 attributes: ['id', 'email', 'user_name'],
-//                                 include: [
-//                                     {
-//                                         model: UserAttachment,
-//                                         as: 'user_attachments',
-//                                         attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
-//                                         order: [['id', 'desc']],
-//                                         limit: 1,
-//                                         where: { title: 'Profile Image' }
-//                                     },
-//                                     {
-//                                         model: Profile,
-//                                         as: 'user_profile',
-//                                         attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'about', 'overall_ratings', 'no_of_user_rated', 'no_of_user_reviewed', 'city_id', 'state_id', 'followee_count', 'follower_count', 'no_of_post_posted', 'no_of_service_provided', 'user_coin_balances'],
-//                                     }
-//                                 ]
-//                             }
-//                         ]
-//                     }
-//                 ],
-//             }
-//         );
-//         if (!postDoc) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get Post Details');
-
-//         const utcTimestamp = postDoc.getDataValue('created_at');
-
-//         const convertedTimestamp = moment.utc(utcTimestamp).tz(timezone).format('DD MMM, YYYY hh:mm A');
-//         postDoc.setDataValue('post_date', convertedTimestamp);
-
-//         const postCreatedTime = moment.utc(utcTimestamp);
-//         const currentTime = moment().tz(timezone);
-//         const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-//         const daysDifference = duration.days();
-//         const hoursDifference = duration.hours();
-//         const minutesDifference = duration.minutes();
-//         const secondsDifference = duration.seconds();
-
-//         let formattedTime = '';
-//         if (daysDifference >= 5) {
-//             formattedTime = `${convertedTimestamp}`;
-//         } else if (daysDifference >= 1) {
-//             formattedTime = `${daysDifference}d`;
-//         } else if (hoursDifference >= 1) {
-//             formattedTime = `${hoursDifference}h`;
-//         } else if (minutesDifference >= 1) {
-//             formattedTime = `${minutesDifference}m`;
-//         } else {
-//             formattedTime = `${secondsDifference}s`;
-//         };
-//         postDoc.setDataValue('time_ago', formattedTime);
-//         postDoc.setDataValue('is_liked', false);
-//         postDoc.setDataValue('is_saved', false);
-//         if (postDoc.likes && postDoc.likes.length !== 0) postDoc.setDataValue('is_liked', true);
-//         if (postDoc.saves && postDoc.saves.length !== 0) postDoc.setDataValue('is_saved', true);
-//         return postDoc;
-//     } catch (error) {
-//         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-//     }
-// };
 
 const likeAndDislikePost = async (body, io) => {
 	try {

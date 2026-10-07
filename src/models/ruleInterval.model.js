@@ -1,6 +1,5 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/central.db');
-const { availabilityRuleTypes } = require('../config/types');
 
 
 class RuleInterval extends Model { }

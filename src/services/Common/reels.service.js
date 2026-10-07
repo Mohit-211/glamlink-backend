@@ -1,9 +1,8 @@
 const httpStatus = require('http-status');
-const { Sequelize, Op } = require('sequelize')
+const { Sequelize } = require('sequelize')
 
-const { Admin, Role, Reel, Timezone, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, Reel_Tag } = require('../../models');
+const { Reel, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, Reel_Tag } = require('../../models');
 const ApiError = require('../../utils/ApiError');
-const { where } = require('../../config/central.db');
 const { notificationTypes, actionTypes } = require('../../config/types');
 const { createNotification } = require('./notification.service');
 const { earnCoin } = require('./glamcoin.service');
@@ -198,72 +197,6 @@ const getAllReel = async (body, query) => {
 };
 
 
-// const getAllReel = async (body, query) => {
-//     try {
-//         const { user } = body;
-//         const { limit, sortBy, offset } = query;
-
-//         const reelDoc = await Reel.findAll(
-//             {
-//                 attributes: ['id', 'description', 'user_id', 'file_type', 'file_name', 'file_uri', 'file_size', 'is_active', 'likes_count', 'comment_count', 'thumbnail_file_type', 'thumbnail_file_name', 'thumbnail_file_uri', 'created_at'],
-//                 // where: { is_active: true, user_id: user.id },
-//                 where: { is_active: true },
-//                 include: [
-//                     {
-//                         model: User,
-//                         as: 'reel_user',
-//                         attributes: ['id'],
-//                         include: [
-
-//                             {
-//                                 model: Profile,
-//                                 as: 'user_profile',
-//                                 attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'user_coin_balances'],
-//                             },
-//                             {
-//                                 model: UserAttachment,
-//                                 as: 'user_attachments',
-//                                 attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
-//                                 order: [['id', 'desc']],
-//                                 limit: 1,
-//                                 where: { title: 'Profile Image' }
-//                             },
-//                         ]
-//                     },
-//                     {
-//                         model: ReelLike,
-//                         as: 'reel_likes',
-//                         attributes: ['id'],
-//                         where: { user_id: user.id, is_active: true },
-//                         required: false
-//                     }
-//                 ],
-//                 limit: parseInt(limit),
-//                 offset: parseInt(offset),
-//                 order: [
-//                     [Sequelize.fn('RAND')], // Random order
-//                     ['created_at', 'DESC'] // Secondary order by id in descending
-//                 ]
-//             }
-//         );
-//         if (!reelDoc) {
-//             throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get all Reel');
-//         };
-//         // Modify reelDocs to include is_liked property
-//         const modifiedReelDocs = reelDoc.map(reel => ({
-//             ...reel.toJSON(),
-//             is_liked: reel.reel_likes.length > 0 // Check if reel_likes array is not empty
-//         }));
-
-//         return modifiedReelDocs;
-
-//         // return reelDoc;
-
-//     } catch (error) {
-//         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-//     }
-// };
-
 const getAllMyReel = async (body, query) => {
     try {
         const { user } = body;
@@ -320,8 +253,6 @@ const getAllMyReel = async (body, query) => {
         }));
 
         return modifiedReelDocs;
-
-        // return reelDoc;
 
     } catch (error) {
         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);

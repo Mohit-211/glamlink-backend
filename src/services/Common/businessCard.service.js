@@ -4,10 +4,8 @@ const httpStatus = require("http-status");
 const moment = require("moment");
 const ApiError = require("../../utils/ApiError");
 const {
-  Service,
   UserAddress,
   BusinessCard,
-  Country,
   State,
   City,
   Profile,
@@ -118,10 +116,6 @@ const selectBusinessCardPlan = async (body) => {
     if (!card) {
       throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
     }
-
-    // await card.update({
-    //   plan_type,
-    // });
 
     if (plan_type === "free") {
       await card.update({
@@ -3254,12 +3248,6 @@ const deleteBusinessCard = async (body) => {
       });
 
       // Delete saved shipping address (if linked only to this card)
-      // if (card.user_address_id) {
-      //   await UserAddress.destroy({
-      //     where: { id: card.user_address_id },
-      //     transaction,
-      //   });
-      // }
 
       // Finally delete the business card
       await card.destroy({ transaction });
@@ -3404,7 +3392,6 @@ const getAllProfiles = async () => {
       {
         model: BusinessLocation,
         as: "locations",
-        // where: { is_primary: true }, // 🔥 filter here
         required: false,
       },
       {
@@ -3495,7 +3482,6 @@ const filterBusinessCards = async ({ primary_specialty, location }) => {
       {
         model: BusinessLocation,
         as: "locations",
-        // attributes: ["city", "state", "address", "is_primary"],
         required: !!location,
         where: location
           ? {
@@ -3544,7 +3530,6 @@ const searchBusinessCards = async ({ search }) => {
   const andConditions = [
     { status: "accepted" },
     { is_active: true },
-    // { is_details: true },
   ];
 
   const include = [
@@ -5231,8 +5216,6 @@ const createBusinessCardSubscription = async (body) => {
       subscriptionId: subscription?.id || null,
 
       amount: totalAmount.toFixed(2),
-
-      // shippingAmount: shippingAmount.toFixed(2),
 
       publishableKey: config.STRIPE_PUBLISHABLE_KEY,
     };

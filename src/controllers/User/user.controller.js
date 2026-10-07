@@ -1,7 +1,6 @@
 const httpStatus = require('http-status');
 
 const catchAsync = require('../../utils/catchAsync');
-const ApiError = require('../../utils/ApiError');
 const { userOpService } = require('../../services');
 const pick = require('../../utils/pick');
 const responseWrapper = require('../../config/responseWrapper');

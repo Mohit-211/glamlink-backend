@@ -65,7 +65,6 @@ const calculateCheckoutTax = async (reqBody) => {
 			}
 
 			// Add Amount & Quantity
-			// sellerCategoryMap[sellerId][category].amount += product.price * quantity;
 			sellerCategoryMap[sellerId][category].amount += Math.round(product.price * 100) * quantity;
 
 			sellerCategoryMap[sellerId][category].quantity += quantity;
@@ -150,12 +149,8 @@ const calculateCheckoutTax = async (reqBody) => {
 		const totalTaxInDollars = totalTax / 100;
 		
         const totalAmountExcludingTax = cartData.totalPrice; // already in dollars
-        // const totalAmountIncludingTax = totalAmountExcludingTax + totalTaxInDollars;
 		const totalAmountIncludingTax = parseFloat((totalAmountExcludingTax + totalTaxInDollars).toFixed(2));
 
-
-		// const totalAmountExcludingTax = cartData.totalPrice;
-		// const totalAmountIncludingTax = totalAmountExcludingTax + totalTax;
 
 		// ✅ Return response in the expected format
 		const responseData = {

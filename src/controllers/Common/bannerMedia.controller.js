@@ -3,7 +3,6 @@ const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
 const { bannerService } = require("../../services");
-const pick = require("../../utils/pick");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createBanner = catchAsync(async (req, res) => {

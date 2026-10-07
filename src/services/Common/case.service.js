@@ -6,7 +6,7 @@ const { User, Case, Appointment, CaseAttachment, Slot, UserAttachment, Profile }
 const ApiError = require('../../utils/ApiError');
 const config = require('../../config/config');
 const moment = require('moment');
-const { caseTypes, appointmentTypes } = require('../../config/types');
+const { caseTypes } = require('../../config/types');
 
 
 

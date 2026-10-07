@@ -1,7 +1,5 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/central.db');
-// const { v4: uuidv4 } = require('uuid');
-// const Post = require('./post.model');
 
 class PostLike extends Model { };
 PostLike.init(
@@ -56,21 +54,6 @@ PostLike.init(
         deletedAt: 'deleted_at',
     }
 );
-
-// PostLike.afterCreate(async (postLike) => {
-//     try {
-//         const post = await Post.findByPk(postLike.post_id);
-//         if (postLike.is_active) {
-//             post.likes_count++;
-//         } else {
-//             post.likes_count--;
-//         }
-//         await post.save();
-//     } catch (error) {
-//         console.error('Error updating like count in Post:', error);
-//         throw error;
-//     }
-// });
 
 PostLike.beforeUpdate((PostLike) => {
     PostLike.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');

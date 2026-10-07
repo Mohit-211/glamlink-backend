@@ -11,7 +11,6 @@ const ApiError = require("../../utils/ApiError");
 const httpStatus = require("http-status");
 const { User, Profile, UserPromotion, Customer } = require("../../models");
 const {
-  existingAccessCardEmailFormat,
   newAccessUserEmailFormat,
   businessCardApprovedFormat,
   businessCardRejectedFormat,
@@ -99,42 +98,6 @@ const sendForgotPasswordOTP = async (to, otp) => {
       error.message,
     );
   }
-};
-
-const sendResetPasswordConfirmationMail = async (to) => {
-  try {
-    const subject = "Successfully Changed password";
-    const text = `Dear user,
-        Your Password Has Been changed Successfully
-        If you did not request any password resets, then ignore this email.`;
-    return await sendEmail(to, subject, text);
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const sendUserCredentials = async (to, password) => {
-  const subject = "Welcome to Glamlink: Your Login Credentials";
-  const text = `Dear User,
-    
-    Welcome to the Glamlink App! Our admin has successfully registered you. Please find your login credentials below.
-    Now, get ready to embark on an exciting journey of creativity! 
-    To access your account, please visit our secure login page with your login credentials below:
-  
-
-    Email Address: ${to}
-    Password: ${password}
-    
-    Remember to keep these details safe and secure! 
-    If you have any issues or have additional questions, please send an email to support@glamlink.net
-    
-    Best Regards,
-    Glamlink Team`;
-
-  return await sendEmail(to, subject, text);
 };
 
 const sendReceiptToUser = async (to, receipt_url) => {
@@ -900,48 +863,6 @@ The Glamlink Team
   }
 };
 
-const sendLoginCredentialsEmail = async ({
-  to,
-  name,
-  email,
-  password,
-  isExistingUser,
-  paymentStatus,
-  businessCardLink,
-  qrCodeUrl,
-}) => {
-  try {
-    const message = {
-      from: `${config.email.from}`,
-      to: `${to}`,
-      subject: "Welcome to Access! Your Profile Is Ready.",
-      text: `Welcome to Access by Glamlink. Log in at https://glamlink.net/login`,
-      html: `${loginCredentialsFormat({
-        name,
-        email,
-        password,
-        isExistingUser,
-        paymentStatus,
-        businessCardLink,
-        qrCodeUrl,
-      })}`,
-    };
-    transport.sendMail(message, (error, info) => {
-      if (error) {
-        console.log("Email sent error: ", error);
-        return false;
-      } else {
-        return true;
-      }
-    });
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
 const sendGuestApplicationEmail = async (data) => {
   try {
     const adminEmail = "support@glamlink.net";
@@ -986,42 +907,6 @@ Thank you for using Glamlink!
 `;
 
     await sendEmail(data.to, subject, text);
-  } catch (err) {
-    console.error("Email send failed:", err);
-  }
-};
-
-const sendExistingAccessCardEmail = async (data) => {
-  try {
-    const subject = "Your Access Card Has Been Created";
-
-    const text = `
-Hi ${data.name},
-
-Your Access Card has been created and is now live.
-
-Sign in to your Glamlink account below to select a plan and manage your profile.
-
-Account Email:
-${data.email}
-
-Sign In:
-https://glamlink.net/login
-
-If you don't remember your password, use "Forgot Password" on the sign-in page to reset it.
-
-Thank you,
-The Glamlink Team
-`;
-
-    const html = existingAccessCardEmailFormat({
-      name: data.name,
-      email: data.email,
-      businessCardLink: data.businessCardLink,
-      qrCodeUrl: data.qrCodeUrl,
-    });
-
-    await sendEmail(data.to, subject, text, html);
   } catch (err) {
     console.error("Email send failed:", err);
   }
@@ -1139,11 +1024,9 @@ ${data.message}
 
 module.exports = {
   sendForgotPasswordOTP,
-  sendResetPasswordConfirmationMail,
   sendEmailVerification,
   sendOrderConfirmationToSeller,
   sendOrderConfirmationToBuyer,
-  sendUserCredentials,
   sendReceiptToUser,
   sendUserPremiumExpiredEmail,
   sendOTPMails,
@@ -1162,10 +1045,8 @@ module.exports = {
   sendSubscriptionSuccessEmails,
   sendBusinessCardApprovedEmail,
   sendGuestApplicationEmail,
-  sendLoginCredentialsEmail,
   sendBusinessCardSubscriptionCancelledEmail,
   sendBusinessCardPurchaseAdminEmail,
-  sendExistingAccessCardEmail,
   sendNewAccessUserEmail,
   sendBusinessCardRejectedEmail,
   sendAccessCardCreatedAdminEmail,

@@ -8,17 +8,8 @@ const cron = require('node-cron');
 const path = require('path');
 const fs = require('fs')
 const moment = require('moment');
-const slugify = require('slugify');
 const app = express();
 app.set("trust proxy", 1);
-
-// app.use((req, res, next) => {
-//   console.log("========== APP ENTRY ==========");
-//   console.log("rawHeaders:", req.rawHeaders);
-//   console.log("headers:", req.headers);
-//   console.log("===============================");
-//   next();
-// });
 
 const config = require('./src/config/config.js');
 const routes = require('./src/routes/v1');
@@ -26,67 +17,23 @@ const morgan = require('./src/config/morgan.js');
 const { authLimiter } = require('./src/middlewares/rateLimiter.js');
 const corsConfigs = require('./src/config/corsConfigs.js');
 const credentials = require('./src/middlewares/credentials.js');
-const {Permission } = require('./src/models');
 
 const ApiError = require('./src/utils/ApiError.js');
-// const upload = require('./src/config/multer.js');
 const errorHandler = require('./src/utils/errorHandler.js');
-const logger = require('./src/config/logger.js');
 require('./src/models');
 require('./src/config/firebaseConfig.js');
-require('./src/config/gcpStorage.js');
 const PUBLIC_DIR = path.resolve(__dirname, './public');
 
-const paymentRoute = require("./src/routes/v1/Common/payment.route.js");
 
 const responseWrapper = require('./src/config/responseWrapper');
-const allResource = require('./src/config/resource.js');
 const handleFileUploads = require('./src/config/multer.js');
 const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/controllers/Common/crmPayment.controller.js');
-const bodyParser = require('body-parser');
 const { updateUserPromotions } = require('./src/services/Common/promotion.service.js');
 
 
 
-async function createPermissions(){
-  for (const resource of allResource) {
-    try {
-      console.log("111111111", resource.label);
-      const permissionParentObj = {
-        label: resource.label,
-        permission_slug: slugify(resource.label, { lower: true })
-      };
-      const children = resource.children;
-    
-      const [parentPermissionDoc, parentCreated] = await Permission.findOrCreate({
-        where: { permission_slug: slugify(resource.label, { lower: true }) },
-        defaults: permissionParentObj
-      });
-      
-      if (parentPermissionDoc && children) {
-        for (const permission of children) {
-          const childrenObj = {
-            label: permission.label,
-            permission_slug: slugify(permission.label, { lower: true }),
-            parent_id: parentPermissionDoc.id
-          };
-          const [permissionDoc, created] = await Permission.findOrCreate({
-            where: { permission_slug: slugify(permission.label, { lower: true }) },
-            defaults: childrenObj
-          });
-        }
-      }
-    } catch(error) {
-      console.log("Failed to create permissions:", error.message);
-    }
-  }
-};
-
-// createPermissions()
-
 
 cron.schedule('* * * * *', () => {
-  logger.info('Hello, I am still Running.......😊');
   checkUserFreeTrialStatus();
 	checkUserPremiumStatus();
 
@@ -117,13 +64,10 @@ app.use(
   '/api/v1/payment/stripe/charge-intent/webhooks',
   express.raw({ type: '*/*' })
 );
-// app.use('/api/v1/payment/stripe/charge-intent/webhooks', express.raw({type: "*/*"}));
 app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
-
-// app.use('/api/v1/payment', paymentRoute);
 
 // gzip compression
 app.use(compression());

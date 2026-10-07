@@ -2,7 +2,6 @@
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = require("../config/central.db");
-const { v4: uuidv4 } = require("uuid");
 const {
 	paymentStatusTypes,
 	paymentModeTypes,
@@ -37,10 +36,6 @@ PromotionPayment.init(
 			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
-        // user_promotion_id: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: true,
-		// },
 		amount: {
 			type: DataTypes.STRING,
 			allowNull: false,

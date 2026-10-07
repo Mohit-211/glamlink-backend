@@ -1,8 +1,7 @@
 /** @format */
 
-const httpStatus = require("http-status");
 const { User, Post, Reel, Profile, Service, Booking } = require("../../models");
-const { Sequelize, QueryTypes, Op, fn, col } = require("sequelize");
+const { Sequelize, Op } = require("sequelize");
 
 const getUserCount = async () => {
 	const userCount = await User.count({

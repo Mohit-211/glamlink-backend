@@ -5,7 +5,6 @@ const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
 const { productService } = require("../../services");
 const pick = require("../../utils/pick");
-const config = require("../../config/config");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createProduct = catchAsync(async (req, res) => {

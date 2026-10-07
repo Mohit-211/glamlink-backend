@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const moment = require("moment");
-const { BlogCategory, Blog, BlogCategoryMapping } = require("../../models");
+const { BlogCategory, BlogCategoryMapping } = require("../../models");
 const ApiError = require("../../utils/ApiError");
 
 const createBlogCategory = async (reqBody) => {

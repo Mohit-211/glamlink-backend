@@ -2,7 +2,6 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const ApiError = require("../../utils/ApiError");
 const { adminOpService } = require("../../services");
 const responseWrapper = require("../../config/responseWrapper");
 const pick = require("../../utils/pick");
@@ -316,12 +315,7 @@ const deleteServiceById = catchAsync(async (req, res) => {
 });
 
 const promotedToogle = catchAsync(async (req, res) => {
-	// const body = pick(req.body, ["user", "user_id"]);
 	const response = await adminOpService.promotedToogle(req.body);
-	// message =
-	// 	response.is_promoted === true
-	// 		? "User is promoted now!"
-	// 		: "User is not promoted";
 	return responseWrapper(res, response, "", httpStatus.OK);
 });
 

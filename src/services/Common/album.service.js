@@ -234,9 +234,6 @@ const likeAndDislikeAlbum = async (body) => {
         if (!albumDoc) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid Album Id.');
         };
-        // if (user.id === albumDoc.user_id) {
-        //     throw new ApiError(httpStatus.BAD_REQUEST, 'Your can not like your own album');
-        // }
 
         let likeDoc = await AlbumLike.findOne({ where: { user_id: user.id, album_id: album_id } });
         if (!likeDoc) {
@@ -295,9 +292,6 @@ const createCommenetInAlbum = async (body) => {
 
         const albumDoc = await Album.findByPk(album_id);
         if (!albumDoc) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Invalid Album Id');
-        // if (user.id === albumDoc.user_id) {
-        //     throw new ApiError(httpStatus.BAD_REQUEST, 'Your can not comment on your own album');
-        // }
         const commentObj = {
             user_id: user.id,
             album_id: album_id,
@@ -425,9 +419,6 @@ const likeAndDislikeAlbumAttachment = async (body) => {
         if (!albumAttachmentDoc) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid Album Attachment Id.');
         };
-        // if (user.id === albumAttachmentDoc.user_id) {
-        //     throw new ApiError(httpStatus.BAD_REQUEST, 'Your can not like your own album attachment');
-        // }
         let likeDoc = await AlbumAttachmentLike.findOne({ where: { user_id: user.id, album_attachment_id: album_attachment_id } });
 
         if (!likeDoc) {
@@ -488,9 +479,6 @@ const createCommenetInAlbumAttachment = async (body) => {
 
         const albumAttachmentDoc = await AlbumAttachment.findByPk(album_attachment_id);
         if (!albumAttachmentDoc) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Invalid AlbumAttachment Id');
-        // if (user.id === albumAttachmentDoc.user_id) {
-        //     throw new ApiError(httpStatus.BAD_REQUEST, 'Your can not comment on your own album');
-        // }
 
         const commentObj = {
             user_id: user.id,

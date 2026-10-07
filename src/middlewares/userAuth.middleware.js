@@ -8,16 +8,12 @@ const {
   Profile,
   Role,
   UserAttachment,
-  Speciality,
-  Price,
   City,
   State,
   Category,
-  BlogCategory,
   Reel,
   Album,
   AlbumAttachment,
-  Review,
 } = require("../models");
 const validateEmail = require("../helpers/validateEmail");
 const validatePassword = require("../helpers/validatePassword");
@@ -76,15 +72,6 @@ const validateRegisterUserBody = catchAsync(async (req, res, next) => {
     } else {
       return responseWrapper(res, "", "Ivalid role id", httpStatus.BAD_REQUEST);
     }
-
-    // if (state_id) {
-    //     let stateDoc = await State.findOne({ where: { id: state_id, country_id: 233 } });
-    //     if (!stateDoc) return responseWrapper(res, '', 'Invalid State Id.', httpStatus.BAD_REQUEST);
-    // }
-    // if (city_id) {
-    //     let cityDoc = await City.findOne({ where: { id: city_id, country_id: 233 } });
-    //     if (!cityDoc) return responseWrapper(res, '', 'Invalid City Id.', httpStatus.BAD_REQUEST);
-    // }
 
     if (!validateEmail(email) || name.length === 0) {
       return responseWrapper(
@@ -145,10 +132,6 @@ const validateRegisterUserBody = catchAsync(async (req, res, next) => {
         httpStatus.BAD_REQUEST,
       );
     }
-
-    // if (await User.isUserNameTaken(user_name, role_id)) {
-    //     return responseWrapper(res, '', 'Username already taken', httpStatus.BAD_REQUEST);
-    // };
 
     if (!validatePassword(password)) {
       return responseWrapper(
@@ -262,9 +245,6 @@ const verifyAuthJWTToken = catchAsync(async (req, res, next) => {
       req.body.user = null;
       return next();
     }
-    // if (!token) {
-    //     return responseWrapper(res, '', 'Please authenticate', httpStatus.UNAUTHORIZED);
-    // };
     const payload = jwt.verify(token, config.jwt.secret);
     if (!payload) {
       return responseWrapper(res, "", "Invalid Token", httpStatus.UNAUTHORIZED);
@@ -608,33 +588,6 @@ const validateNewBlogBody = catchAsync(async (req, res, next) => {
   next();
 });
 
-const isReviewOwner = catchAsync(async (req, res, next) => {
-  const { text, level, user } = req.body;
-  const { review_id } = req.params;
-
-  if (!text || !level || !review_id) {
-    return responseWrapper(
-      res,
-      "",
-      "Please Enter Required Fields : [ text || level || review_id]",
-      httpStatus.BAD_REQUEST,
-    );
-  }
-
-  const reviewDoc = await Review.findOne({
-    where: { id: review_id, is_active: true, user_id: user.id },
-  });
-  if (!reviewDoc)
-    return responseWrapper(
-      res,
-      "",
-      "Invalid review_id",
-      httpStatus.BAD_REQUEST,
-    );
-  req.bod.reviewDoc = reviewDoc;
-  next();
-});
-
 module.exports = {
   validateRegisterUserBody,
   validateSSOUserBody,
@@ -645,5 +598,4 @@ module.exports = {
   validateSignInReqBody,
   validateNewServiceBody,
   validateNewBlogBody,
-  isReviewOwner,
 };

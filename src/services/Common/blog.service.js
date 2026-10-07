@@ -1,13 +1,11 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const slugify = require("slugify");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment-timezone");
 const path = require("path");
 const fs = require("fs");
 const {
-	User,
 	Blog,
 	BlogAttachment,
 	BlogCategory,

@@ -4,7 +4,6 @@ const httpStatus = require("http-status");
 const moment = require("moment");
 const { Profession, Profile } = require("../../models");
 const ApiError = require("../../utils/ApiError");
-const { Sequelize } = require("sequelize");
 
 const createProfession = async (reqBody) => {
 	try {
@@ -109,9 +108,6 @@ const updateProfession = async (reqBody, id) => {
 		) {
 			professionDoc["title"] = reqBody.title;
 		}
-		// if (reqBody.description && typeof reqBody.description !== 'undefined' && reqBody.description !== '') {
-		//     professionDoc['description'] = reqBody.description;
-		// };
 
 		await professionDoc.save();
 		return professionDoc ? professionDoc : {};

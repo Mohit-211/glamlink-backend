@@ -1,6 +1,5 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/central.db');
-// const Reel = require('./reel.model');
 
 class ReelLike extends Model { };
 ReelLike.init(
@@ -55,21 +54,6 @@ ReelLike.init(
         deletedAt: 'deleted_at',
     }
 );
-
-// ReelLike.afterCreate(async (reelLike) => {
-//     try {
-//         const reel = await Reel.findByPk(reelLike.reel_id);
-//         if (reelLike.is_active) {
-//             reel.likes_count++;
-//         } else {
-//             reel.likes_count--;
-//         }
-//         await reel.save();
-//     } catch (error) {
-//         console.error('Error updating like count in Reel:', error);
-//         throw error;
-//     }
-// });
 
 ReelLike.beforeUpdate((ReelLike) => {
     ReelLike.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');

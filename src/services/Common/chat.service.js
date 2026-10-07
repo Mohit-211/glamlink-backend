@@ -3,7 +3,7 @@ const httpStatus = require("http-status");
 const moment = require('moment');
 
 const ApiError = require('../../utils/ApiError');
-const { User, UserToken, Profile, UserAttachment, Notification } = require("../../models");
+const { User, Profile, UserAttachment, Notification } = require("../../models");
 const { notificationTypes, notificationMediumTypes } = require("../../config/types");
 
 
@@ -79,74 +79,6 @@ const postMessage = async (body, header) => {
         const conversationReceiverRef = firebase.database().ref(conversationReceiverRefPath);
         const conversationReceiverMemberRef = firebase.database().ref(`${conversationReceiverRefPath}/members`);
 
-        // Handle Conversation Members For Sender
-        // await conversationSenderMemberRef.once('value').then((snapshot) => {
-        //     if (!snapshot.val()) {
-        //         console.log("1111111111111111111111111111111111111111");
-        //         conversationSenderMemberRef.push({ [`${receiverDoc.id}R${receiverDoc.role_id}`]: true })
-        //         conversationSenderMemberRef.push({ [`${user.id}R${user.role_id}`]: true });
-        //     } else {
-        //         console.log("22222222222222222222222222222222222222")
-
-        //         let isSenderAvailable = false;
-        //         let isReceiverAvailable = false;
-
-        //         snapshot.forEach((conversationMemberSnapshot) => {
-        //             const conversationMember = conversationMemberSnapshot.val();
-
-        //             if (conversationMember && conversationMember[`${user.id}R${user.role_id}`]) {
-        //                 isSenderAvailable = true;
-        //             }
-
-        //             if (conversationMember && !conversationMember[`${receiverDoc.id}R${receiverDoc.role_id}`]) {
-        //                 isReceiverAvailable = true;
-        //             }
-        //         });
-
-        //         if (isSenderAvailable === false) {
-        //             conversationSenderMemberRef.push({ [`${user.id}R${user.role_id}`]: true });
-        //         }
-        //         if (isReceiverAvailable === false) {
-        //             conversationSenderMemberRef.push({ [`${receiverDoc.id}R${receiverDoc.role_id}`]: true });
-        //         }
-        //     }
-        // }).catch((errorObject) => {
-        //     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, errorObject.name);
-        // });
-
-
-        // Handle Conversation Members For Receiver
-        // await conversationReceiverMemberRef.once('value').then((snapshot) => {
-        //     if (!snapshot.val()) {
-        //         conversationReceiverMemberRef.push({ [`${receiverDoc.id}R${receiverDoc.role_id}`]: true })
-        //         conversationReceiverMemberRef.push({ [`${user.id}R${user.role_id}`]: true });
-
-        //     }else{
-
-        //         let isSenderAvailable = false;
-        //         let isReceiverAvailable = false;
-        //         snapshot.forEach((conversationMemberSnapshot) => {
-        //             const conversationMember = conversationMemberSnapshot.val();
-
-        //             if (conversationMember && conversationMember[`${user.id}R${user.role_id}`]) {
-        //                 isSenderAvailable = true;
-        //             };
-
-        //             if (!conversationMember && conversationMember[`${receiverDoc.id}R${receiverDoc.role_id}`]) {
-        //                 isReceiverAvailable = true;
-        //             }
-        //         });
-        //         if(isSenderAvailable === false){
-        //             conversationSenderMemberRef.push({ [`${user.id}R${user.role_id}`]: true });
-        //         }
-        //         if(isReceiverAvailable === false){
-        //             conversationSenderMemberRef.push({ [`${receiverDoc.id}R${receiverDoc.role_id}`]: true });
-        //         }
-        //     }
-
-        // }).catch((errorObject) => {
-        //     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, errorObject.name);
-        // });
 
         // Handle messages
         await conversationMessageRef.push({
@@ -334,13 +266,6 @@ const markUserMessagesAsRead = async (body, param, header) => {
             error.message || 'Internal Server Error'
         );
     }
-};
-
-function getUserId(currUserId, str) {
-    let arr = str.split('_');
-    let userId1 = arr[0].split('R')[0];
-    let userId2 = arr[1].split('R')[0];
-    return userId1 === currUserId ? userId2 : userId1
 };
 
 module.exports = {

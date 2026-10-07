@@ -5,7 +5,6 @@ const { Sequelize, Op } = require("sequelize");
 const moment = require("moment-timezone");
 const path = require("path");
 const fs = require("fs");
-const crypto = require("crypto");
 const {
 	Product,
 	ProductCategoryMapping,
@@ -34,7 +33,6 @@ const {
 	sendProductDeletionEmailToBeautician,
 	sendProductDeletionEmailToAdmin,
 } = require("./email.service");
-// const sequelize = require("./central.db");
 
 const createProduct = async (body, files) => {
 	try {
@@ -71,13 +69,6 @@ const createProduct = async (body, files) => {
 		}
 
 		//  Check if barcode_id is already used
-		// const existingProduct = await Product.findOne({ where: { barcode_id } });
-		// if (existingProduct) {
-		// 	throw new ApiError(
-		// 		httpStatus.CONFLICT,
-		// 		"Barcode ID already exists. Please generate a new one."
-		// 	);
-		// }
 
 		let productObj = {
 			user_id: user.id,
@@ -905,198 +896,6 @@ const getAllProductsForUser = async (body, headers) => {
 	}
 };
 
-// const getAllProductsForUser = async (body, headers) => {
-// 	try {
-// 		const { user } = body;
-// 		const { role_id } = headers;
-
-// 		// Step 1: Check for role_id 6 and user address
-// 		if (role_id === "6") {
-// 			const userAddressExists = await UserAddress.findOne({
-// 				where: {
-// 					role_id: "6",
-// 					user_id: user.id,
-// 					is_active: true,
-// 				},
-// 			});
-
-// 			if (!userAddressExists) {
-// 				return {
-// 					status: 200,
-// 					message: "Please enter your location to view products.",
-// 				};
-// 			}
-// 		}
-
-// 		// Step 2: Fetch all products
-// 		const products = await Product.findAll({
-// 			attributes: ["id", "name", "price", "average_rating", "user_id"],
-// 			where: { is_active: true, status: "approved" },
-// 		});
-
-// 		// Step 3: Enhance each product with cart status and first attachment
-// 		const enhancedProducts = await Promise.all(
-// 			products.map(async (product) => {
-// 				// Get first attachment
-// 				const attachment = await ProductAttachment.findOne({
-// 					where: { product_id: product.id },
-// 					attributes: [
-// 						"id",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"product_id",
-// 					],
-// 					order: [["id", "ASC"]],
-// 				});
-
-// 				// Check if in cart
-// 				const [inCart] = await sequelize.query(
-// 					`SELECT EXISTS (
-// 						SELECT 1 FROM carts
-// 						WHERE product_id = ?
-// 						AND user_id = ?
-// 						AND is_active = 1
-// 					) AS is_cart`,
-// 					{
-// 						replacements: [product.id, user.id],
-// 						type: Sequelize.QueryTypes.SELECT,
-// 					}
-// 				);
-
-// 				return {
-// 					id: product.id,
-// 					name: product.name,
-// 					price: product.price,
-// 					average_rating: product.average_rating,
-// 					user_id: product.user_id,
-// 					product_attachments: attachment
-// 						? {
-// 								id: attachment.id,
-// 								file_type: attachment.file_type,
-// 								file_name: attachment.file_name,
-// 								file_uri: attachment.file_uri,
-// 								product_id: attachment.product_id,
-// 						  }
-// 						: null,
-// 					is_available_in_your_area: 1,
-// 					is_cart: inCart.is_cart === 1 ? 1 : 0,
-// 				};
-// 			})
-// 		);
-
-// 		return enhancedProducts;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
-// const getAllProductsForUser = async (body, headers) => {
-// 	try {
-// 		const { user, type } = body;
-// 		const { role_id } = headers;
-
-// 		// Step 1: Check for role_id 6 and user address
-// 		if (role_id === "6") {
-// 			const userAddressExists = await UserAddress.findOne({
-// 				where: {
-// 					role_id: "6",
-// 					user_id: user.id,
-// 					is_active: true,
-// 				},
-// 			});
-
-// 			if (!userAddressExists) {
-// 				return {
-// 					status: 200,
-// 					message: "Please enter your location to view products.",
-// 				};
-// 			}
-// 		}
-
-// 		// Step 2: Fetch all active products (basic details + attachments)
-// 		const cartProducts = await Product.findAll({
-// 			attributes: ["id", "name", "price", "average_rating", "user_id"],
-// 			where: { is_active: true, status: "approved" },
-// 			include: [
-// 				{
-// 					model: ProductAttachment,
-// 					as: "product_attachments",
-// 					attributes: [
-// 						"id",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"product_id",
-// 					],
-// 				},
-// 			],
-// 			raw: true,
-// 			nest: true,
-// 		});
-
-// 		// Step 3: Post-process to add is_available_in_your_area and is_cart
-// 		const enhancedProducts = await Promise.all(
-// 			cartProducts.map(async (product) => {
-// 				const [availability, inCart] = await Promise.all([
-// 					sequelize.query(
-// 						`SELECT EXISTS (
-// 							SELECT 1 FROM service_location AS sl
-// 							JOIN user_address AS ua
-// 							ON sl.state_id = ua.state_id AND sl.city_id = ua.city_id
-// 							WHERE sl.professional_id = ?
-// 							AND ua.user_id = ?
-// 							AND sl.is_active = 1
-// 							AND ua.is_active = 1
-// 						) AS is_available_in_your_area`,
-// 						{
-// 							replacements: [product.user_id, user.id],
-// 							type: Sequelize.QueryTypes.SELECT,
-// 						}
-// 					),
-// 					sequelize.query(
-// 						`SELECT EXISTS (
-// 							SELECT 1 FROM carts
-// 							WHERE product_id = ?
-// 							AND user_id = ?
-// 							AND is_active = 1
-// 						) AS is_cart`,
-// 						{
-// 							replacements: [product.id, user.id],
-// 							type: Sequelize.QueryTypes.SELECT,
-// 						}
-// 					),
-// 				]);
-
-// 				return {
-// 					...product,
-// 					is_available_in_your_area:
-// 						availability[0].is_available_in_your_area === 1 ? 1 : 0,
-// 					is_cart: inCart[0].is_cart === 1 ? 1 : 0,
-// 				};
-// 			})
-// 		);
-
-// 		// Step 4: Filter if type === "available"
-// 		const filteredProducts =
-// 			type === "available"
-// 				? enhancedProducts.filter(
-// 						(product) => product.is_available_in_your_area === 1
-// 				  )
-// 				: enhancedProducts;
-
-// 		return filteredProducts;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
 const getAllProductsForAdmin = async () => {
 	try {
 		const productDoc = await Product.findAll({
@@ -1445,50 +1244,7 @@ const provideServiceLocation = async (reqBody, res) => {
 		await ServiceLocation.bulkCreate(finalToCreate);
 	}
 
-	// return res.status(200).json({
-	// 	status: 200,
-	// 	message: "Locations processed successfully.",
-	// 	added: finalToCreate.length,
-	// 	removed,
-	// 	skipped: toCreate.length - finalToCreate.length,
-	// });
 };
-
-// const provideServiceLocation = async (reqBody) => {
-// 	const { locations, user } = reqBody;
-
-// 	if (!Array.isArray(locations) || locations.length === 0) {
-// 		return res.status(400).json({
-// 			status: 400,
-// 			message: "Invalid input. 'locations' should be a non-empty array.",
-// 		});
-// 	}
-
-// 	// Fetch state_id from DB if not provided
-// 	const resolvedLocations = await Promise.all(
-// 		locations.map(async (loc) => {
-// 			if (!loc.state_id && loc.city_id) {
-// 				const city = await City.findByPk(loc.city_id);
-// 				return {
-// 					state_id: city?.state_id,
-// 					city_id: loc.city_id,
-// 					role_id: "7",
-// 					professional_id: user.id,
-// 					country_id: 233,
-// 				};
-// 			}
-// 			return {
-// 				state_id: loc.state_id,
-// 				city_id: loc.city_id,
-// 				role_id: "7",
-// 				professional_id: user.id,
-// 				country_id: 233,
-// 			};
-// 		})
-// 	);
-
-// 	await ServiceLocation.bulkCreate(resolvedLocations);
-// };
 
 const getAllServiceLocations = async (body) => {
 	try {
@@ -1525,21 +1281,6 @@ const getAllServiceLocations = async (body) => {
 		}
 
 		// Check if the user has an active free trial or premium subscription
-		// if (!user.is_free_trial && !user.is_premium) {
-		// 	// If trial_start_date & trial_end_date exist but is_free_trial is false → Trial expired
-		// 	if (user.trial_start_date && user.trial_end_date) {
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"Your free trial has expired. Please subscribe to continue using this feature."
-		// 		);
-		// 	} else {
-		// 		// User has never started a trial or premium
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"You need to start a free trial or purchase a premium plan to access this feature."
-		// 		);
-		// 	}
-		// }
 
 		const locationDoc = await ServiceLocation.findAll({
 			where: { is_active: true, professional_id: user.id },

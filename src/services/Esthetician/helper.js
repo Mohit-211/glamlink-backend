@@ -41,57 +41,6 @@ function isSameDayOverlap(newInterval, existingIntervals, date) {
     return false;
 };
 
-// function getDayInfo(dateString, targetTimeZone) {
-//     // const utcDate = convertLocalToUtc(dateString, targetTimeZone);
-//     const utcDate = momentTz.tz(dateString, 'America/New_York');
-//     const localDate = momentTz.tz(dateString, targetTimeZone);
-
-//     const utcDayName = utcDate.format('dddd');
-//     const utcDayNumber = utcDate.date();
-//     const utcTime = utcDate.format('HH:mm:ss');
-//     const utcYear = utcDate.year();
-//     const utcWeekNumber = utcDate.isoWeek();
-//     const utcMonthName = utcDate.format('MMMM');
-//     const utcMonthNumber = utcDate.month() + 1;
-
-//     const localDayName = localDate.format('dddd');
-//     const localDayNumber = localDate.date();
-//     const localTime = localDate.format('HH:mm:ss');
-//     const localYear = localDate.year();
-//     const localWeekNumber = localDate.isoWeek();
-//     const localMonthName = localDate.format('MMMM');
-//     const localMonthNumber = localDate.month() + 1;
-
-//     return {
-//         utc: {
-//             dayName: utcDayName,
-//             dayNumber: utcDayNumber,
-//             date: utcDate.format('YYYY-MM-DD'),
-//             time: utcTime,
-//             year: utcYear,
-//             weekNumber: utcWeekNumber,
-//             monthName: utcMonthName,
-//             monthNumber: utcMonthNumber,
-//         },
-//         local: {
-//             dayName: localDayName,
-//             dayNumber: localDayNumber,
-//             date: localDate.format('YYYY-MM-DD'),
-//             time: localTime,
-//             year: localYear,
-//             weekNumber: localWeekNumber,
-//             monthName: localMonthName,
-//             monthNumber: localMonthNumber,
-//         },
-//     };
-// };
-
-// function convertLocalToUtc(localTimeString, sourceTimeZone) {
-//     const localMoment = momentTz.tz(localTimeString, sourceTimeZone);
-//     const utcMoment = localMoment.utc();
-//     return utcMoment;
-// };
-
 function generateTimeSlots(startTime, endTime, intervalMinutes) {
     const slots = [];
     let currentSlot = moment(startTime);
@@ -196,61 +145,13 @@ function getDatesForWeekCount(weekCount) {
     for (let i = 0; i < weekCount * 7; i++) {
         const currentDate = today.clone().add(i, 'days');
         const formattedDate = currentDate.format('YYYY-MM-DD');
-        //   const dayName = currentDate.format('dddd');
-        //   const weekNumber = currentDate.isoWeek();
-        //   const monthNumber = currentDate.month() + 1; // months are zero-based in moment.js
-        //   const monthName = currentDate.format('MMMM');
-        //   const year = currentDate.year();
 
-        // allDates.push({
-        //   date: formattedDate,
-        //   day: dayName,
-        //   weekNumber,
-        //   monthNumber,
-        //   monthName,
-        //   year,
-        // });
         allDates.push(formattedDate);
     }
 
     return allDates;
 };
 
-
-const adjustTimezone = (scheduleDoc, targetTimezone) => {
-    let adjustedScheduleDoc = JSON.parse(JSON.stringify(scheduleDoc));
-    return adjustedScheduleDoc.map(rule => {
-        const adjustedIntervals = rule.rule_intervals.map(interval => {
-            const originalDateTime = momentTz.tz(interval.date + ' ' + interval.from, rule.time_zone);
-            const targetDateTime = originalDateTime.clone().tz(targetTimezone);
-
-            // return {originalDateTime, targetDateTime}
-
-            // Check if the adjusted time crosses into the next day
-            const adjustedFrom = targetDateTime.isBefore(originalDateTime)
-                ? momentTz.tz(interval.date, targetTimezone).add(interval.duration_in_minuites, 'minutes').format('HH:mm:ss')
-                : targetDateTime.format('HH:mm:ss');
-
-            const adjustedTo = momentTz.tz(interval.date + ' ' + interval.to, rule.time_zone)
-                .clone()
-                .tz(targetTimezone)
-                .format('HH:mm:ss');
-
-            return {
-                ...interval,
-                from: adjustedFrom,
-                to: adjustedTo,
-                time_zone: targetTimezone,
-            };
-        });
-
-        return {
-            ...rule,
-            time_zone: targetTimezone,
-            rule_intervals: adjustedIntervals,
-        };
-    });
-};
 
 function getAllFutureDatesForDayInCurrentMonth(dayName) {
     const dates = [];
@@ -297,7 +198,6 @@ module.exports = {
     calculateTimeOffset,
     getTimeDifference,
     getDatesForWeekCount,
-    adjustTimezone,
     getAllFutureDatesForDayInCurrentMonth,
     getCurrentDayDetails,
 }

@@ -1,4 +1,3 @@
-const httpStatus = require('http-status');
 const catchAsync = require('../../utils/catchAsync');
 const { stripeServices } = require('../../services');
 const responseWrapper = require('../../config/responseWrapper');

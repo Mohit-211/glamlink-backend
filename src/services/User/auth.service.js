@@ -4,7 +4,6 @@ const httpStatus = require("http-status");
 const bcrypt = require("bcryptjs");
 const randomize = require("randomatic");
 const moment = require("moment");
-const { Op } = require("sequelize");
 const {
   OTP,
   User,
@@ -12,8 +11,6 @@ const {
   Profile,
   userLoginTiming,
   Timezone,
-  UserFees,
-  Price,
   BusinessCard,
 } = require("../../models");
 const validateEmail = require("../../helpers/validateEmail");
@@ -26,9 +23,6 @@ const {
 const { generateAuthTokens } = require("../Common/token.service");
 const { otpTypes, userStatusTypes } = require("../../config/types");
 const generateRandomString = require("../../utils/randomStringGenrate");
-const config = require("../../config/config");
-const { clearLoginRecords } = require("../Admin/adminOp.service");
-// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const sendOTP = async (body, headers) => {
   try {
@@ -489,15 +483,6 @@ const login = async (reqBody, headers) => {
         "Invalid email or password. Please try again.",
       );
     }
-
-    // const businessCards = await BusinessCard.findAll({
-    //   where: {
-    //     user_id: user.id,
-    //     is_active: true,
-    //   },
-    //   attributes: ["id", "payment_status","business_name"],
-    //   order: [["created_at", "DESC"]],
-    // });
 
     const token = await generateAuthTokens(user);
 

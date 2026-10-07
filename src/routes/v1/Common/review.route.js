@@ -5,7 +5,6 @@ const { reviewController } = require('../../../controllers');
 const { userAuthMiddleware } = require('../../../middlewares');
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken], reviewController.createReview);
-// router.put('/:review_id' , [userAuthMiddleware.verifyAuthJWTToken, userAuthMiddleware.isReviewOwner], reviewController.updateReview);
 router.get('/:counselor_id', [userAuthMiddleware.verifyAuthJWTToken], reviewController.getAllReviewByCounselorId);
 router.delete('/:review_id' , [userAuthMiddleware.verifyAuthJWTToken], reviewController.deleteReview);
 router.post('/remove-request' , [userAuthMiddleware.verifyAuthJWTToken], reviewController.raiseReviewRemoveRequest);

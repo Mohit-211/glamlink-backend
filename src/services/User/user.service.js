@@ -42,7 +42,6 @@ const {
   userLoginTiming,
   ReelLike,
   ReelComment,
-  Appointment,
   BookingSlot,
   Case,
   Booking,
@@ -176,32 +175,6 @@ const getProfile = async (body) => {
 
       user.dataValues.services = serviceDoc ? serviceDoc : [];
 
-      // const postDoc = await Post.findAll(
-      //     {
-      //         attributes: ['id', 'content', 'type', 'likes_count', 'comment_count', 'created_at'],
-      //         where: { user_id: user.id, is_active: true },
-      //         include: [
-      //             {
-      //                 model: PostAttachment,
-      //                 as: 'attachements',
-      //                 attributes: ['id', 'file_type', 'file_name', 'file_uri']
-      //             },
-      //             {
-      //                 model: PostLike,
-      //                 as: 'likes',
-      //                 where: { user_id: user.id, is_active: true },
-      //                 attributes: ['id', 'user_id', 'is_active'],
-      //                 required: false
-      //             }
-      //         ],
-      //         limit: 5,
-      //         order: [
-      //             ['id', 'DESC']
-      //         ]
-      //     }
-      // );
-
-      // user.dataValues.posts = postDoc ? postDoc : [];
     } else if (user.role_id === Number(config.USR_ROLE_ID)) {
       let reviewDoc = await Review.findAll({
         where: { is_active: true, user_id: user.id },
@@ -252,29 +225,6 @@ const getProfile = async (body) => {
 
       user.dataValues.reviews = reviewDoc ? reviewDoc : [];
 
-      // let likedPosts = await PostLike.findAll({
-      //     where: { user_id: user.id, is_active: true },
-      //     attributes: ['id', 'user_id', 'post_id', 'is_active'],
-      //     include: [
-      //         {
-      //             model: Post,
-      //             attributes: ['id', 'content', 'type', 'likes_count', 'comment_count', 'created_at'],
-      //             as: 'user_like_post_post',
-      //             include: [
-      //                 {
-      //                     model: PostAttachment,
-      //                     as: 'attachements',
-      //                     attributes: ['id', 'file_type', 'file_name', 'file_uri']
-      //                 }
-      //             ],
-      //         }
-      //     ],
-      //     limit: 5,
-      //     order: [
-      //         ['id', 'DESC']
-      //     ]
-      // });
-      // user.dataValues.posts_likes = likedPosts ? likedPosts : [];
     }
     const postDoc = await Post.findAll({
       attributes: [
@@ -1049,12 +999,6 @@ const updateProfile = async (body, files) => {
       files.images &&
       files.images.length !== 0
     ) {
-      // const oldAttachments = await UserAttachment.findAll({ where: { user_id: user.id, role_id: user.role_id, is_active: true, title: 'Profile Image' } });
-      // for (const oldAttachment of oldAttachments) {
-      //     const filePath = path.join(__dirname, '../../../public/uploads/images', oldAttachment.file_name);
-      //     await oldAttachment.destroy({ force: true });
-      //     fs.unlinkSync(filePath);
-      // }
 
       for (let i = 0; i < files.images.length; i++) {
         let currImage = files.images[i];
@@ -1936,468 +1880,6 @@ const getProfileById = async (body, params, query, isGuest) => {
   }
 };
 
-// const getProfileById = async (body, params, query) => {
-// 	try {
-// 		const { user } = body;
-// 		const { userId } = params;
-// 		const { latitude, longitude } = query;
-// 		if (!userId)
-// 			throw new ApiError(httpStatus.BAD_REQUEST, "User Id is required");
-
-// 		const userDoc = await User.findOne({
-// 			where: { id: userId, is_active: 1 },
-// 			attributes: [
-// 				"id",
-// 				"user_name",
-// 				"email",
-// 				"role_id",
-// 				"stripe_customer_id",
-// 				"socket_id",
-// 				"fcm_token",
-// 				"status",
-// 				"notification_status",
-// 				"allow_trial",
-// 				"referral_code",
-// 				"latitude",
-// 				"longitude",
-// 				"is_founder",
-// 			],
-// 			include: [
-// 				{
-// 					model: Profile,
-// 					as: "user_profile",
-// 					attributes: [
-// 						"id",
-// 						"name",
-// 						"dialing_code",
-// 						"qualification",
-// 						"language",
-// 						"mobile",
-// 						"is_active",
-// 						"created_at",
-// 						"about",
-// 						"overall_ratings",
-// 						"no_of_user_rated",
-// 						"no_of_user_reviewed",
-// 						"city_id",
-// 						"state_id",
-// 						"followee_count",
-// 						"follower_count",
-// 						"no_of_post_posted",
-// 						"no_of_service_provided",
-// 						"address",
-// 						"profession",
-// 						"user_coin_balances",
-// 						"external_booking",
-// 						"booking_link",
-// 					],
-// 				},
-// 				{
-// 					model: UserAttachment,
-// 					as: "user_attachments",
-// 					attributes: [
-// 						"id",
-// 						"title",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"role_id",
-// 					],
-// 					order: [["id", "desc"]],
-// 					where: { title: "Profile Image" },
-// 					limit: 1,
-// 				},
-// 				{
-// 					model: Role,
-// 					as: "user_role",
-// 					attributes: ["id", "name", "abbreviation"],
-// 				},
-// 				{
-// 					model: Follow,
-// 					as: "all_followee",
-// 					attributes: ["id", "follower_id", "followee_id"],
-// 					where: { follower_id: user.id, followee_id: userId, is_active: true },
-// 					required: false,
-// 				},
-// 				{
-// 					model: Album,
-// 					as: "user_albums",
-// 					attributes: [
-// 						"id",
-// 						"title",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"file_size",
-// 						"likes_count",
-// 						"comment_count",
-// 					],
-// 					order: [["id", "desc"]],
-// 					include: [
-// 						{
-// 							model: AlbumAttachment,
-// 							as: "album_attachments",
-// 							attributes: [
-// 								"id",
-// 								"caption",
-// 								"user_id",
-// 								"role_id",
-// 								"album_id",
-// 								"file_name",
-// 								"file_uri",
-// 								"title",
-// 								"file_type",
-// 								"likes_count",
-// 								"comment_count",
-// 							],
-// 						},
-// 					],
-// 				},
-// 				{
-// 					model: Reel,
-// 					as: "user_reels",
-// 					attributes: [
-// 						"id",
-// 						"description",
-// 						"user_id",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"file_size",
-// 						"is_active",
-// 						"likes_count",
-// 						"comment_count",
-// 						"thumbnail_file_type",
-// 						"thumbnail_file_name",
-// 						"thumbnail_file_uri",
-// 					],
-// 					where: { is_active: true },
-// 					order: [["id", "desc"]],
-// 					limit: 10,
-// 				},
-// 				{
-// 					model: UserAddress,
-// 					as: "user_address",
-// 					attributes: [
-// 						"id",
-// 						"role_id",
-// 						"user_id",
-// 						"shippo_address_id",
-// 						"address_lat",
-// 						"address_long",
-// 						"address_line_1",
-// 						"country_id",
-// 						"state_id",
-// 						"city_id",
-// 						"province_code",
-// 						"postal_code",
-// 						"is_active",
-// 					],
-// 					required: false,
-// 					include: [
-// 						{
-// 							model: Country,
-// 							as: "user_country",
-// 							attributes: ["id", "name", "iso3"],
-// 						},
-// 						{
-// 							model: State,
-// 							as: "user_state",
-// 							attributes: ["id", "name", "country_id", "iso2"],
-// 						},
-// 						{
-// 							model: City,
-// 							as: "user_city",
-// 							attributes: ["id", "name", "country_id", "state_id"],
-// 						},
-// 					],
-// 				},
-// 			],
-// 		});
-
-// 		if (!userDoc)
-// 			throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get Profile.");
-// 		if (
-// 			userDoc.all_followee &&
-// 			Array.isArray(userDoc.all_followee) &&
-// 			userDoc.all_followee.length !== 0
-// 		) {
-// 			userDoc.dataValues.is_follow = true;
-// 		} else {
-// 			userDoc.dataValues.is_follow = false;
-// 		}
-// 		if (userDoc.role_id === Number(config.CLLR_ROLE_ID)) {
-// 			let isUserReviewed = await Review.findOne({
-// 				where: { user_id: user.id, counselor_id: userId, is_active: true },
-// 			});
-// 			if (isUserReviewed) {
-// 				userDoc.dataValues.is_reviewed = true;
-// 			} else {
-// 				userDoc.dataValues.is_reviewed = false;
-// 			}
-// 			let reviewDoc = await Review.findAll({
-// 				where: { is_active: true, counselor_id: userDoc.id },
-// 				attributes: ["id", "text", "counselor_id", "user_id", "level"],
-// 				include: [
-// 					{
-// 						model: User,
-// 						as: "reviewed_by",
-// 						attributes: ["id", "latitude", "longitude", "role_id"],
-// 						include: [
-// 							{
-// 								model: Profile,
-// 								as: "user_profile",
-// 								attributes: [
-// 									"id",
-// 									"name",
-// 									"dialing_code",
-// 									"qualification",
-// 									"language",
-// 									"mobile",
-// 									"is_active",
-// 									"created_at",
-// 									"address",
-// 									"user_coin_balances",
-// 								],
-// 							},
-// 							{
-// 								model: UserAttachment,
-// 								as: "user_attachments",
-// 								attributes: [
-// 									"id",
-// 									"title",
-// 									"file_type",
-// 									"file_name",
-// 									"file_uri",
-// 									"role_id",
-// 								],
-// 								order: [["id", "desc"]],
-// 								where: { title: "Profile Image" },
-// 								limit: 1,
-// 							},
-// 						],
-// 					},
-// 				],
-// 				limit: 2,
-// 				order: [["id", "DESC"]],
-// 			});
-
-// 			userDoc.dataValues.reviews = reviewDoc ? reviewDoc : [];
-
-// 			const serviceDoc = await Service.findAll({
-// 				attributes: [
-// 					"id",
-// 					"name",
-// 					"description",
-// 					"category_id",
-// 					"price",
-// 					"duration",
-// 					"created_at",
-// 					[
-// 						sequelize.literal("DATE_FORMAT(created_at, '%Y-%m-%d %H:%i %p')"),
-// 						"formatted_created_at",
-// 					],
-// 					"updated_at",
-// 				],
-// 				where: { user_id: userDoc.id, is_active: true },
-// 				include: [
-// 					{
-// 						model: ServiceAttachment,
-// 						as: "attachements",
-// 						attributes: ["id", "file_type", "file_name", "file_uri"],
-// 					},
-// 				],
-// 				limit: 5,
-// 				order: [["id", "DESC"]],
-// 			});
-
-// 			userDoc.dataValues.services = serviceDoc ? serviceDoc : [];
-
-// 			// const postDoc = await Post.findAll(
-// 			//     {
-// 			//         attributes: ['id', 'content', 'type', 'likes_count', 'comment_count', 'created_at'],
-// 			//         where: { user_id: userDoc.id, is_active: true },
-// 			//         include: [
-// 			//             {
-// 			//                 model: PostAttachment,
-// 			//                 as: 'attachements',
-// 			//                 attributes: ['id', 'file_type', 'file_name', 'file_uri']
-// 			//             },
-// 			//             {
-// 			//                 model: PostLike,
-// 			//                 as: 'likes',
-// 			//                 where: { user_id: userDoc.id, is_active: true },
-// 			//                 attributes: ['id', 'user_id', 'is_active'],
-// 			//                 required: false
-// 			//             }
-// 			//         ],
-// 			//         limit: 5,
-// 			//         order: [
-// 			//             ['id', 'DESC']
-// 			//         ]
-// 			//     }
-// 			// );
-
-// 			// userDoc.dataValues.posts = postDoc ? postDoc : [];
-// 		} else if (userDoc.role_id === Number(config.USR_ROLE_ID)) {
-// 			let reviewDoc = await Review.findAll({
-// 				where: { is_active: true, user_id: userDoc.id },
-// 				attributes: ["id", "text", "counselor_id", "user_id", "level"],
-// 				include: [
-// 					{
-// 						model: User,
-// 						as: "reviewed_to",
-// 						attributes: ["id", "latitude", "longitude", "role_id"],
-// 						include: [
-// 							{
-// 								model: Profile,
-// 								as: "user_profile",
-// 								attributes: [
-// 									"id",
-// 									"name",
-// 									"dialing_code",
-// 									"qualification",
-// 									"language",
-// 									"mobile",
-// 									"is_active",
-// 									"created_at",
-// 									"address",
-// 									"user_coin_balances",
-// 								],
-// 							},
-// 							{
-// 								model: UserAttachment,
-// 								as: "user_attachments",
-// 								attributes: [
-// 									"id",
-// 									"title",
-// 									"file_type",
-// 									"file_name",
-// 									"file_uri",
-// 									"role_id",
-// 								],
-// 								order: [["id", "desc"]],
-// 								where: { title: "Profile Image" },
-// 								limit: 1,
-// 							},
-// 						],
-// 					},
-// 				],
-// 				limit: 2,
-// 				order: [["id", "DESC"]],
-// 			});
-
-// 			userDoc.dataValues.reviews = reviewDoc ? reviewDoc : [];
-
-// 			// let likedPosts = await PostLike.findAll({
-// 			//     where: { user_id: userDoc.id, is_active: true },
-// 			//     attributes: ['id', 'user_id', 'post_id', 'is_active'],
-// 			//     include: [
-// 			//         {
-// 			//             model: Post,
-// 			//             attributes: ['id', 'content', 'type', 'likes_count', 'comment_count', 'created_at'],
-// 			//             as: 'user_like_post_post',
-// 			//             include: [
-// 			//                 {
-// 			//                     model: PostAttachment,
-// 			//                     as: 'attachements',
-// 			//                     attributes: ['id', 'file_type', 'file_name', 'file_uri']
-// 			//                 }
-// 			//             ],
-// 			//         }
-// 			//     ],
-// 			//     limit: 5,
-// 			//     order: [
-// 			//         ['id', 'DESC']
-// 			//     ]
-// 			// });
-// 			// userDoc.dataValues.posts = likedPosts ? likedPosts : [];
-// 		}
-// 		const userAddressDoc = await UserAddress.findOne({
-// 			where: { role_id: userDoc.role_id, user_id: userDoc.id, is_active: true },
-// 		});
-// 		if (userAddressDoc && userAddressDoc?.address_line_1) {
-// 			let addressText = userAddressDoc.address_line_1;
-// 			if (userAddressDoc.city_id) {
-// 				let cityDoc = await City.findByPk(userAddressDoc.city_id);
-// 				if (cityDoc) {
-// 					addressText = `${addressText}, ${cityDoc.name}`;
-// 				}
-// 			}
-// 			if (userAddressDoc.state_id) {
-// 				let stateDoc = await State.findByPk(userAddressDoc.state_id);
-// 				if (stateDoc) {
-// 					addressText = `${addressText}, ${stateDoc.name}`;
-// 				}
-// 			}
-// 			if (userAddressDoc.country_id) {
-// 				let countryDoc = await Country.findByPk(userAddressDoc.country_id);
-// 				if (countryDoc) {
-// 					addressText = `${addressText}, ${countryDoc.name}`;
-// 				}
-// 			}
-
-// 			let location = await getCoordinates(addressText);
-// 			// return { location, latitude, longitude, distance }
-// 			if (location) {
-// 				if (latitude && longitude && location.lat && location.lng) {
-// 					// let distance = calculateDistanceInMiles(
-// 					// 	latitude,
-// 					// 	longitude,
-// 					// 	location.lat,
-// 					// 	location.lng
-// 					// );
-// 					// userDoc.dataValues.distance = formatDistance(distance);
-// 					let distance = await getRouteInfo(
-// 						latitude,
-// 						longitude,
-// 						location.lat,
-// 						location.lng
-// 					);
-// 					userDoc.dataValues.distance = distance;
-// 				}
-// 			}
-// 		}
-
-// 		const postDoc = await Post.findAll({
-// 			attributes: [
-// 				"id",
-// 				"content",
-// 				"type",
-// 				"likes_count",
-// 				"comment_count",
-// 				"created_at",
-// 			],
-// 			where: { user_id: userDoc.id, is_active: true },
-// 			include: [
-// 				{
-// 					model: PostAttachment,
-// 					as: "attachements",
-// 					attributes: ["id", "file_type", "file_name", "file_uri"],
-// 				},
-// 				{
-// 					model: PostLike,
-// 					as: "likes",
-// 					where: { user_id: userDoc.id, is_active: true },
-// 					attributes: ["id", "user_id", "is_active"],
-// 					required: false,
-// 				},
-// 			],
-// 			limit: 5,
-// 			order: [["id", "DESC"]],
-// 		});
-
-// 		userDoc.dataValues.posts = postDoc ? postDoc : [];
-
-// 		return userDoc;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
 const getCoordinates = async (address) => {
   const apiKey = "AIzaSyDJWk5KeqEk39Wjks-5iT9fy0RTQGCUea0";
   const encodedAddress = encodeURIComponent(address);
@@ -2457,11 +1939,6 @@ const getRouteInfo = async (originLat, originLng, destLat, destLng) => {
     const distanceMeters = route.distanceMeters;
     const distanceMiles = (distanceMeters / 1609.34).toFixed(2); // rounded to 2 decimals
 
-    // return {
-    //   distanceMeters,
-    //   distanceMiles,
-    //   duration: route.duration,
-    // };
     return formatDistance(Number(distanceMiles)) < 0
       ? "0 miles"
       : `${formatDistance(Number(distanceMiles))}`;
@@ -2482,42 +1959,8 @@ function formatDistance(distance) {
   }
 }
 
-function calculateDistanceInKm(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const distance = R * c; // Distance in kilometers
-  return distance;
-}
-
 function toRadians(degrees) {
   return degrees * (Math.PI / 180);
-}
-
-function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
-  const R = 3959; // Earth's radius in miles
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const distance = R * c; // Distance in miles
-  return distance;
 }
 
 function toRadians(degrees) {
@@ -2759,7 +2202,6 @@ const followAndUnfollwUser = async (body) => {
           });
         }
       }
-      // message = followDoc.is_active === true ? 'User Unfollowing Successfully.' : 'User Following Successfully';
       followDoc.is_active = !followDoc.is_active;
       await followDoc.save();
     }
@@ -2965,182 +2407,6 @@ const getAllFollowees = async (body, query) => {
 };
 
 //Need To Verify
-// const getUserFeed = async (body, headers, query, params) => {
-// 	const { user } = body;
-// 	const { timezone } = headers;
-// 	const { sortBy, limit, offset } = query;
-// 	const {} = params;
-// 	try {
-// 		// Get the list of users blocked by the current user
-// 		const blockedByUserIds = await UserBlock.findAll({
-// 			where: {
-// 				blocked_by: user.id,
-// 				is_active: true,
-// 			},
-// 			attributes: ["blocked_to"],
-// 		}).then((blocks) => blocks.map((block) => block.blocked_to));
-
-// 		// Get the list of users who have blocked the current user
-// 		const blockedToUserIds = await UserBlock.findAll({
-// 			where: {
-// 				blocked_to: user.id,
-// 				is_active: true,
-// 			},
-// 			attributes: ["blocked_by"],
-// 		}).then((blocks) => blocks.map((block) => block.blocked_by));
-
-// 		// Combine both lists to get the set of users to exclude
-// 		const blockedUserIds = [
-// 			...new Set([...blockedByUserIds, ...blockedToUserIds]),
-// 		];
-
-// 		let feedDoc = await Post.findAll({
-// 			where: {
-// 				is_active: true,
-// 				user_id: { [Op.notIn]: blockedUserIds },
-// 			},
-// 			attributes: [
-// 				"id",
-// 				"content",
-// 				"type",
-// 				"created_at",
-// 				"likes_count",
-// 				"comment_count",
-// 				"user_id",
-// 			],
-
-// 			include: [
-// 				{
-// 					model: Feed,
-// 					through: { attributes: [] },
-// 					where: { user_id: user.id },
-// 					attributes: [],
-// 					required: false,
-// 				},
-// 				{
-// 					model: PostLike,
-// 					as: "likes",
-// 					where: { user_id: user.id, is_active: true },
-// 					attributes: ["id", "user_id"],
-// 					required: false,
-// 				},
-// 				{
-// 					model: PostAttachment,
-// 					as: "attachements",
-// 					attributes: ["id", "file_type", "file_name", "file_uri"],
-// 				},
-// 				{
-// 					model: PostFavorite,
-// 					as: "saves",
-// 					where: { user_id: user.id, is_active: true },
-// 					attributes: ["id", "user_id"],
-// 					required: false,
-// 				},
-// 				{
-// 					model: User,
-// 					as: "created_by",
-// 					attributes: [
-// 						"id",
-// 						"email",
-// 						"user_name",
-// 						"referral_code",
-// 						"latitude",
-// 						"longitude",
-// 						"role_id",
-// 					],
-// 					include: [
-// 						{
-// 							model: Profile,
-// 							as: "user_profile",
-// 							attributes: [
-// 								"id",
-// 								"name",
-// 								"dialing_code",
-// 								"qualification",
-// 								"language",
-// 								"mobile",
-// 								"is_active",
-// 								"created_at",
-// 								"about",
-// 								"overall_ratings",
-// 								"no_of_user_rated",
-// 								"no_of_user_reviewed",
-// 								"address",
-// 								"user_coin_balances",
-// 							],
-// 						},
-// 						{
-// 							model: UserAttachment,
-// 							where: { title: "Profile Image" },
-// 							as: "user_attachments",
-// 							attributes: [
-// 								"id",
-// 								"title",
-// 								"file_type",
-// 								"file_name",
-// 								"file_uri",
-// 								"role_id",
-// 							],
-// 							order: [["id", "desc"]],
-// 							limit: 1,
-// 						},
-// 					],
-// 				},
-// 			],
-// 			limit: parseInt(limit),
-// 			offset: parseInt(offset),
-// 			order: [["created_at", `DESC`]],
-// 		});
-
-// 		if (!feedDoc || !Array.isArray(feedDoc) || feedDoc.length === 0) {
-// 			return [];
-// 		}
-// 		feedDoc.forEach((post) => {
-// 			const utcTimestamp = post.getDataValue("created_at");
-
-// 			const convertedTimestamp = moment
-// 				.utc(utcTimestamp)
-// 				.tz(timezone)
-// 				.format("DD MMM, YYYY hh:mm A");
-// 			post.setDataValue("post_date", convertedTimestamp);
-
-// 			const postCreatedTime = moment.utc(utcTimestamp);
-// 			const currentTime = moment().tz(timezone);
-// 			const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-// 			const daysDifference = duration.days();
-// 			const hoursDifference = duration.hours();
-// 			const minutesDifference = duration.minutes();
-// 			const secondsDifference = duration.seconds();
-
-// 			let formattedTime = "";
-// 			if (daysDifference >= 5) {
-// 				formattedTime = `${convertedTimestamp}`;
-// 			} else if (daysDifference >= 1) {
-// 				formattedTime = `${daysDifference}d`;
-// 			} else if (hoursDifference >= 1) {
-// 				formattedTime = `${hoursDifference}h`;
-// 			} else if (minutesDifference >= 1) {
-// 				formattedTime = `${minutesDifference}m`;
-// 			} else {
-// 				formattedTime = `${secondsDifference}s`;
-// 			}
-// 			post.setDataValue("time_ago", formattedTime);
-// 			post.setDataValue("is_liked", false);
-// 			post.setDataValue("is_saved", false);
-// 			if (post.likes && post.likes.length !== 0)
-// 				post.setDataValue("is_liked", true);
-// 			if (post.saves && post.saves.length !== 0)
-// 				post.setDataValue("is_saved", true);
-// 		});
-// 		return feedDoc;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
 
 const getUserFeed = async (body, headers, query, params, isGuest) => {
   try {
@@ -3430,17 +2696,6 @@ const getUserWall = async (body, headers, query, params) => {
   }
 };
 
-const extractHashtags = (content) => {
-  // Match all hashtags starting with '#' followed by any word characters or other characters like '@', '.', '_', etc.
-  return Array.from(
-    new Set(
-      (content.match(/#\S+/g) || []) // Match valid hashtags (starting with '#' and followed by non-whitespace characters)
-        .map((tag) => tag.replace(/^#/, "").toLowerCase())
-        .filter((tag) => /^[a-zA-Z0-9_]+$/.test(tag)),
-    ),
-  );
-};
-
 const getAllPostByTag = async (body, query, params) => {
   const { name, user } = body;
   if (name.length < 4)
@@ -3573,9 +2828,7 @@ const search = async (body, query, params) => {
 
     let result = {
       accounts: [],
-      // services: [],
       tags: [],
-      // reels: [],
       posts: [],
     };
 
@@ -3739,19 +2992,6 @@ const search = async (body, query, params) => {
       });
     }
 
-    // if (type && type === "services") {
-    // 	result["services"] = await Service.findAll({
-    // 		attributes: ["id", "name"],
-    // 		where: {
-    // 			name: { [Op.like]: `%${searchTerm}%` },
-    // 			is_active: true,
-    // 		},
-    // 		limit: parseInt(limit),
-    // 		offset: parseInt(offset),
-    // 		order: [["id", sortBy]],
-    // 	});
-    // }
-
     if (type && type === "tags") {
       result["tags"] = await Tag.findAll({
         attributes: ["id", "name"],
@@ -3764,34 +3004,6 @@ const search = async (body, query, params) => {
         order: [["id", sortBy]],
       });
     }
-
-    // if (type && type === "reels") {
-    // 	result["reels"] = await Reel.findAll({
-    // 		attributes: [
-    // 			"id",
-    // 			"description",
-    // 			"user_id",
-    // 			"file_type",
-    // 			"file_name",
-    // 			"file_uri",
-    // 			"file_size",
-    // 			"is_active",
-    // 			"likes_count",
-    // 			"comment_count",
-    // 			"thumbnail_file_type",
-    // 			"thumbnail_file_name",
-    // 			"thumbnail_file_uri",
-    // 			"created_at",
-    // 		],
-    // 		where: {
-    // 			description: { [Op.like]: `%${searchTerm}%` },
-    // 			is_active: true,
-    // 		},
-    // 		limit: parseInt(limit),
-    // 		offset: parseInt(offset),
-    // 		order: [["id", sortBy]],
-    // 	});
-    // }
 
     if (type && type === "posts") {
       result["posts"] = await Post.findAll({
@@ -3826,26 +3038,6 @@ const search = async (body, query, params) => {
       error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
       error.message,
     );
-  }
-};
-
-const sendNotification = async (reqBody) => {
-  const { title, body, url } = reqBody;
-
-  try {
-    await firebaseAdmin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title,
-        body,
-        url,
-      },
-    });
-    // Need to store in db
-    return "Successfully sent notifications!";
-  } catch (error) {
-    console.log(error);
-    return "Something went wrong While Sending Notification!";
   }
 };
 
@@ -4015,143 +3207,6 @@ const getAllRandomCounselorList = async (body, query, isGuest) => {
   }
 };
 
-// const getAllRandomCounselorList = async (body, query) => {
-// 	try {
-// 		const { user } = body;
-// 		const { sortBy, limit, offset } = query;
-
-// 		const userDocs = await User.findAll({
-// 			where: {
-// 				is_active: true,
-// 				is_promoted: true,
-// 				role_id: config.CLLR_ROLE_ID,
-// 				status: "ACCEPTED",
-// 				id: { [Op.ne]: user.id },
-// 			},
-// 			attributes: [
-// 				"id",
-// 				"user_name",
-// 				"email",
-// 				"role_id",
-// 				"stripe_customer_id",
-// 				"socket_id",
-// 				"fcm_token",
-// 				"status",
-// 				"notification_status",
-// 				"allow_trial",
-// 				"is_promoted",
-// 				"is_founder",
-// 			],
-// 			include: [
-// 				{
-// 					model: Profile,
-// 					as: "user_profile",
-// 					attributes: [
-// 						"id",
-// 						"name",
-// 						"dialing_code",
-// 						"qualification",
-// 						"language",
-// 						"mobile",
-// 						"is_active",
-// 						"created_at",
-// 						"about",
-// 						"overall_ratings",
-// 						"no_of_user_rated",
-// 						"no_of_user_reviewed",
-// 						"city_id",
-// 						"state_id",
-// 						"followee_count",
-// 						"follower_count",
-// 						"no_of_post_posted",
-// 						"no_of_service_provided",
-// 						"profession",
-// 						"user_coin_balances",
-// 					],
-// 				},
-// 				{
-// 					model: UserAttachment,
-// 					as: "user_attachments",
-// 					attributes: [
-// 						"id",
-// 						"title",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"role_id",
-// 					],
-// 					order: [["id", "desc"]],
-// 					where: { title: "Profile Image" },
-// 					limit: 1,
-// 				},
-// 				{
-// 					model: Role,
-// 					as: "user_role",
-// 					attributes: ["id", "name", "abbreviation"],
-// 				},
-// 				// {
-// 				//     model: Service,
-// 				//     as: 'all_service',
-// 				//     require: false,
-// 				//     // attributes: ['id', 'name', 'description', 'category_id', 'price', 'duration'],
-// 				//     // required: false,
-// 				//     // include: [
-// 				//     //     {
-// 				//     //         model: ServiceAttachment,
-// 				//     //         as: 'attachements',
-// 				//     //         attributes: ['id', 'file_type', 'file_name', 'file_uri']
-// 				//     //     }
-// 				//     // ],
-// 				// },
-// 			],
-// 			// order: Sequelize.literal("RAND()"),
-// 			limit: 5,
-// 			offset: parseInt(offset),
-// 		});
-// 		if (!userDocs)
-// 			throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get Profile.");
-// 		return userDocs;
-// 	} catch (error) {
-// 		console.log("11111111", error);
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
-// const searchBeautycianByPlaceApi = async (body, query) => {
-//     let { place, item, nextPageToken } = query;
-//     const { user} = body;
-
-//     if(!item) item = 'beautician';
-//     if(!place) place = 'Delhi';
-//     let response = [];
-
-//     try {
-//         let url = `${config.GOOGLE_PLACE_API_URL}?query=${item.toLowerCase()}+in+${place[0].toUpperCase() + place.slice(1).toLowerCase()}&key=${config.GOOGLE_PLACE_API_KEY}`;
-
-//         if (nextPageToken) {
-//             url += `&pagetoken=${nextPageToken}`;
-//         }
-
-//         let axiosConfig = {
-//             method: 'get',
-//             maxBodyLength: Infinity,
-//             url: url,
-//             headers: {}
-//         };
-
-//         let response = await axios.request(axiosConfig);
-//         let { html_attributions, next_page_token, results } = response.data;
-//         return response.data;
-
-//     } catch (error) {
-//         console.log(error)
-//         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-//     };
-// };
-
 const searchBeautycianByPlaceApi = async (body, query) => {
   let { place, item } = query;
   const { user } = body;
@@ -4211,8 +3266,6 @@ const addImageInsideProfile = async (body, files) => {
     });
     if (!albumDoc)
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Album Id");
-
-    // if (user.role_id === Number(config.USR_ROLE_ID)) throw new ApiError(httpStatus.BAD_REQUEST, 'Only Beautycians can do this action.');
 
     if (removeImageIds && removeImageIds.length !== 0) {
       let removeImagesArr = removeImageIds.split(",").map((elm) => Number(elm));
@@ -4765,147 +3818,6 @@ const getSuggestionUsersList = async (body, query) => {
   }
 };
 
-// const getSuggestionUsersList = async (body, query) => {
-// 	try {
-// 		const { user } = body;
-// 		const { sortBy, limit, offset, latitude, longitude, distance, profession } =
-// 			query;
-// 		let where = {
-// 			is_active: true,
-// 			id: { [Op.ne]: user.id },
-// 			role_id: {
-// 				[Op.in]: [Number(config.CLLR_ROLE_ID), Number(config.BRND_ROLE_ID)],
-// 			},
-// 		};
-
-// 		let profileCondition = {};
-// 		if (
-// 			profession &&
-// 			typeof profession !== "undefined" &&
-// 			profession !== "null"
-// 		) {
-// 			profileCondition["profession"] = profession;
-// 		}
-
-// 		let userDocs = await User.findAll({
-// 			where: where,
-// 			attributes: [
-// 				"id",
-// 				"user_name",
-// 				"email",
-// 				"role_id",
-// 				"stripe_customer_id",
-// 				"socket_id",
-// 				"fcm_token",
-// 				"status",
-// 				"notification_status",
-// 				"allow_trial",
-// 				"is_promoted",
-// 				"is_founder",
-// 			],
-// 			include: [
-// 				{
-// 					model: Profile,
-// 					as: "user_profile",
-// 					attributes: [
-// 						"id",
-// 						"name",
-// 						"dialing_code",
-// 						"qualification",
-// 						"language",
-// 						"mobile",
-// 						"is_active",
-// 						"created_at",
-// 						"about",
-// 						"overall_ratings",
-// 						"no_of_user_rated",
-// 						"no_of_user_reviewed",
-// 						"city_id",
-// 						"state_id",
-// 						"followee_count",
-// 						"follower_count",
-// 						"no_of_post_posted",
-// 						"no_of_service_provided",
-// 						"profession",
-// 						"user_coin_balances",
-// 					],
-// 					where: profileCondition,
-// 				},
-// 				{
-// 					model: UserAttachment,
-// 					as: "user_attachments",
-// 					attributes: [
-// 						"id",
-// 						"title",
-// 						"file_type",
-// 						"file_name",
-// 						"file_uri",
-// 						"role_id",
-// 					],
-// 					order: [["id", "desc"]],
-// 					where: { title: "Profile Image" },
-// 					limit: 1,
-// 				},
-// 				{
-// 					model: Role,
-// 					as: "user_role",
-// 					attributes: ["id", "name", "abbreviation"],
-// 				},
-// 			],
-// 			order: Sequelize.literal("RAND()"),
-// 			limit: 10,
-// 			offset: parseInt(offset),
-// 		});
-// 		if (!userDocs)
-// 			throw new ApiError(
-// 				httpStatus.BAD_REQUEST,
-// 				"Failed to Get suggestion users."
-// 			);
-
-// 		for (const userDoc of userDocs) {
-// 			const userAddressDoc = await UserAddress.findOne({
-// 				where: { user_id: userDoc.id },
-// 			});
-
-// 			if (userAddressDoc && userAddressDoc.address_line_1) {
-// 				let addressText = userAddressDoc.address_line_1;
-
-// 				if (userAddressDoc.city_id) {
-// 					const cityDoc = await City.findByPk(userAddressDoc.city_id);
-// 					if (cityDoc) addressText += `, ${cityDoc.name}`;
-// 				}
-// 				if (userAddressDoc.state_id) {
-// 					const stateDoc = await State.findByPk(userAddressDoc.state_id);
-// 					if (stateDoc) addressText += `, ${stateDoc.name}`;
-// 				}
-// 				if (userAddressDoc.country_id) {
-// 					const countryDoc = await Country.findByPk(userAddressDoc.country_id);
-// 					if (countryDoc) addressText += `, ${countryDoc.name}`;
-// 				}
-
-// 				const location = await getCoordinates(addressText);
-
-// 				if (location && latitude && longitude && location.lat && location.lng) {
-// 					const distance = await getRouteInfo(
-// 						latitude,
-// 						longitude,
-// 						location.lat,
-// 						location.lng
-// 					);
-// 					userDoc.dataValues.distance = distance;
-// 				}
-// 			}
-// 		}
-
-// 		return userDocs;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
 const startFreeTrial = async (reqBody) => {
   try {
     const { user } = reqBody;
@@ -4942,12 +3854,6 @@ const requestForPromotion = async (reqBody) => {
     const userDoc = await User.findByPk(user.id);
 
     // If user does not exist or is not premium, deny access
-    // if (!userDoc || !userDoc.is_premium) {
-    // 	throw new ApiError(
-    // 		httpStatus.FORBIDDEN,
-    // 		"Only premium users can request a promotion."
-    // 	);
-    // }
 
     // Toggle request_for_promotion field (true -> false, false -> true)
     const newStatus = !userDoc.request_for_promotion;
@@ -5416,68 +4322,6 @@ const updateExternalBooking = async (body) => {
     );
   }
 };
-
-// const analyzeSkin = async (body, files) => {
-//   const { user, face_analysis_id, question } = body;
-
-//   // 🧩 Case 1: Follow-up Question
-//   if (face_analysis_id && question && (!files || !files.images)) {
-//     // Get previous analysis
-//     const analysis = await FaceAnalysis.findOne({
-//       where: { id: face_analysis_id, user_id: user.id },
-//     });
-
-//     if (!analysis) {
-//       throw new ApiError(httpStatus.NOT_FOUND, "Face analysis not found");
-//     }
-
-//     // Ask AI based on existing summary
-//     const answer = await openaiService.askAIQuestion(analysis.summary, question);
-
-//     // Save to QnA table
-//     const record = await FaceAnalysisQnA.create({
-//       face_analysis_id,
-//       user_id: user.id,
-//       question,
-//       answer,
-//     });
-
-//     return {
-//       type: "follow_up",
-//       message: "Follow-up question answered successfully.",
-//       data: record,
-//     };
-//   }
-
-//   // 🧩 Case 2: New Image Analysis
-//   if (!files || !files.images)
-//     throw new ApiError(httpStatus.BAD_REQUEST, "Image is required");
-
-//   const userDoc = await User.findOne({ where: { id: user.id } });
-//   if (!userDoc) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
-
-//   // Call Face++ Skin Analyze
-//   const skinAnalysis = await faceppApi.analyzeSkin(files.images[0].path);
-//   if (!skinAnalysis) throw new ApiError(httpStatus.BAD_REQUEST, "Skin analysis failed");
-
-//   // Generate AI summary
-//   const summary = await openaiService.getAISkinExplanation(skinAnalysis.result);
-
-//   // Save record
-//   const record = await FaceAnalysis.create({
-//     user_id: user.id,
-//     image_path: files.images[0].path,
-//     face_token: skinAnalysis.request_id,
-//     raw_response: skinAnalysis,
-//     summary,
-//   });
-
-//   return {
-//     type: "analysis",
-//     message: "Face analysis completed successfully.",
-//     data: record,
-//   };
-// };
 
 const analyzeSkin = async (body, files) => {
   const { user, face_analysis_id, question } = body;

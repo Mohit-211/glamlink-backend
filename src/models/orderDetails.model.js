@@ -18,10 +18,6 @@ OrderDetails.init(
 			allowNull: false,
 			onDelete: "CASCADE",
 			onUpdate: "CASCADE",
-			// references: {
-			//   model: "orders",
-			//   key: "id",
-			// },
 		},
 		product_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
@@ -66,30 +62,6 @@ OrderDetails.init(
 			defaultValue: 0,
 		},
 
-		// total_price: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// },
-		// tax_amount: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// 	defaultValue: 0,
-		// },
-		// platform_fees: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// 	defaultValue: 0,
-		// },
-		// amount_including_tax: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// 	defaultValue: 0,
-		// },
-		// amount_excluding_tax: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// 	defaultValue: 0,
-		// },
 		payout_status: {
 			type: DataTypes.ENUM("PENDING", "COMPLETED"),
 			defaultValue: "PENDING",

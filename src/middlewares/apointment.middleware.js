@@ -1,10 +1,6 @@
 const httpStatus = require('http-status');
-const jwt = require('jsonwebtoken');
 
-const { User, OTP, UserToken, Profile, Role, UserAttachment, Speciality, Availability } = require('../models');
-const validateEmail = require('../helpers/validateEmail');
-const validatePassword = require('../helpers/validatePassword');
-const { tokenTypes, otpTypes, availabilityRuleTypes, daysOfWeek } = require('../config/types');
+const { Availability } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 
@@ -201,24 +197,8 @@ function convertTime(time) {
     }
 }
 
-const isApointmentOwnerOrCounselorOwner = catchAsync(async (req, res, next) => {
-    try {
-        let { id } = req.params;
-        if (!id) return responseWrapper(res, '', 'Please Provide Availability Id', httpStatus.BAD_REQUEST);
-        let { user } = req.body;
-        let availabilityDoc = await Availability.findOne({ where: { id: id, counselor_id: user.id } });
-        if (!availabilityDoc) return responseWrapper(res, '', 'Invalid Availabulity Id', httpStatus.BAD_REQUEST);
-        req.body.availabilityDoc = availabilityDoc;
-        next()
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-    }
-});
-
 
 
 module.exports = {
-    isApointmentOwnerOrCounselorOwner,
     validateCreateApointmentBody,
 };

@@ -22,14 +22,6 @@ Blog.init(
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        // blog_category_id: {
-        //     type: DataTypes.INTEGER,
-        //     allowNull: false,
-        //     references: {
-        //         model: 'blog_categories',
-        //         key: 'id',
-        //     },
-        // },
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true,

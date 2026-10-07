@@ -1,7 +1,7 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const { Sequelize, QueryTypes, Op } = require("sequelize");
+const { Op } = require("sequelize");
 const Stripe = require("stripe");
 const moment = require("moment");
 const crypto = require("crypto");
@@ -26,7 +26,6 @@ const {
 } = require("../../models");
 const catchAsync = require("../../utils/catchAsync");
 const ApiError = require("../../utils/ApiError");
-const pick = require("../../utils/pick");
 const responseWrapper = require("../../config/responseWrapper");
 const config = require("../../config/config");
 const {
@@ -230,12 +229,6 @@ const createPaymentIntent = catchAsync(async (req, res) => {
       const rounded = (val) => parseFloat(val.toFixed(2));
 
       const platformFee = rounded(amountExTax * 0.1);
-
-      // const amountExTax = lineItem.amount_excluding_tax;
-      // const amountTax = lineItem.tax_amount;
-      // const amountInTax = lineItem.amount_including_tax;
-
-      // const platformFee = Math.round(amountExTax * 0.1); // 10% fee
 
       orderDetails.push({
         order_id: null,
@@ -725,119 +718,6 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
           );
         }
 
-        // const card = await BusinessCard.findByPk(
-        //   paymentRecord.business_card_id,
-        // );
-        // const isPublicFlow = !paymentRecord.user_id;
-
-        // let user = null;
-        // let plainPassword = null;
-
-        // if (!isPublicFlow) {
-        //   user = await User.findByPk(paymentRecord.user_id);
-        // }
-
-        // if (isPublicFlow) {
-        //   plainPassword = crypto.randomBytes(5).toString("hex");
-
-        //   console.log("========================================");
-        //   console.log("GENERATED PASSWORD:", plainPassword);
-
-        //   const salt = bcrypt.genSaltSync(10);
-        //   const hashedPassword = bcrypt.hashSync(plainPassword, salt);
-
-        //   console.log("HASHED PASSWORD:", hashedPassword);
-        //   console.log(
-        //     "SELF COMPARE:",
-        //     bcrypt.compareSync(plainPassword, hashedPassword),
-        //   );
-
-        //   let username = card.name?.trim().toLowerCase().replace(/\s+/g, "");
-        //   let finalUsername = username;
-        //   let count = 1;
-
-        //   while (
-        //     await User.findOne({
-        //       where: {
-        //         user_name: finalUsername,
-        //       },
-        //     })
-        //   ) {
-        //     finalUsername = `${username}${count++}`;
-        //   }
-
-        //   user = await User.create({
-        //     email: card.email,
-        //     user_name: finalUsername,
-        //     role_id: "7",
-        //     status: "ACCEPTED",
-        //     password: hashedPassword,
-        //     stripe_customer_id: paymentRecord.stripe_customer_id,
-        //     stripe_subscription_id: paymentRecord.stripe_subscription_id,
-        //     subscription_status: "PENDING",
-        //   });
-
-        //   console.log("USER CREATED:", user.id);
-
-        //   // ================= LINK ACCESS CARD ADDRESS TO NEW USER =================
-
-        //   if (card.user_address_id) {
-        //     await UserAddress.update(
-        //       {
-        //         user_id: user.id,
-        //       },
-        //       {
-        //         where: {
-        //           id: card.user_address_id,
-        //           is_active: true,
-        //         },
-        //       },
-        //     );
-
-        //     console.log(
-        //       `✅ Address ${card.user_address_id} linked to newly created user ${user.id}`,
-        //     );
-        //   }
-
-        //   const freshUser = await User.findByPk(user.id);
-
-        //   console.log("PASSWORD FROM DB:", freshUser.password);
-
-        //   console.log(
-        //     "COMPARE AGAINST DB:",
-        //     bcrypt.compareSync(plainPassword, freshUser.password),
-        //   );
-
-        //   await Profile.create({
-        //     user_id: user.id,
-        //     name: card.name,
-        //     email: card.email,
-        //     mobile: card.phone,
-        //   });
-
-        //   await card.update({
-        //     user_id: user.id,
-        //   });
-
-        //   await paymentRecord.update({
-        //     user_id: user.id,
-        //   });
-
-        //   paymentRecord.user_id = user.id;
-
-        //   console.log("EMAIL PASSWORD:", plainPassword);
-        //   console.log("========================================");
-
-        //   await sendNewAccessUserEmail({
-        //     to: card.email,
-        //     name: card.name,
-        //     email: card.email,
-        //     password: plainPassword,
-        //     businessCardLink: card.business_card_link,
-        //     qrCodeUrl: card.business_card_qr,
-        //   });
-        // }
-
         const updates = {};
 
         updates.status = "accepted";
@@ -1155,8 +1035,6 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    // console.log(`⚠️ Unhandled event type: ${event.type}`);
-
     // ================= MONTHLY SUBSCRIPTION SUCCESS =================
 
     if (event.type === "invoice.payment_succeeded") {
@@ -1252,9 +1130,6 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       });
 
       if (paymentRecord) {
-        // const subscription = await stripe.subscriptions.retrieve(
-        //   invoice.subscription,
-        // );
 
         await User.update(
           {

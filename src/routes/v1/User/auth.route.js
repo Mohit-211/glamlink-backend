@@ -7,13 +7,6 @@ const { userAuthMiddleware } = require('../../../middlewares');
 router.use(userAuthMiddleware.setRoleIdIfNotPresent);
 
 
-// router.post("/test-header", (req, res) => {
-//   return res.json({
-//     headers: req.headers,
-//     rawHeaders: req.rawHeaders,
-//   });
-// });
-
 router.post('/otp', userAuthController.sendOTP);
 router.post('/verify-otp', userAuthController.verifyOTP);
 router.post('/register', [userAuthMiddleware.validateRegisterUserBody], userAuthController.register);

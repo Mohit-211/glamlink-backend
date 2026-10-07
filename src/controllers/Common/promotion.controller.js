@@ -2,7 +2,6 @@ const httpStatus = require('http-status');
 
 const catchAsync = require('../../utils/catchAsync');
 const { promotionService } = require('../../services');
-const pick = require('../../utils/pick');
 const responseWrapper = require('../../config/responseWrapper');
 
 const createUserPromotion = catchAsync(async (req, res) => {

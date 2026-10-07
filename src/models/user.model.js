@@ -3,7 +3,6 @@
 const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = require("../config/central.db");
 const { userStatusTypes } = require("../config/types");
-const crypto = require("crypto");
 
 class User extends Model {}
 User.init(
@@ -187,14 +186,6 @@ User.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    // business_card_link: {
-    // 	type: DataTypes.STRING,
-    // 	allowNull: true,
-    // },
-    // business_card_qr: {
-    // 	type: DataTypes.STRING,
-    // 	allowNull: true,
-    // },
     subscription_status: {
       type: DataTypes.ENUM("PENDING", "ACTIVE", "INACTIVE", "CANCELLED"),
       allowNull: false,
@@ -270,10 +261,6 @@ User.init(
   },
 );
 
-function generateRandomString(length) {
-  return crypto.randomBytes(length).toString("base64").slice(0, length);
-}
-
 User.afterCreate(async (user) => {
   const socketId = `${user.role_id}-${user.id}-socketId`;
   user.socket_id = socketId;
@@ -288,24 +275,6 @@ User.afterCreate(async (user) => {
     await user.save();
   }
 });
-
-function generateRandomLowercaseString(length) {
-  const possibleChars = "abcdefghijklmnopqrstuvwxyz";
-  let result = "";
-  while (result.length < length) {
-    const randomChar = possibleChars.charAt(
-      Math.floor(Math.random() * possibleChars.length),
-    );
-    result += randomChar;
-  }
-  return result;
-}
-
-function transformEmail() {
-  const additionalChars = generateRandomLowercaseString(10);
-  const additionalCharsAgain = generateRandomLowercaseString(5);
-  return additionalChars + "_" + additionalCharsAgain;
-}
 
 User.isEmailTaken = async function (email, role_id) {
   let u = await this.findOne({

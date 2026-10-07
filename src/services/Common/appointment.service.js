@@ -5,12 +5,10 @@ const moment = require("moment");
 const momentTz = require("moment-timezone");
 
 const {
-	Slot,
 	User,
 	Case,
 	Profile,
 	UserAttachment,
-	Notification,
 	Service,
 	ServiceAttachment,
 	Category,
@@ -23,11 +21,9 @@ const ApiError = require("../../utils/ApiError");
 const {
 	appointmentTypes,
 	notificationTypes,
-	notificationMediumTypes,
 	caseTypes,
 } = require("../../config/types");
 const config = require("../../config/config");
-const { Op } = require("sequelize");
 const { createNotification } = require("./notification.service");
 const { Sequelize } = require("../../config/central.db");
 const { sendAppointmentEmails } = require("./email.service");
@@ -471,22 +467,6 @@ const createAppointment = async (body, header) => {
 		await newBookingDoc.save();
 
 		await sendAppointmentEmails(newBookingDoc, timezone);
-		// const appointmentTimezone = slotDoc.time_zone;
-		// const slotStartTimeLocal = slotDoc.slot_start_time_local;
-		// const slotDateLocal = slotDoc.slot_date_local;
-
-		// const startTimeWithDate = momentTz.tz(`${slotDateLocal} ${slotStartTimeLocal}`, 'YYYY-MM-DD HH:mm:ss', appointmentTimezone).tz(timezone).format('DD MMMM hh:mm:ss A');
-
-		// let notificationObj = {
-		//     sender_id : user.id,
-		//     receiver_id: counselor_id,
-		//     type : notificationTypes.appointmentBooked,
-		//     medium: notificationMediumTypes.push,
-		//     time_zone: timezone,
-		//     event_time : startTimeWithDate,
-		//     is_active : false
-		// };
-		// await Notification.create(notificationObj);
 
 		try {
 			await createNotification({
@@ -864,36 +844,6 @@ const getAllAppointmentForProfessional = async (body) => {
 	try {
 		const { user, type, year, month } = body;
 
-		// if (
-		// 	user.is_form_filled &&
-		// 	(user.form_status === "pending" || user.form_status === null)
-		// ) {
-		// 	throw new ApiError(
-		// 		httpStatus.FORBIDDEN,
-		// 		"Your form is under review. Please wait for admin approval."
-		// 	);
-		// }
-		// if (user.is_form_filled && user.form_status === "rejected") {
-		// 	throw new ApiError(httpStatus.FORBIDDEN, "Your form is rejected.");
-		// }
-
-		// // Check if the user has an active free trial or premium subscription
-		// if (!user.is_free_trial && !user.is_premium) {
-		// 	// If trial_start_date & trial_end_date exist but is_free_trial is false → Trial expired
-		// 	if (user.trial_start_date && user.trial_end_date) {
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"Your free trial has expired. Please subscribe to continue using this feature."
-		// 		);
-		// 	} else {
-		// 		// User has never started a trial or premium
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"You need to start a free trial or purchase a premium plan to access this feature."
-		// 		);
-		// 	}
-		// }
-
 		let whereCondition = { is_active: true, counselor_id: user.id };
 
 		if (type === "year" && year) {
@@ -1021,19 +971,6 @@ const createAppointmentForEmployee = async (body, header) => {
 		const { timezone } = header;
 
 		// 1️⃣ Validate employee under this beautician
-		// const employeeDoc = await User.findOne({
-		// 	where: {
-		// 		id: employee_id,
-		// 		is_active: true,
-		// 	},
-		// 	attributes: ["id", "email"],
-		// });
-
-		// if (!employeeDoc)
-		// 	throw new ApiError(
-		// 		httpStatus.BAD_REQUEST,
-		// 		"Invalid or inactive employee."
-		// 	);
 
 		// 2️⃣ Validate service belongs to beautician or employee
 		const serviceDoc = await Service.findOne({
@@ -1193,16 +1130,6 @@ const deleteAppointment = async (body) => {
 		}
 
 		// 5️⃣ (Optional) send email or notification
-		// try {
-		// 	await createNotification({
-		// 		sender_id: bookingDoc.user_id,
-		// 		receiver_id: bookingDoc.counselor_id,
-		// 		timezone: timezone,
-		// 		type: notificationTypes.appointmentCancelled,
-		// 	});
-		// } catch (err) {
-		// 	console.log("Error sending cancellation notification:", err);
-		// }
 
 		return {
 			success: true,

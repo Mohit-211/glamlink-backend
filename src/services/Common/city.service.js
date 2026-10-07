@@ -10,8 +10,6 @@ const getAllCity = async (body, query, params) => {
             {
                 attributes: ['id', 'name'],
                 where: { is_active: 1 },
-                // limit: parseInt(query['limit']),
-                // offset: parseInt(query['offset']),
                 order: [
                     ['name', 'ASC']
                 ]

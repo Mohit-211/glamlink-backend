@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { orderController } = require('../../../controllers');
-const { userAuthMiddleware, roleMiddleware } = require('../../../middlewares');
+const { userAuthMiddleware } = require('../../../middlewares');
 
 router.post('/createOrder',[userAuthMiddleware.verifyAuthJWTToken], orderController.createOrder);
 router.get('/getAllUserOrders',[userAuthMiddleware.verifyAuthJWTToken], orderController.getAllUserOrders);

@@ -21,11 +21,6 @@ Order.init(
 			type: DataTypes.BIGINT.UNSIGNED,
 			allowNull: false,
 			onDelete: "CASCADE",
-			// onUpdate: "CASCADE",
-			// references: {
-			// 	model: "users",
-			// 	key: "id",
-			// },
 		},
 		address_id: {
 			type: DataTypes.BIGINT.UNSIGNED,

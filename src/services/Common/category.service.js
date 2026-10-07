@@ -3,7 +3,7 @@ const httpStatus = require('http-status');
 const moment = require('moment')
 const { Category, ServiceList } = require('../../models');
 const ApiError = require('../../utils/ApiError');
-const { Op, fn, col, literal } = require('sequelize'); 
+const { literal } = require('sequelize'); 
 
 
 const createCategory = async (reqBody) => {
@@ -150,20 +150,6 @@ const deleteCategory = async (body) => {
 };
 
 
-
-// const deleteCategory = async (id) => {
-
-//     try {
-//         const category = await Category.findByPk(id);
-//         if (!category) {
-//             throw new ApiError(httpStatus.NOT_FOUND, 'Category not found');
-//         }
-//         await category.destroy();
-
-//     } catch (error) {
-//         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-//     }
-// };
 
 module.exports = {
     findCategoryById,

@@ -10,8 +10,6 @@ const getAllState = async (body, query, params) => {
             {
                 attributes: ['id', 'name'],
                 where: { is_active: 1, country_id: 233 },
-                // limit: parseInt(query['limit']),
-                // offset: parseInt(query['offset']),
                 order: [
                     ['name', 'ASC']
                 ]

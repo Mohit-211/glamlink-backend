@@ -5,7 +5,6 @@ const { schedularController } = require('../../../controllers');
 const { userAuthMiddleware, schedularMiddleware } = require('../../../middlewares');
 
 
-// router.post('/availability', [userAuthMiddleware.verifyAuthJWTToken, schedularMiddleware.validateCreateScheduleBody], schedularController.createAvailability);
 router.post('/availability', [userAuthMiddleware.verifyAuthJWTToken, schedularMiddleware.validateCreateScheduleBody], schedularController.createAvailability);
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken, schedularMiddleware.validateFetchAvailabilityForUser], schedularController.getAvailabilityByCounselorId);
 router.get('/', [userAuthMiddleware.verifyAuthJWTToken], schedularController.getSchedulRuleAndIntervalByCounselorToken);

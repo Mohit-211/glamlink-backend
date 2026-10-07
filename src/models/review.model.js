@@ -18,12 +18,6 @@ Review.init(
         counselor_id: {
             type: DataTypes.BIGINT.UNSIGNED,
             allowNull: false,
-            // onDelete: 'CASCADE',
-            // onUpdate: 'CASCADE',
-            // references: {
-            //     model: 'users',
-            //     key: 'id',
-            // },
         },
         user_id: {
             type: DataTypes.BIGINT.UNSIGNED,

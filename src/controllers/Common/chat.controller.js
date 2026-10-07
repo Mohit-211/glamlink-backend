@@ -1,12 +1,7 @@
-const express = require('express');
-const firebase = require('firebase-admin');
 const httpStatus = require('http-status');
 
 const catchAsync = require('../../utils/catchAsync');
-const logger = require('../../config/logger');
-const config = require('../../config/config');
 const pick = require('../../utils/pick');
-const { User, UserToken } = require('../../models');
 const responseWrapper = require('../../config/responseWrapper');
 const { chatService } = require('../../services/Common');
 

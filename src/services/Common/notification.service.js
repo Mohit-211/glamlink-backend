@@ -179,11 +179,7 @@ const createNotification = async (reqBody) => {
 
         if ([notificationTypes.appointmentRequest, notificationTypes.appointmentBooked, notificationTypes.appointmentCanceled, notificationTypes.trialBooked, notificationTypes.trialCanceled, notificationTypes.addReview, notificationTypes.follow, notificationTypes.postComment, notificationTypes.postLike, notificationTypes.postShare, notificationTypes.reelComment, notificationTypes.reelLike].includes(notificationType)) {
             const receiverTokens = await getUniqueFCMTokens(receiver_id);
-            // const senderTokens = notificationType === notificationTypes.appointmentBooked || notificationType === notificationTypes.appointmentCanceled
-            //     ? await getUniqueFCMTokens(sender_id)
-            //     : [];
 
-            // registrationTokens = [...receiverTokens, ...senderTokens];
             registrationTokens = receiverTokens;
             console.log(" 222222222222222222: Register tokens: ", registrationTokens);
 

@@ -1,6 +1,5 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/central.db');
-const slugify = require('slugify');
 
 class Album extends Model { };
 Album.init(

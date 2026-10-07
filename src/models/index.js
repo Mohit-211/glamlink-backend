@@ -64,8 +64,6 @@ const ServiceAttachment = require("./serviceAttachment.model");
 const Permission = require("./permission.model");
 const PermissionUser = require("./userPermission.model");
 
-const SubscriptionPlan = require("./subscription_plan.model");
-const UserSubscription = require("./user_subscription.model");
 
 const Album = require("./album.model");
 const AlbumComment = require("./albumComment.model");
@@ -233,8 +231,6 @@ module.exports = {
   Permission,
   PermissionUser,
 
-  SubscriptionPlan,
-  UserSubscription,
 
   BlogCategory,
   Blog,
@@ -498,22 +494,6 @@ async function initTableRelation() {
     as: "slot_interval",
   });
 
-  // Appointment
-  // User.hasMany(Appointment, { foreignKey: 'user_id', as: 'user_appointments' });
-  // Appointment.belongsTo(User, { foreignKey: 'user_id', as: 'appointment_user' });
-
-  // User.hasMany(Appointment, { foreignKey: 'counselor_id', as: 'counselor_appointments' });
-  // Appointment.belongsTo(User, { foreignKey: 'counselor_id', as: 'appointment_counselor' });
-
-  // Slot.hasMany(Appointment, { foreignKey: 'slot_id', as: 'slot_appointments' });
-  // Appointment.belongsTo(Slot, { foreignKey: 'slot_id', as: 'appointment_slot' });
-
-  // Appointment.hasOne(Payment, { foreignKey: 'appointment_id', as: 'appointment_payment' });
-  // Payment.belongsTo(Appointment, { foreignKey: 'appointment_id', as: 'payment_appointment' });
-
-  // ScheduleRule.hasMany(RuleInterval, { foreignKey: 'rule_id', as: 'rule_intervals' });
-  // RuleInterval.belongsTo(ScheduleRule, { foreignKey: 'rule_id', as: 'interval_rule' });
-
   // Booking
   User.hasMany(Booking, { foreignKey: "user_id", as: "user_appointments" });
   Booking.belongsTo(User, { foreignKey: "user_id", as: "appointment_user" });
@@ -645,9 +625,6 @@ async function initTableRelation() {
     as: "attachment_service",
   });
 
-  // Service.hasMany(Appointment, { foreignKey: 'service_id', as: 'service_appointments' });
-  // Appointment.belongsTo(Service, { foreignKey: 'service_id', as: 'appointment_service' });
-
   Service.hasMany(Booking, {
     foreignKey: "service_id",
     as: "service_appointments",
@@ -669,24 +646,7 @@ async function initTableRelation() {
 
   Permission.hasMany(Permission, { foreignKey: "parent_id", as: "children" });
 
-  //Subscription
-  User.hasOne(UserSubscription, {
-    foreignKey: "user_id",
-    as: "user_subscription",
-  });
-  UserSubscription.belongsTo(User, {
-    foreignKey: "user_id",
-    as: "subscription_user",
-  });
-  UserSubscription.belongsTo(SubscriptionPlan, {
-    foreignKey: "subscription_plan_id",
-    as: "user_subscription_plan",
-  });
-
   //Blog
-
-  // BlogCategory.hasMany(Blog, { foreignKey: 'blog_category_id', as: 'all_blogs' });
-  // Blog.belongsTo(BlogCategory, { foreignKey: 'blog_category_id', as: 'blog_category' });
 
   Blog.belongsToMany(BlogCategory, {
     through: "BlogCategoryMapping",
@@ -735,8 +695,6 @@ async function initTableRelation() {
   Reel.belongsTo(User, { foreignKey: "user_id", as: "reel_user" });
 
   Reel_Tag.belongsTo(Tag, { foreignKey: "tag_id", as: "tag" });
-  // Reel.belongsToMany(Tag, { through: Reel_Tag, foreignKey: "reel_id" });
-  // Tag.belongsToMany(Post, { through: Reel_Tag, foreignKey: "tag_id" });
 
   ReelLike.belongsTo(User, { foreignKey: "user_id", as: "reel_liked_by" });
   Reel.hasMany(ReelLike, { foreignKey: "reel_id", as: "reel_likes" });

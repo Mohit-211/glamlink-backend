@@ -38,10 +38,8 @@ const getCountryId = async (body, query, params) => {
                         model: State,
                         as: 'all_state',
                         attributes: ['id', 'name', 'country_id'],
-                        // order: [['name', 'ASC']]
                     }
                 ],
-                // where: { is_active: 1, id: params.id }
                 where: { is_active: 1, id: 233 } ,
                 order: [[{ model: State, as: 'all_state' }, 'name', 'ASC']]
             }

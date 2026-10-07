@@ -1,19 +1,9 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-const { Sequelize, QueryTypes, Op } = require("sequelize");
-const moment = require("moment");
-const randomize = require("randomatic");
-const axios = require("axios");
 
-const sequelize = require("../../config/central.db");
-const { Admin, Role, Faq, Timezone } = require("../../models");
-const validateEmail = require("../../helpers/validateEmail");
-const validatePassword = require("../../helpers/validatePassword");
+const { Faq } = require("../../models");
 const ApiError = require("../../utils/ApiError");
-const { logger } = require("../../config/logger");
 
 const createFaq = async (reqBody) => {
 	try {
@@ -42,7 +32,6 @@ const getAllFaq = async () => {
 		const faqDoc = await Faq.findAll({
 			attributes: ["id", "question", "answer"],
 			where: { is_active: true },
-			// order: [['created_at', 'DESC']]
 		});
 		if (!faqDoc) {
 			throw new ApiError(
@@ -62,7 +51,6 @@ const getAllFaq = async () => {
 const getFaqById = async (id) => {
 	try {
 		const faqDoc = await Faq.findOne({
-			// attributes: ["id", "question", "answer"],
 			where: { is_active: true, id: id },
 		});
 		if (!faqDoc) {

@@ -2,12 +2,10 @@
 
 const httpStatus = require("http-status");
 const bcrypt = require("bcryptjs");
-const randomize = require("randomatic");
-const jwt = require("jsonwebtoken");
 const Sequelize = require("sequelize");
 const momentTz = require("moment-timezone");
 const moment = require("moment");
-const { fn, col, literal } = require("sequelize");
+const { literal } = require("sequelize");
 const slugify = require("slugify");
 
 const {
@@ -20,9 +18,7 @@ const {
   Price,
   Profile,
   UserAttachment,
-  Appointment,
   Payment,
-  Slot,
   userLoginTiming,
   Timezone,
   Permission,
@@ -58,8 +54,6 @@ const {
   ReelLike,
   Feed,
   UserToken,
-  UserBlock,
-  UserReport,
   PostFavorite,
   Review,
   ProductAttachment,
@@ -74,9 +68,7 @@ const {
 } = require("../../models");
 const ApiError = require("../../utils/ApiError");
 const config = require("../../config/config");
-const { emailService } = require("../Common");
 const {
-  otpTypes,
   userStatusTypes,
   feesChangeRequestTypes,
   appointmentTypes,
@@ -85,7 +77,6 @@ const {
 const { Op } = require("sequelize");
 
 const {
-  sendUserCredentialEmail,
   sendUserDeletionSummaryToAdmin,
   sendUserDeletionEmail,
 } = require("../Common/email.service");
@@ -306,27 +297,6 @@ const getAllPriceChangeRequest = async (query) => {
         "status",
         "old_duration",
       ],
-      // include: [
-      //     {
-      //         model: User,
-      //         as: 'fees_change_request_user',
-      //         attributes: ['id', 'email'],
-      //         include: [
-      //             {
-      //                 model: Profile,
-      //                 as: 'user_profile',
-      //                 attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'about', 'overall_ratings', 'no_of_user_rated', 'no_of_user_reviewed'],
-      //             },
-      //             {
-      //                 model: UserAttachment,
-      //                 as: 'user_attachments',
-      //                 attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
-      //                 order: [['id', 'desc']],
-      //                 limit: 1,
-      //             },
-      //         ]
-      //     },
-      // ],
       where: { is_active: true, status: feesChangeRequestTypes.PENDING },
       order: [["id", "DESC"]],
     });
@@ -842,8 +812,6 @@ const deleteUser = async (body) => {
 
         UserToken.destroy({ where: { user_id: userId } }),
         userLoginTiming.destroy({ where: { user_id: userId } }),
-        // UserBlock.destroy({ where: { user_id: userId } }),
-        // UserReport.destroy({ where: { user_id: userId } }),
         UserAddress.destroy({ where: { user_id: userId } }),
         UserAttachment.destroy({ where: { user_id: userId } }),
         Profile.destroy({ where: { user_id: userId } }),
@@ -851,7 +819,6 @@ const deleteUser = async (body) => {
 
       // Delete user
       await user.destroy();
-      // console.log("Deleting from OrderDetails with where:", whereClause);
 
       await sendUserDeletionEmail(userEmail);
 
@@ -1440,8 +1407,6 @@ const createUser = async (body) => {
         "Failed to create New Record",
       );
 
-    // await sendUserCredentialEmail(email, password);
-
     return "";
   } catch (error) {
     throw new ApiError(
@@ -1572,28 +1537,6 @@ const getAllPost = async (body, query, params, headers) => {
   }
 };
 
-// const deletePostById = async (body, params) => {
-// 	try {
-// 		const { user } = body;
-// 		const { id } = params;
-// 		const postDoc = await Post.findOne({ where: { id: id, is_active: true } });
-// 		const profileDoc = await Profile.findOne({
-// 			where: { user_id: postDoc.user_id, is_active: true },
-// 		});
-// 		if (!postDoc) throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Post Id");
-// 		await postDoc.destroy();
-// 		profileDoc.no_of_post_posted =
-// 			profileDoc.no_of_post_posted > 0 ? profileDoc.no_of_post_posted - 1 : 0;
-// 		await profileDoc.save();
-// 		return "OK";
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
-
 const deletePostById = async (body) => {
   try {
     if (!Array.isArray(body.post_id) || body.post_id.length === 0) {
@@ -1715,22 +1658,6 @@ const getAllReel = async (body, query, params, headers) => {
     );
   }
 };
-
-// const deleteReelById = async (body, params) => {
-// 	try {
-// 		const { user } = body;
-// 		const { id } = params;
-// 		const reelDoc = await Reel.findOne({ where: { id: id, is_active: true } });
-// 		if (!reelDoc) throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Reel Id");
-// 		await reelDoc.destroy();
-// 		return "OK";
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
 
 const deleteReelById = async (body) => {
   try {
@@ -2167,25 +2094,6 @@ const getUserPromotions = async (user_id) => {
     );
   }
 };
-
-// const promotedToogle = async (body) => {
-// 	try {
-// 		const { user, user_id } = body;
-// 		const userDoc = await User.findOne({
-// 			attributes: ["id", "email", "role_id", "is_promoted"],
-// 			where: { is_active: true, id: user_id, role_id: config.CLLR_ROLE_ID },
-// 		});
-// 		if (!userDoc) throw new ApiError(httpStatus.BAD_REQUEST, "User Not Found");
-// 		userDoc.is_promoted = !userDoc.is_promoted;
-// 		await userDoc.save();
-// 		return userDoc;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
 
 const getAllPromotionRequest = async (reqBody) => {
   try {

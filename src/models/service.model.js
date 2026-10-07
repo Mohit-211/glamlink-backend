@@ -32,18 +32,10 @@ Service.init(
         user_id: {
             type: DataTypes.BIGINT.UNSIGNED,
             allowNull: false,
-            // references: {
-            //     model: 'users',
-            //     key: 'id',
-            // },
         },
         category_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
-            // references: {
-            //     model: 'categories',
-            //     key: 'id',
-            // },
         },
         is_active: {
             type: DataTypes.BOOLEAN,

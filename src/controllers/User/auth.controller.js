@@ -90,15 +90,6 @@ const register = catchAsync(async (req, res) => {
   );
 });
 
-// const register = catchAsync(async (req, res) => {
-
-//     // const body = pick(req.body, ['name', 'email', 'mobile', 'password', 'confirm_password', 'about', 'city_id', 'state_id', 'referral_code', 'latitude', 'longitude', 'address', 'profession', 'user_name']);
-//     const headers = pick(req.headers, ['role_id']);
-//     console.log("headers",headers)
-//     let response = await userAuthService.register(req.body, req.files, headers);
-//     return responseWrapper(res, response, 'User Created Successfully. Please Check Your Email to verify Your Account.', httpStatus.CREATED);
-// });
-
 const singleSignOn = catchAsync(async (req, res) => {
     const body = pick(req.body, ['name', 'email', 'provider', 'provider_id', 'latitude', 'longitude', 'profession', 'ip_address']);
     const headers = pick(req.headers, ['role_id', 'timezone', 'fcm_token']);

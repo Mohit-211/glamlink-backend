@@ -228,20 +228,6 @@ const getAllBannerByProfessional = async (reqBody) => {
 		const { user } = reqBody;
 
 
-		// if (!user.is_promoted) {
-		// 	throw new ApiError(
-		// 		httpStatus.FORBIDDEN,
-		// 		"To access this feature, please buy a promotion using your available credit."
-		// 	);
-		// }
-
-		// if (!user.is_promoted && !user.request_for_promotion) {
-		// 	throw new ApiError(
-		// 		httpStatus.FORBIDDEN,
-		// 		"Only promoted beauticians can access this API."
-		// 	);
-		// }
-
 		const productDoc = await BannerMedia.findAll({
 			where: { is_active: true, user_id: user.id },
 			order: [["id", `ASC`]],

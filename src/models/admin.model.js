@@ -21,12 +21,6 @@ Admin.init({
     department_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
-        // onDelete:'RESTRICT',
-        // onUpdate: 'CASCADE',
-        // references: {
-        //     model: 'departments',
-        //     key: 'id',
-        // }
     },
     name: {
         type: DataTypes.STRING(200),

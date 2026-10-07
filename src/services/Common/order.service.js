@@ -433,22 +433,6 @@ const editAddress = async (body, id) => {
     addressDoc.shippo_address_id = shippoResponse.object_id;
     await addressDoc.save();
 
-    // const businessCard = await BusinessCard.findOne({
-    //   where: {
-    //     user_id: user.id,
-    //     payment_status: "pending",
-    //   },
-    //   order: [["id", "DESC"]],
-    // });
-
-    // if (businessCard) {
-    //   await businessCard.update({
-    //     address_verified: true,
-    //     user_address_id: addressDoc.id,
-    //     shipping_amount: 0,
-    //   });
-    // }
-
     return addressDoc;
   } catch (error) {
     throw new ApiError(
@@ -894,48 +878,6 @@ const getOrderById = async (id) => {
     );
   }
 };
-
-// const updateOrderStatus = async (id, reqBody) => {
-// 	try {
-// 		const orderDoc = await OrderDetails.findOne({
-// 			where: {
-// 				id: id,
-// 			},
-// 		});
-
-// 		if (!orderDoc) {
-// 			throw new ApiError(
-// 				httpStatus.NOT_FOUND,
-// 				"No orders found for the given order_id"
-// 			);
-// 		}
-
-// 		// Check and update order_status if provided
-// 		if (reqBody.order_status) {
-// 			orderDoc.order_status = reqBody.order_status;
-// 		}
-
-// 		// Check and update estimated_date if provided
-// 		if (reqBody.estimated_date) {
-// 			orderDoc.estimated_date = reqBody.estimated_date;
-// 		}
-
-// 		// Check and update tracking_link if provided
-// 		if (reqBody.tracking_link) {
-// 			orderDoc.tracking_link = reqBody.tracking_link;
-// 		}
-
-// 		// Save the updated order
-// 		await orderDoc.save();
-
-// 		return orderDoc;
-// 	} catch (error) {
-// 		throw new ApiError(
-// 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-// 			error.message
-// 		);
-// 	}
-// };
 
 const updateOrderStatus = async (id, reqBody) => {
   try {

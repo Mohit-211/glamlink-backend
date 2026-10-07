@@ -16,10 +16,6 @@ Profile.init(
 			allowNull: true,
 			onDelete: "CASCADE",
 			onUpdate: "CASCADE",
-			// references: {
-			// 	model: "users",
-			// 	key: "id",
-			// },
 		},
 		country_id: {
 			type: DataTypes.INTEGER,

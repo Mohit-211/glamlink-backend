@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const slugify = require("slugify");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment-timezone");
 
@@ -10,17 +9,12 @@ const {
 	Service,
 	ServiceAttachment,
 	Booking,
-	Payment,
 	Category,
-	SubCategory,
 	BookingSlot,
 	ServiceList,
 	Profile,
 } = require("../../models");
 const ApiError = require("../../utils/ApiError");
-const { use } = require("passport");
-const { includes } = require("lodash");
-const { where } = require("../../config/central.db");
 
 const createService = async (body, files) => {
 	const { name, description, category_id, price, duration, user } = body;
@@ -233,19 +227,6 @@ const getAllServiceNameByUserId = async (id) => {
 				"duration",
 			],
 			where: { user_id: id, is_active: true },
-			// include: [
-			// 	{
-			// 		model: ServiceAttachment,
-			// 		as: "attachements",
-			// 		attributes: ["id", "file_type", "file_name", "file_uri"],
-			// 	},
-			// 	{
-			// 		model: Category,
-			// 		as: "category",
-			// 		attributes: ["id", "title", "slug", "description"],
-			// 	},
-			// ],
-			// order: [["created_at", `${sortBy}`]],
 		});
 		if (!serviceDoc)
 			throw new ApiError(

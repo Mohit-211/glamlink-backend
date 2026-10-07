@@ -1,9 +1,7 @@
 const httpStatus = require('http-status');
 
-const { User, Price } = require('../../models');
+const { Price } = require('../../models');
 const ApiError = require('../../utils/ApiError');
-const config = require('../../config/config');
-const moment = require('moment')
 
 
 const createPrice = async (reqBody) => {
@@ -49,20 +47,6 @@ const updatePrice = async (reqBody, params) => {
     }
 };
 
-const deletePrice = async (reqBody, params) => {
-    try {
-        const { user } = reqBody;
-        const { priceId } = params;
-        const priceDoc = await Price.findByPk(priceId);
-        if (!priceDoc) throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid Price Id.')
-        await priceDoc.destroy({ force: true });
-        return 'OK';
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-    }
-};
-
 const getAllPrice = async () => {
     try {
         const priceDocs = await Price.findAll({ where: { is_active: true } });
@@ -79,6 +63,5 @@ const getAllPrice = async () => {
 module.exports = {
     createPrice,
     updatePrice,
-    deletePrice,
     getAllPrice
 };

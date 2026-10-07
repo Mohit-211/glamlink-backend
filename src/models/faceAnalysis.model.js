@@ -19,26 +19,6 @@ FaceAnalysis.init(
 			type: DataTypes.STRING,
 			allowNull: true,
 		},
-		// smoothness: {
-		// 	type: DataTypes.FLOAT,
-		// 	allowNull: true,
-		// },
-		// acne: {
-		// 	type: DataTypes.FLOAT,
-		// 	allowNull: true,
-		// },
-		// spot: {
-		// 	type: DataTypes.FLOAT,
-		// 	allowNull: true,
-		// },
-		// dark_circle: {
-		// 	type: DataTypes.FLOAT,
-		// 	allowNull: true,
-		// },
-		// health: {
-		// 	type: DataTypes.FLOAT,
-		// 	allowNull: true,
-		// },
 
 		raw_response: {
 			type: DataTypes.JSON,

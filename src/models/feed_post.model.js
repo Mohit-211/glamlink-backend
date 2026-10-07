@@ -1,6 +1,5 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/central.db');
-const { v4: uuidv4 } = require('uuid');
 
 class Feed_Post extends Model { }
 Feed_Post.init({

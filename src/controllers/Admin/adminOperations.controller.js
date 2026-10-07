@@ -1,10 +1,6 @@
-const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const ApiError = require("../../utils/ApiError");
 const { adminOperationsService } = require("../../services");
 const responseWrapper = require("../../config/responseWrapper");
-const pick = require("../../utils/pick");
-const config = require("../../config/config");
 
 const getLikesByPostId = catchAsync(async (req, res) => {
 	const categoryDoc = await adminOperationsService.getLikesByPostId(req.body);

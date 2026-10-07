@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const pick = require("../../utils/pick");
 const catchAsync = require("../../utils/catchAsync");
 const { journalService } = require("../../services/Common");
 const responseWrapper = require("../../config/responseWrapper");

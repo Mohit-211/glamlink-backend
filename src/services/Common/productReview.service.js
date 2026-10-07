@@ -2,13 +2,8 @@
 
 const httpStatus = require("http-status");
 const {
-	Course,
-	CourseAttachment,
-	CourseReview,
 	User,
-	UserAttachment,
 	Profile,
-	PurchasedHistory,
 	Product,
 	ProductReview,
 	OrderDetails,

@@ -10,13 +10,6 @@ const createReview = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '', httpStatus.CREATED);
 });
 
-const updateReview = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['text', 'user', 'level', 'reviewDoc']);
-    const params = pick(req.params, ['review_id']);
-    const response = await reviewService.updateReview(body, params);
-    return responseWrapper(res, response, '', httpStatus.OK);
-});
-
 
 const deleteReview = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
@@ -60,7 +53,6 @@ const getAllReviews = catchAsync(async (req, res) => {
 
 module.exports = {
     createReview,
-    updateReview,
     deleteReview,
     raiseReviewRemoveRequest,
     getAllReviewByCounselorId,

@@ -24,12 +24,6 @@ Cart.init(
 		product_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
 			allowNull: true,
-			// onDelete: "CASCADE",
-			// onUpdate: "CASCADE",
-			// references: {
-			// 	model: "products",
-			// 	key: "id",
-			// },
 		},
 		total_items: {
 			type: DataTypes.INTEGER,
@@ -45,14 +39,6 @@ Cart.init(
 			allowNull: false,
 		},
 		
-		// price: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// },
-		// total_price: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: false,
-		// },
 		is_active: {
 			type: DataTypes.BOOLEAN,
 			defaultValue: true,

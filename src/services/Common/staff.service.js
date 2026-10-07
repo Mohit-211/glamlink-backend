@@ -8,7 +8,6 @@ const {
 } = require("../../models");
 
 const ApiError = require("../../utils/ApiError");
-const sequelize = require("../../config/central.db");
 
 const createStaff = async (reqBody) => {
   try {
@@ -70,32 +69,6 @@ const getAllStaff = async (reqBody) => {
 		const { user } = reqBody;
 
 		// 🔒 Apply same subscription/form restrictions if needed
-		// if (
-		// 	user.is_form_filled &&
-		// 	(user.form_status === "pending" || user.form_status === null)
-		// ) {
-		// 	throw new ApiError(
-		// 		httpStatus.FORBIDDEN,
-		// 		"Your form is under review. Please wait for admin approval."
-		// 	);
-		// }
-		// if (user.is_form_filled && user.form_status === "rejected") {
-		// 	throw new ApiError(httpStatus.FORBIDDEN, "Your form is rejected.");
-		// }
-
-		// if (!user.is_free_trial && !user.is_premium) {
-		// 	if (user.trial_start_date && user.trial_end_date) {
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"Your free trial has expired. Please subscribe to continue using this feature."
-		// 		);
-		// 	} else {
-		// 		throw new ApiError(
-		// 			httpStatus.FORBIDDEN,
-		// 			"You need to start a free trial or purchase a premium plan to access this feature."
-		// 		);
-		// 	}
-		// }
 
 		// ✅ Fetch all staff for this professional
 		const result = await User.findAll({

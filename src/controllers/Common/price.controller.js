@@ -17,13 +17,6 @@ const updatePrice = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '', httpStatus.OK);
 });
 
-const deletePrice = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const params = pick(req.params, ['priceId']);
-    const response = await priceService.deletePrice(body, params);
-    return responseWrapper(res, response, '', httpStatus.OK);
-});
-
 const getAllPrice = catchAsync(async (req, res) => {
     const response = await priceService.getAllPrice();
     return responseWrapper(res, response, '', httpStatus.OK);
@@ -33,6 +26,5 @@ const getAllPrice = catchAsync(async (req, res) => {
 module.exports = {
     createPrice,
     updatePrice,
-    deletePrice,
     getAllPrice
 };

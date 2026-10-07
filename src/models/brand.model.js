@@ -14,10 +14,6 @@ Brand.init(
 		user_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
 			allowNull: false,
-			// references: {
-			// 	model: "users",
-			// 	key: "id",
-			// },
 		},
 		name: {
 			type: DataTypes.STRING,

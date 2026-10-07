@@ -45,10 +45,6 @@ Product.init(
 				key: "id",
 			},
 		},
-		// barcode_id: {
-		// 	type: DataTypes.STRING,
-		// 	allowNull: false,
-		// },
 		name: {
 			type: DataTypes.TEXT,
 			allowNull: true,
@@ -62,10 +58,6 @@ Product.init(
 			allowNull: true,
 		},
 		
-		// price: {
-		// 	type: DataTypes.INTEGER,
-		// 	allowNull: true,
-		// },
 		stock: {
 			type: DataTypes.INTEGER,
 			allowNull: true,

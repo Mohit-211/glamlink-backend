@@ -2,13 +2,11 @@
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = require("../config/central.db");
-const { v4: uuidv4 } = require("uuid");
 const {
   paymentStatusTypes,
   paymentModeTypes,
   currancyTypes,
 } = require("../config/types");
-const config = require("../config/config");
 
 class Payment extends Model {}
 Payment.init(

@@ -44,12 +44,6 @@ Appointment.init({
     service_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
-        // onDelete: 'CASCADE',
-        // onUpdate: 'CASCADE',
-        // references: {
-        //     model: 'services',
-        //     key: 'id',
-        // },
     },
     slot_id: {
         type: DataTypes.BIGINT.UNSIGNED,
