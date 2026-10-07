@@ -1,0 +1,16 @@
+INSERT INTO `categories` (`id`, `title`, `slug`, `description`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'Entertainment', 'entertainment', 'Includes humorous skits, parodies, lip-syncing, and dance challenges.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(2, 'Educational/Instructional', 'educational-instructional', 'Provides tips, tutorials, and how-to guides on various topics such as cooking, beauty, fitness, DIY, and life hacks.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(3, 'Travel', 'travel', 'Showcases travel destinations, experiences, and adventures from around the world.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(4, 'Fashion/Beauty', 'fashion-beauty', 'Features makeup tutorials, fashion hauls, styling tips, and product reviews.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(5, 'Fitness/Health', 'fitness-health', 'Offers workout routines, fitness challenges, wellness advice, and healthy recipes.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(6, 'Pets/Animals', 'pets-animals', 'Highlights funny, cute, and heartwarming moments with pets and animals.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(7, 'Food/Cooking', 'food-cooking', 'Shares recipes, cooking demonstrations, food challenges, and restaurant reviews.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(8, 'Music/Dance', 'music-dance', 'Showcases original music, covers, dance performances, and choreography.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(9, 'Art/Crafts', 'art-crafts', 'Demonstrates art techniques, DIY projects, crafting ideas, and creative challenges.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(10, 'Lifestyle', 'lifestyle', 'Covers everyday life, routines, vlogs, personal experiences, and advice.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(11, 'Technology/Gadgets', 'technology-gadgets', 'Reviews and showcases new gadgets, tech hacks, and product comparisons.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(12, 'Sports', 'sports', 'Shares highlights, tutorials, and behind-the-scenes content from various sports and athletes.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(13, 'Comedy', 'comedy', 'Features skits, jokes, and humorous content.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(14, 'Inspiration/Motivation', 'inspiration-motivation', 'Provides inspirational quotes, stories, and messages to motivate and uplift viewers.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL),
+(15, 'Environmental/Sustainability', 'environmental-sustainability', 'Raises awareness about environmental issues, sustainability practices, and eco-friendly living.', 1, '2023-10-29 22:48:20', '2023-10-29 22:48:20', NULL);

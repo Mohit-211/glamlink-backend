@@ -1,0 +1,18 @@
+{
+  "apps": [
+    {
+      "name": "glamlink-backend",
+      "script": "index.js",
+      "cwd": "/var/www/backend",
+      "exec_mode": "fork",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "time": true,
+      "max_memory_restart": "1G",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}
