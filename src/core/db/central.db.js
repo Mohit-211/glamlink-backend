@@ -15,7 +15,7 @@ const sequelizeOptions = {
         min: 0,
         idle: 10000,
     },
-    logging: config.env === 'production' ? false : console.log
+    logging: config.env === 'development' ? console.log : false
 };
 
 //create connection object

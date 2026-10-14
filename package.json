@@ -14,11 +14,14 @@
     "staging": "pm2 start ecosystem.staging-config.json --no-daemon",
     "dev": "node --watch index.js",
     "auth": "node src/modules/admin/createSuperAdmin.js",
-    "migrate": "node src/core/db/migrateTable.js",
+    "migrate": "node src/core/db/migrate.js up",
+    "migrate:status": "node src/core/db/migrate.js status",
+    "migrate:down": "node src/core/db/migrate.js down",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "check:routes": "node scripts/route-table.js",
-    "check:contract": "node scripts/contract-check.js compare"
+    "check:contract": "node scripts/contract-check.js compare",
+    "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

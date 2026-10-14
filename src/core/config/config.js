@@ -29,6 +29,8 @@ envVars.SMTP_PORT = number('SMTP_PORT');
 envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
 envVars.JWT_ACCESS_EXPIRATION_DAYS = number('JWT_ACCESS_EXPIRATION_DAYS', 7);
 envVars.DEFAULT_TIMEZONE ??= 'UTC';
+envVars.MAIL_TRANSPORT ??= 'smtp';
+if (!['smtp', 'log'].includes(envVars.MAIL_TRANSPORT)) fail('MAIL_TRANSPORT must be smtp or log');
 
 module.exports = {
     app_name: envVars.APP_NAME,
@@ -59,6 +61,7 @@ module.exports = {
             },
         },
         from: envVars.EMAIL_FROM,
+        transport: envVars.MAIL_TRANSPORT,
     },
     accessDomains: envVars.ACCESSDOMAINS,
     defaultLimit: envVars.DEFAULT_API_DATA_LIMIT,

@@ -17,6 +17,7 @@ node_modules/
 *.sql.gz
 *.dump
 !src/core/db/seeders/dumps/*.sql
+!src/core/db/schema/*.sql
 *.sqlite
 *.sqlite3
 

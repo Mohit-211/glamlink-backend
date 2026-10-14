@@ -1,6 +1,5 @@
 /** @format */
 
-const nodemailer = require("nodemailer");
 const { longDate } = require("../../core/utils/time");
 const config = require("../../core/config/config");
 const logger = require("../../core/logger");
@@ -20,9 +19,9 @@ const {
   partnershipInquiryEmailFormat,
 } = require("./templates/accessCardTemplate");
 
-const transport = nodemailer.createTransport(config.email.smtp);
+const { transport, mode: mailMode } = require("./transport");
 
-if (config.env !== "test") {
+if (mailMode === "smtp") {
   transport
     .verify()
     .then(() => logger.info("Connected to email server successfully😊."))

@@ -32,15 +32,16 @@ const { updateUserPromotions } = require('./src/modules/professional/promotion.s
 
 
 
-cron.schedule('* * * * *', () => {
-  checkUserFreeTrialStatus();
-	checkUserPremiumStatus();
-
-});
-
-cron.schedule("1 0 * * *", async () => {
-  await updateUserPromotions();
-});
+// Scheduled jobs (not under test: they change data on their own clock).
+if (config.env !== 'test') {
+  cron.schedule('* * * * *', () => {
+    checkUserFreeTrialStatus();
+    checkUserPremiumStatus();
+  });
+  cron.schedule('1 0 * * *', async () => {
+    await updateUserPromotions();
+  });
+}
 
 // set security HTTP headers
 app.use(
