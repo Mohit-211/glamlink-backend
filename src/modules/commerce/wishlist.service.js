@@ -37,11 +37,11 @@ const addToWishlist = async (reqBody) => {
 		}
 
 		// Otherwise, add the product to the wishlist
-		const coursePrice = parseFloat(productDoc.price);
+		const productPrice = parseFloat(productDoc.price);
 		await Wishlist.create({
 			user_id: user.id,
 			product_id: product_id,
-			price: coursePrice,
+			price: productPrice,
 		});
 
 		return {

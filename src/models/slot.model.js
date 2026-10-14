@@ -19,16 +19,6 @@ Slot.init({
             key: 'id',
         },
     },
-    interval_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
-        allowNull: false,
-        onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-        references: {
-            model: 'intervals',
-            key: 'id',
-        },
-    },
     remaining_appointment : {
         type: DataTypes.BOOLEAN,
         defaultValue: true

@@ -114,16 +114,7 @@ const notificationMediumTypes = {
 };
 
 
-const availabilityRuleTypes = {
-    wday: 'wday',
-    date: 'date',
-};
 
-const feesChangeRequestTypes = {
-    PENDING: 'PENDING',
-    ACCEPTED: 'ACCEPTED',
-    REJECTED: 'REJECTED',
-};
 
 const subscriptionStatusTypes = {
     'ON-GOING': 'ON-GOING',
@@ -197,11 +188,9 @@ module.exports = {
     currancyTypes,
     caseTypes,
     appointmentTypes,
-    availabilityRuleTypes,
     daysOfWeek,
     notificationTypes,
     notificationMediumTypes,
-    feesChangeRequestTypes,
     subscriptionStatusTypes,
     notificationTypesArr,
     orderTypes,

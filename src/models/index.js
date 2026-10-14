@@ -5,7 +5,6 @@ const State = require("./state.model");
 const City = require("./city.model");
 const Timezone = require("./timezone.model");
 const Category = require("./category.model");
-const Price = require("./price.model");
 const Profession = require("./profession.model");
 const Tag = require("./tag.model");
 
@@ -21,7 +20,6 @@ const EmailToken = require("./emailToken.model");
 const UserIdentity = require("./userIdentity.model");
 const UserAttachment = require("./userAttachment.model");
 const userLoginTiming = require("./user_login_timings.model");
-const UserFees = require("./userFees.model");
 
 const ContactUs = require("./contactUs.model");
 const Faq = require("./faq.model");
@@ -38,11 +36,8 @@ const Slot = require("./slot.model");
 const Payment = require("./payment.model");
 const Appointment = require("./appointment.model");
 
-const ScheduleRule = require("./scheduleRule.model");
-const RuleInterval = require("./ruleInterval.model");
 const Availability = require("./availability.model");
 const Notification = require("./notification.model");
-const FeesChangeRequest = require("./feesChangeRequest.model");
 const Booking = require("./booking.model");
 const BookingSlot = require("./bookingSlots.model");
 
@@ -167,7 +162,6 @@ module.exports = {
   City,
   Timezone,
   Category,
-  Price,
   Profession,
 
   Role,
@@ -184,7 +178,6 @@ module.exports = {
   UserIdentity,
   UserAttachment,
   userLoginTiming,
-  UserFees,
 
   ContactUs,
   Faq,
@@ -200,11 +193,8 @@ module.exports = {
   Slot,
   Appointment,
   Payment,
-  ScheduleRule,
-  RuleInterval,
   Availability,
   Notification,
-  FeesChangeRequest,
   Booking,
   BookingSlot,
 
@@ -430,9 +420,6 @@ async function initTableRelation() {
     as: "liked_by",
   });
 
-  User.belongsToMany(Price, { through: UserFees, foreignKey: "user_id" });
-  Price.belongsToMany(User, { through: UserFees, foreignKey: "price_id" });
-
   User.hasMany(UserBlock, {
     as: "blockedUsers",
     foreignKey: "blocked_by",
@@ -497,14 +484,6 @@ async function initTableRelation() {
   User.hasMany(Slot, { foreignKey: "professional_id", as: "professional_slots" });
   Slot.belongsTo(User, { foreignKey: "professional_id", as: "slot_professional" });
 
-  RuleInterval.hasMany(Slot, {
-    foreignKey: "interval_id",
-    as: "interval_slots",
-  });
-  Slot.belongsTo(RuleInterval, {
-    foreignKey: "interval_id",
-    as: "slot_interval",
-  });
 
   // Booking
   User.hasMany(Booking, { foreignKey: "user_id", as: "user_appointments" });
@@ -535,16 +514,6 @@ async function initTableRelation() {
   Booking.belongsTo(BookingSlot, {
     foreignKey: "slot_id",
     as: "appointment_slot",
-  });
-
-  //FeesChangeRequest
-  User.hasMany(FeesChangeRequest, {
-    foreignKey: "user_id",
-    as: "user_fees_change_requests",
-  });
-  FeesChangeRequest.belongsTo(User, {
-    foreignKey: "user_id",
-    as: "fees_change_request_user",
   });
 
   User.hasMany(Payment, { foreignKey: "user_id", as: "user_payments" });
