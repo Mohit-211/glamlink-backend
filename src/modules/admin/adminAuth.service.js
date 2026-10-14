@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require('../identity/otpAttempts');
+const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require('../../core/auth/otpAttempts');
 const bcrypt = require('bcryptjs');
 const randomize = require('randomatic');
 const jwt = require('jsonwebtoken');

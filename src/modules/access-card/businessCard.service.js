@@ -39,7 +39,7 @@ const stripe = new Stripe(config.STRIPE_SECRET_KEY);
 const axios = require("axios");
 const {
   getCustomer,
-} = require("../billing/stripeOrderPayment.controller");
+} = require("../billing/stripeCustomer.service");
 
 const parseFeaturedLinks = (featuredLinks) => {
   if (!featuredLinks) return [];

@@ -1,7 +1,7 @@
 /** @format */
 
 const httpStatus = require("http-status");
-const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require("./otpAttempts");
+const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require("../../core/auth/otpAttempts");
 const bcrypt = require("bcryptjs");
 const randomize = require("randomatic");
 const moment = require("moment");
