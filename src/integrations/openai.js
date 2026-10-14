@@ -1,8 +1,15 @@
 /** @format */
 
-const OpenAI = require("openai");
+const httpClient = require("../core/http/httpClient");
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// OpenAI Chat Completions over plain HTTP (https://platform.openai.com/docs/api-reference/chat).
+const createChatCompletion = async (body) => {
+	const response = await httpClient.post("https://api.openai.com/v1/chat/completions", body, {
+		headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+		timeout: 120000,
+	});
+	return response.data;
+};
 
 async function getAISkinExplanation(attrs) {
 	const prompt = `
@@ -12,7 +19,7 @@ in natural language about the user's skin condition, overall health, and care su
 ${JSON.stringify(attrs, null, 2)}
 `;
 
-	const completion = await client.chat.completions.create({
+	const completion = await createChatCompletion({
 		model: "gpt-4o-mini",
 		messages: [{ role: "user", content: prompt }],
 	});
@@ -21,7 +28,7 @@ ${JSON.stringify(attrs, null, 2)}
 }
 
 async function askAIQuestion(summary, question) {
-  const completion = await client.chat.completions.create({
+  const completion = await createChatCompletion({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -64,7 +71,7 @@ Please analyze the user's skin needs and recommend:
 Your answer should sound like a personal skincare consultation.
 `;
 
-  const completion = await client.chat.completions.create({
+  const completion = await createChatCompletion({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
   });
