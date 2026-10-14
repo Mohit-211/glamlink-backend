@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const caseController = require('./case.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.get('/', [userAuthMiddleware.verifyAuthJWTToken], caseController.getAllCase);
-router.get('/:caseId', [userAuthMiddleware.verifyAuthJWTToken], caseController.caseDetail);
-router.post('/attachments', [userAuthMiddleware.verifyAuthJWTToken], caseController.addAttachmentToCase);
-router.get('/attachments/:caseId', [userAuthMiddleware.verifyAuthJWTToken], caseController.getAllCaseAttachments);
-router.post('/completed', [userAuthMiddleware.verifyAuthJWTToken], caseController.serviceCompleteFlag);
+router.get('/', [authenticate], caseController.getAllCase);
+router.get('/:caseId', [authenticate], caseController.caseDetail);
+router.post('/attachments', [authenticate], caseController.addAttachmentToCase);
+router.get('/attachments/:caseId', [authenticate], caseController.getAllCaseAttachments);
+router.post('/completed', [authenticate], caseController.serviceCompleteFlag);
 module.exports = router;

@@ -2,19 +2,19 @@ const express = require('express');
 const router = express.Router();
 
 const reelController = require('./reel.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
 
-router.post('/', [userAuthMiddleware.verifyAuthJWTToken], reelController.createReel);
-router.get('/', [userAuthMiddleware.verifyAuthJWTToken], reelController.getAllReel);
-router.get('/self', [userAuthMiddleware.verifyAuthJWTToken], reelController.getAllMyReel);
-router.get('/:id', [userAuthMiddleware.verifyAuthJWTToken], reelController.getReelDetails);
-router.put('/:id', [userAuthMiddleware.verifyAuthJWTToken], reelController.updateReel);
-router.delete('/:id', [userAuthMiddleware.verifyAuthJWTToken], reelController.deleteReel);
+router.post('/', [authenticate], reelController.createReel);
+router.get('/', [optionalAuth], reelController.getAllReel);
+router.get('/self', [authenticate], reelController.getAllMyReel);
+router.get('/:id', [authenticate], reelController.getReelDetails);
+router.put('/:id', [authenticate], reelController.updateReel);
+router.delete('/:id', [authenticate], reelController.deleteReel);
 
-router.post('/like', [userAuthMiddleware.verifyAuthJWTToken], reelController.likeAndDislikeReel);
-router.post('/comment', [userAuthMiddleware.verifyAuthJWTToken], reelController.createCommenetInReel);
-router.get('/comment/:reel_id', [userAuthMiddleware.verifyAuthJWTToken], reelController.getAllCommentByReelId);
-router.delete('/comment/:comment_id', [userAuthMiddleware.verifyAuthJWTToken], reelController.deleteCommentFromReel);
+router.post('/like', [authenticate], reelController.likeAndDislikeReel);
+router.post('/comment', [authenticate], reelController.createCommenetInReel);
+router.get('/comment/:reel_id', [authenticate], reelController.getAllCommentByReelId);
+router.delete('/comment/:comment_id', [authenticate], reelController.deleteCommentFromReel);
 
 
 module.exports = router;

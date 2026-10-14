@@ -4,12 +4,11 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const stripeOrderPayment = require('./stripeOrderPayment.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
 
-router.use(userAuthMiddleware.setRoleIdIfNotPresent);
 
-router.get('/stripe/stripe-key', [userAuthMiddleware.verifyAuthJWTToken], stripeOrderPayment.geStripeKeys);
-router.post('/stripe/create-payment-intent', [userAuthMiddleware.verifyAuthJWTToken], stripeOrderPayment.createPaymentIntent);
+router.get('/stripe/stripe-key', [optionalAuth], stripeOrderPayment.geStripeKeys);
+router.post('/stripe/create-payment-intent', [authenticate], stripeOrderPayment.createPaymentIntent);
 router.post('/stripe/charge-intent/webhooks', stripeOrderPayment.handleChargeAndIntentWebhook);
 router.get('/count', requireAdmin, stripeOrderPayment.getNewPaymentCount);
 router.get('/sum', requireAdmin, stripeOrderPayment.getNewPaymentTotal);

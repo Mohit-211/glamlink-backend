@@ -116,7 +116,8 @@ const validateCreateUserBody = catchAsync(async (req, res, next) => {
             return responseWrapper(res, '', 'Invalid Name or Email', httpStatus.BAD_REQUEST);
         };
 
-        if (await User.isEmailTaken(email, role_id)) {
+        // One account per email, whatever its type
+        if (await User.findOne({ where: { email: String(email).trim().toLowerCase() }, attributes: ['id'] })) {
             return responseWrapper(res, '', 'Email already taken', httpStatus.BAD_REQUEST);
         };
 

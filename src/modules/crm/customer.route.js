@@ -3,14 +3,14 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const customerController = require('./customer.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.post('/createCustomer',[userAuthMiddleware.verifyAuthJWTToken],  customerController.createCustomer);
-router.get('/getAllCustomer', [userAuthMiddleware.verifyAuthJWTToken], customerController.getAllCustomer);
+router.post('/createCustomer',[authenticate],  customerController.createCustomer);
+router.get('/getAllCustomer', [authenticate], customerController.getAllCustomer);
 router.get('/getCustomerById/:id', requireAdmin,  customerController.getCustomerById);
-router.put('/updateCustomer/:id', [userAuthMiddleware.verifyAuthJWTToken],  customerController.updateCustomer);
+router.put('/updateCustomer/:id', [authenticate],  customerController.updateCustomer);
 router.post('/deleteCustomer', requireAdmin, customerController.deleteCustomer);
-router.post('/importCustomers',[userAuthMiddleware.verifyAuthJWTToken],  customerController.importCustomers);
+router.post('/importCustomers',[authenticate],  customerController.importCustomers);
 
 router.get('/getAllCustomerName/:id', requireAdmin, customerController.getAllCustomerName);
 

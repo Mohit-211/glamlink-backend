@@ -298,18 +298,13 @@ User.afterCreate(async (user, { transaction } = {}) => {
   }
 });
 
-User.isEmailTaken = async function (email, role_id) {
-  let u = await this.findOne({
-    where: { email: email, role_id: role_id, is_active: true },
+// Whether another live account already uses this user_name.
+User.isUserNameTaken = async function (user_name, exceptUserId) {
+  const taken = await this.findOne({
+    where: { user_name, ...(exceptUserId && { id: { [Sequelize.Op.ne]: exceptUserId } }) },
+    attributes: ["id"],
   });
-  return !!u;
-};
-
-User.isUserNameTaken = async function (user_name, role_id) {
-  let u_n = await this.findOne({
-    where: { user_name: user_name, role_id: role_id, is_active: true },
-  });
-  return !!u_n;
+  return !!taken;
 };
 
 User.beforeUpdate(async (user) => {

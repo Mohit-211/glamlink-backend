@@ -53,4 +53,4 @@ const requireProfessional = catchAsync(async (req, res, next) => {
     next();
 });
 
-module.exports = { authenticate, optionalAuth, requireProfessional };
+module.exports = { authenticate, optionalAuth, requireProfessional, identify };

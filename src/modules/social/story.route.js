@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const storyController = require('./story.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.post('/', [userAuthMiddleware.verifyAuthJWTToken], storyController.createStory);
-router.get('/all', [userAuthMiddleware.verifyAuthJWTToken], storyController.getAllStoryByUserId);
-router.get('/:id', [userAuthMiddleware.verifyAuthJWTToken], storyController.storyDetailsById);
+router.post('/', [authenticate], storyController.createStory);
+router.get('/all', [authenticate], storyController.getAllStoryByUserId);
+router.get('/:id', [authenticate], storyController.storyDetailsById);
 
 
 module.exports = router;

@@ -2,67 +2,67 @@ const express = require('express');
 const router = express.Router();
 
 const userOpController = require('./user.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
 
 
-router.get('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getProfile);
-router.get('/profile/:userId', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getProfileById);
-router.put('/username', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateUsername);
-router.post('/addLinkTreeLink', [userAuthMiddleware.verifyAuthJWTToken], userOpController.addLinkTreeLink);
-router.get('/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllUserList);
-router.get('/list/random-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllRandomProfessionalList);
-router.get('/list/suggestion/follow', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getSuggestionUsersList);
-router.post('/list/nearby-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearbyProfessionalsList);
+router.get('/profile', [authenticate], userOpController.getProfile);
+router.get('/profile/:userId', [optionalAuth], userOpController.getProfileById);
+router.put('/username', [authenticate], userOpController.updateUsername);
+router.post('/addLinkTreeLink', [authenticate], userOpController.addLinkTreeLink);
+router.get('/list', [optionalAuth], userOpController.getAllUserList);
+router.get('/list/random-professionals', [optionalAuth], userOpController.getAllRandomProfessionalList);
+router.get('/list/suggestion/follow', [authenticate], userOpController.getSuggestionUsersList);
+router.post('/list/nearby-professionals', [optionalAuth], userOpController.nearbyProfessionalsList);
 
-router.post('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateProfile);
-router.post('/notifications', [userAuthMiddleware.verifyAuthJWTToken], userOpController.notificationToogle);
-router.delete('/deactivate', [userAuthMiddleware.verifyAuthJWTToken], userOpController.deactivateAccount);
+router.post('/profile', [authenticate], userOpController.updateProfile);
+router.post('/notifications', [authenticate], userOpController.notificationToogle);
+router.delete('/deactivate', [authenticate], userOpController.deactivateAccount);
 
-router.get('/list/timezones', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllTimezone);
+router.get('/list/timezones', [optionalAuth], userOpController.getAllTimezone);
 
 
 
-router.post('/follow', [userAuthMiddleware.verifyAuthJWTToken], userOpController.followAndUnfollwUser);
-router.get('/followers', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllFollowers);
-router.delete('/followers', [userAuthMiddleware.verifyAuthJWTToken], userOpController.removeUserFromFollowList);
-router.get('/followees', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllFollowees);
-router.get('/feed', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getUserFeed);
-router.get('/wall', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getUserWall);
+router.post('/follow', [authenticate], userOpController.followAndUnfollwUser);
+router.get('/followers', [authenticate], userOpController.getAllFollowers);
+router.delete('/followers', [authenticate], userOpController.removeUserFromFollowList);
+router.get('/followees', [authenticate], userOpController.getAllFollowees);
+router.get('/feed', [optionalAuth], userOpController.getUserFeed);
+router.get('/wall', [authenticate], userOpController.getUserWall);
 
 
 //Search
 
-router.post('/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController.search);
-router.post('/post-by-tag/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllPostByTag);
-router.post('/reel-by-tag/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllReelByTag);
+router.post('/search', [optionalAuth], userOpController.search);
+router.post('/post-by-tag/search', [authenticate], userOpController.getAllPostByTag);
+router.post('/reel-by-tag/search', [authenticate], userOpController.getAllReelByTag);
 
 router.get('/find-professional', userOpController.searchProfessionalByPlaceApi);
 
 
 //Images
-router.post('/images', [userAuthMiddleware.verifyAuthJWTToken], userOpController.addImageInsideProfile);
-router.get('/images/:album_id', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAlbumImages);
+router.post('/images', [authenticate], userOpController.addImageInsideProfile);
+router.get('/images/:album_id', [authenticate], userOpController.getAllAlbumImages);
 
 
-router.post('/profile/report', [userAuthMiddleware.verifyAuthJWTToken], userOpController.reportUser);
-router.post('/profile/block', [userAuthMiddleware.verifyAuthJWTToken], userOpController.blockUser);
-router.get('/profile/block/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getBlockList);
+router.post('/profile/report', [authenticate], userOpController.reportUser);
+router.post('/profile/block', [authenticate], userOpController.blockUser);
+router.get('/profile/block/list', [authenticate], userOpController.getBlockList);
 
 
-router.post('/startFreeTrial', [userAuthMiddleware.verifyAuthJWTToken], userOpController.startFreeTrial);
+router.post('/startFreeTrial', [authenticate], userOpController.startFreeTrial);
 
-router.post('/requestForPromotion', [userAuthMiddleware.verifyAuthJWTToken], userOpController.requestForPromotion);
+router.post('/requestForPromotion', [authenticate], userOpController.requestForPromotion);
 
-router.post('/professional/brand/association', [userAuthMiddleware.verifyAuthJWTToken], userOpController.requestForAssociationWithBrand);
-router.get('/professional/brand/association/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationRequest);
-router.post('/professional/brand/association/answer', [userAuthMiddleware.verifyAuthJWTToken], userOpController.answerAssociationRequest);
-router.delete('/professional/brand/association/remove', [userAuthMiddleware.verifyAuthJWTToken], userOpController.deleteAssociation);
-router.get('/professional/brand/association/success/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationProviders);
+router.post('/professional/brand/association', [authenticate], userOpController.requestForAssociationWithBrand);
+router.get('/professional/brand/association/list', [authenticate], userOpController.getAllAssociationRequest);
+router.post('/professional/brand/association/answer', [authenticate], userOpController.answerAssociationRequest);
+router.delete('/professional/brand/association/remove', [authenticate], userOpController.deleteAssociation);
+router.get('/professional/brand/association/success/list', [authenticate], userOpController.getAllAssociationProviders);
 
-router.get('/reward/list/all', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getUserRewardList);
-router.post('/updateExternalBooking', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateExternalBooking);
+router.get('/reward/list/all', [authenticate], userOpController.getUserRewardList);
+router.post('/updateExternalBooking', [authenticate], userOpController.updateExternalBooking);
 
-router.post('/analyze-face', [userAuthMiddleware.verifyAuthJWTToken], userOpController.analyzeSkin);
+router.post('/analyze-face', [authenticate], userOpController.analyzeSkin);
 
 router.get('/nearby/map/professional/list', userOpController.getMapProfessionalList);
 

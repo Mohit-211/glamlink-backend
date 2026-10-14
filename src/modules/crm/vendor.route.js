@@ -3,12 +3,12 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const vendorController = require('./vendor.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.post('/createVendor', [userAuthMiddleware.verifyAuthJWTToken], vendorController.createVendor);
-router.get('/getAllVendor', [userAuthMiddleware.verifyAuthJWTToken], vendorController.getAllVendor);
+router.post('/createVendor', [authenticate], vendorController.createVendor);
+router.get('/getAllVendor', [authenticate], vendorController.getAllVendor);
 router.get('/getVendorById/:id', requireAdmin, vendorController.getVendorById);
-router.get('/getVendorName', [userAuthMiddleware.verifyAuthJWTToken],vendorController.getVendorName);
+router.get('/getVendorName', [authenticate],vendorController.getVendorName);
 router.put('/updateVendor/:id', requireAdmin, vendorController.updateVendor);
 router.post('/delete', requireAdmin, vendorController.deleteVendor);
 

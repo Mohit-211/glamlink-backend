@@ -3,18 +3,19 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const serviceController = require('./service.controller');
+const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
 const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
 
-router.post('', [userAuthMiddleware.verifyAuthJWTToken, userAuthMiddleware.validateNewServiceBody], serviceController.createService);
-router.get('', [userAuthMiddleware.verifyAuthJWTToken], serviceController.getAllServiceByToken);
-router.get('/user/:id', [userAuthMiddleware.verifyAuthJWTToken], serviceController.getAllServiceByUserId);
+router.post('', [authenticate, userAuthMiddleware.validateNewServiceBody], serviceController.createService);
+router.get('', [authenticate], serviceController.getAllServiceByToken);
+router.get('/user/:id', [optionalAuth], serviceController.getAllServiceByUserId);
 router.get('/getAllServiceNameByUserId/:id', serviceController.getAllServiceNameByUserId);
-router.get('/:service_id', [userAuthMiddleware.verifyAuthJWTToken], serviceController.serviceDetailById);
-router.put('', [userAuthMiddleware.verifyAuthJWTToken], serviceController.updateService);
-router.delete('/:service_id', [userAuthMiddleware.verifyAuthJWTToken], serviceController.deleteService);
+router.get('/:service_id', [optionalAuth], serviceController.serviceDetailById);
+router.put('', [authenticate], serviceController.updateService);
+router.delete('/:service_id', [authenticate], serviceController.deleteService);
 
 //Bookings
-router.post('/bookings', [userAuthMiddleware.verifyAuthJWTToken], serviceController.createBooking);
+router.post('/bookings', [authenticate], serviceController.createBooking);
 
 router.post('/service-list', serviceController.getServiceListByCategory);
 

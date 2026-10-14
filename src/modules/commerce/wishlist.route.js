@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const wishlistController = require('./wishlist.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.post('/addToWishlist' , [userAuthMiddleware.verifyAuthJWTToken] ,wishlistController.addToWishlist);
-router.get('/getAllItemsFromWishlist' , [userAuthMiddleware.verifyAuthJWTToken] ,wishlistController.getAllItemsFromWishlist);
-router.delete('/removeProductFromWishlist',[userAuthMiddleware.verifyAuthJWTToken], wishlistController.removeProductFromWishlist);
+router.post('/addToWishlist' , [authenticate] ,wishlistController.addToWishlist);
+router.get('/getAllItemsFromWishlist' , [authenticate] ,wishlistController.getAllItemsFromWishlist);
+router.delete('/removeProductFromWishlist',[authenticate], wishlistController.removeProductFromWishlist);
 
 
 module.exports = router;

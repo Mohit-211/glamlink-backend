@@ -3,14 +3,14 @@ const router = express.Router();
 const { requireAdmin, requireOwnerOrAdmin } = require('../../core/auth/access.middleware');
 const { BusinessCard } = require('../../models');
 
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { requireProfessional } = require('../../core/auth/authenticate');
 const businessCardController = require('./businessCard.controller');
 
 router.post('/', businessCardController.createBusinessCard);
 router.post('/select-plan', businessCardController.selectBusinessCardPlan);
 router.post('/createBusinessCardByAdmin', requireAdmin, businessCardController.createBusinessCardByAdmin);
-router.post('/createBusinessCard',[userAuthMiddleware.verifyAuthJWTToken], businessCardController.createBusinessCardWithToken);
-router.get('/getMyBusinessCard',[userAuthMiddleware.verifyAuthJWTToken], businessCardController.getMyBusinessCard);
+router.post('/createBusinessCard',[requireProfessional], businessCardController.createBusinessCardWithToken);
+router.get('/getMyBusinessCard',[requireProfessional], businessCardController.getMyBusinessCard);
 router.get('/getBusinessCardById/:id', businessCardController.getBusinessCardById);
 router.put('/updateBusinessCard/:id', requireOwnerOrAdmin({ model: BusinessCard, ownerField: 'user_id', getIds: (req) => req.params.id, allowUnowned: true }), businessCardController.updateBusinessCard);
 router.post('/delete', requireAdmin,businessCardController.deleteBusinessCard);
@@ -43,10 +43,10 @@ router.post('/deleteDirectory', requireAdmin, businessCardController.deleteDirec
 router.get('/getAllDirectories', businessCardController.getAllDirectories);
 router.get('/getProfilesByDirectory/:id', businessCardController.getProfilesByDirectory);
 
-router.post("/select-address",[userAuthMiddleware.verifyAuthJWTToken],businessCardController.selectBusinessCardAddress);
+router.post("/select-address",[requireProfessional],businessCardController.selectBusinessCardAddress);
 
-router.post("/shipping-rate",[userAuthMiddleware.verifyAuthJWTToken],businessCardController.getBusinessCardShippingRate);
-router.get("/payment-history",[userAuthMiddleware.verifyAuthJWTToken],businessCardController.getPaymentHistory);
+router.post("/shipping-rate",[requireProfessional],businessCardController.getBusinessCardShippingRate);
+router.get("/payment-history",[requireProfessional],businessCardController.getPaymentHistory);
 
 
 // without token apis for logged our user
@@ -55,8 +55,8 @@ router.post("/shipping-rate-public",businessCardController.getBusinessCardShippi
 router.post("/create-subscription-public",businessCardController.createBusinessCardSubscriptionPublic);
 
 
-router.post("/create-subscription",[userAuthMiddleware.verifyAuthJWTToken],businessCardController.createBusinessCardSubscription);
-router.post("/cancel-subscription",[userAuthMiddleware.verifyAuthJWTToken],businessCardController.cancelBusinessCardSubscription);
+router.post("/create-subscription",[requireProfessional],businessCardController.createBusinessCardSubscription);
+router.post("/cancel-subscription",[requireProfessional],businessCardController.cancelBusinessCardSubscription);
 
 
 

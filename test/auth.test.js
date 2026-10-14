@@ -192,6 +192,40 @@ describe('sessions', () => {
     });
 });
 
+describe('route guards', () => {
+    test('routes that need a person refuse guests with 401 SIGN_IN_REQUIRED', async () => {
+        for (const [method, path] of [['GET', '/api/v1/user/followers'], ['GET', '/api/v1/case/attachments/1'], ['POST', '/api/v1/post/comment']]) {
+            const res = await app.request(method, path, method === 'GET' ? {} : { body: {} });
+            assert.equal(res.status, 401, `${method} ${path}`);
+            assert.equal(res.body.code, 'SIGN_IN_REQUIRED');
+        }
+    });
+
+    test('public pages stay open to guests', async () => {
+        assert.equal((await app.request('GET', '/api/v1/user/list/timezones')).status, 200);
+        assert.equal((await app.request('GET', '/api/v1/businessCard/getAllProfiles')).status, 200);
+    });
+
+    test('Access card owner routes need a professional account', async () => {
+        const email = unique('guarduser');
+        await post('/register', { name: 'App User', email, password: PASSWORD, confirm_password: PASSWORD, client: 'app', account_type: 'user' });
+        const { access_token } = (await post('/verify-email', { token: linkToken(email), client: 'app' })).body.data;
+        const asUser = await app.request('GET', '/api/v1/businessCard/getMyBusinessCard', { token: access_token });
+        assert.equal(asUser.status, 403);
+        assert.equal(asUser.body.code, 'PROFESSIONAL_REQUIRED');
+        const pro = await verifiedSignIn(unique('guardpro'));
+        const asPro = await app.request('GET', '/api/v1/businessCard/getMyBusinessCard', { token: pro.access_token });
+        assert.notEqual(asPro.status, 403);
+        assert.notEqual(asPro.status, 401);
+    });
+
+    test('the access token also works as "Authorization: Bearer"', async () => {
+        const { access_token } = await verifiedSignIn(unique('bearer'));
+        const res = await app.request('GET', '/api/v1/user/profile', { headers: { Authorization: `Bearer ${access_token}` } });
+        assert.equal(res.status, 200);
+    });
+});
+
 describe('passwords', () => {
     test('forgot and reset: the link sets a new password and signs out every device', async () => {
         const email = unique('reset');

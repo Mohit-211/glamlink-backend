@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const numeralController = require('./numeral.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
 
 
-router.post('/calculate-checkout-tax',[userAuthMiddleware.verifyAuthJWTToken], numeralController.calculateCheckoutTax);
+router.post('/calculate-checkout-tax',[authenticate], numeralController.calculateCheckoutTax);
 
 
 

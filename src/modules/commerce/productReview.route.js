@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 
 const productReviewController = require('./productReview.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
 
-router.post('/postReviewAndRating',[userAuthMiddleware.verifyAuthJWTToken],productReviewController.postReviewAndRating);
-router.put('/updateReviewAndRating',[userAuthMiddleware.verifyAuthJWTToken],productReviewController.updateReviewAndRating);
-router.delete('/deleteReviewAndRating/:id',[userAuthMiddleware.verifyAuthJWTToken], productReviewController.deleteReviewAndRating);
-router.post('/getReviewsAndRatings',[userAuthMiddleware.verifyAuthJWTToken],productReviewController.getReviewsAndRatings);
+router.post('/postReviewAndRating',[authenticate],productReviewController.postReviewAndRating);
+router.put('/updateReviewAndRating',[authenticate],productReviewController.updateReviewAndRating);
+router.delete('/deleteReviewAndRating/:id',[authenticate], productReviewController.deleteReviewAndRating);
+router.post('/getReviewsAndRatings',[optionalAuth],productReviewController.getReviewsAndRatings);
 router.post('/getAllReviewsAndRatings',productReviewController.getAllReviewsAndRatings);
 router.post('/getReviewsAndRatingsByProductId',productReviewController.getReviewsAndRatingsByProductId);
 

@@ -3,12 +3,12 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const productTypeController = require('./productType.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
-router.post('/createProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.createProductType);
-router.get('/getAllProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.getAllProductType);
+router.post('/createProductType', [authenticate], productTypeController.createProductType);
+router.get('/getAllProductType', [authenticate], productTypeController.getAllProductType);
 router.get('/getProductTypeById/:id', requireAdmin, productTypeController.getProductTypeById);
-router.get('/getProductTypeName',[userAuthMiddleware.verifyAuthJWTToken], productTypeController.getProductTypeName);
+router.get('/getProductTypeName',[authenticate], productTypeController.getProductTypeName);
 router.put('/updateProductType/:id', requireAdmin, productTypeController.updateProductType);
 router.post('/delete', requireAdmin, productTypeController.deleteProductType);
 

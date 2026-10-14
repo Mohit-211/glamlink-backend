@@ -2,14 +2,14 @@ const express = require('express');
 const router = express.Router();
 
 const cartController = require('./cart.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
 
 
-router.post('/addItemToCart',[userAuthMiddleware.verifyAuthJWTToken], cartController.addItemToCart);
-router.post('/updateProductQuantity',[userAuthMiddleware.verifyAuthJWTToken], cartController.updateProductQuantity);
-router.post('/removeProduct',[userAuthMiddleware.verifyAuthJWTToken], cartController.removeProduct);
-router.get('/getAllProductsInCart',[userAuthMiddleware.verifyAuthJWTToken], cartController.getAllProductsInCart);
+router.post('/addItemToCart',[authenticate], cartController.addItemToCart);
+router.post('/updateProductQuantity',[authenticate], cartController.updateProductQuantity);
+router.post('/removeProduct',[authenticate], cartController.removeProduct);
+router.get('/getAllProductsInCart',[authenticate], cartController.getAllProductsInCart);
 
 
 module.exports = router;

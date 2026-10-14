@@ -1289,7 +1289,8 @@ const getJournalTopicById = async (id) => {
           attributes: ["id", "email"],
           where: {
             is_active: true,
-            role_id: 7,
+            account_type: "professional",
+            professional_type: "individual",
           },
           required: false,
 
@@ -1945,7 +1946,8 @@ const updateJournalTopicProfessionals = async (topicId, body) => {
       const professionals = await User.findAll({
         where: {
           id: professionalIds,
-          role_id: 7,
+          account_type: "professional",
+          professional_type: "individual",
           is_active: true,
         },
         attributes: ["id"],

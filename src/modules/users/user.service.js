@@ -1098,7 +1098,7 @@ const updateUsername = async (body, files) => {
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid username");
     }
 
-    if (await User.isUserNameTaken(user_name, user.role_id)) {
+    if (await User.isUserNameTaken(user_name, user.id)) {
       throw new ApiError(httpStatus.BAD_REQUEST, "username already taken");
     }
     user.user_name = user_name;

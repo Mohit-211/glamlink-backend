@@ -3,7 +3,7 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const professionsalFormController = require('./professionalForm.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 
 
 
@@ -15,7 +15,7 @@ router.post('/updateStatus/:id', requireAdmin, professionsalFormController.updat
 router.post('/deleteForm/:id', requireAdmin, professionsalFormController.deleteForm);
 router.get('/getPendingFormCount', requireAdmin, professionsalFormController.getPendingFormCount);
 
-router.post('/submitForm',[userAuthMiddleware.verifyAuthJWTToken], professionsalFormController.submitForm);
+router.post('/submitForm',[authenticate], professionsalFormController.submitForm);
 
 
 

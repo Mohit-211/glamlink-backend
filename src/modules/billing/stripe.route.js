@@ -3,12 +3,12 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const stripeController = require('./stripe.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { requireProfessional } = require('../../core/auth/authenticate');
 
-router.get('/getOnboardingLink', [userAuthMiddleware.verifyAuthJWTToken], stripeController.getOnboardingLink);
-router.get('/checkAccountStatus', [userAuthMiddleware.verifyAuthJWTToken], stripeController.checkAccountStatus);
-router.post('/unlinkStripeAccount', [userAuthMiddleware.verifyAuthJWTToken], stripeController.unlinkStripeAccount);
-router.get('/generateStripeLoginLink', [userAuthMiddleware.verifyAuthJWTToken], stripeController.generateStripeLoginLink);
+router.get('/getOnboardingLink', [requireProfessional], stripeController.getOnboardingLink);
+router.get('/checkAccountStatus', [requireProfessional], stripeController.checkAccountStatus);
+router.post('/unlinkStripeAccount', [requireProfessional], stripeController.unlinkStripeAccount);
+router.get('/generateStripeLoginLink', [requireProfessional], stripeController.generateStripeLoginLink);
 
 router.get('/getProfessionalPayoutSummary/:id', requireAdmin, stripeController.getProfessionalPayoutSummary);
 router.post('/payout/professional', requireAdmin, stripeController.makeProfessionalPayouts);

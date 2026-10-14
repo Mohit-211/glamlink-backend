@@ -6,7 +6,8 @@ const { Admin } = require('../../models');
 const config = require('../config/config');
 const catchAsync = require('../http/catchAsync');
 const ApiError = require('../http/ApiError');
-const { verifyAuthJWTToken } = require('./userAuth.middleware');
+const { authenticate, identify } = require('./authenticate');
+const { tokenFromRequest } = require('./sessions');
 
 // Admin tokens are signed with the hex-decoded secret (see adminAuth.service.js loginAdminUser).
 const verifyAdminToken = async (token) => {
@@ -21,16 +22,9 @@ const verifyAdminToken = async (token) => {
     return admin ? payload : null;
 };
 
-// Runs the user-token middleware. Resolves when it calls next(), or when it answers the request itself
-// (some of its error paths reply directly); callers check res.headersSent afterwards.
-const runUserAuth = (req, res) => new Promise((resolve, reject) => {
-    res.once('finish', resolve);
-    verifyAuthJWTToken(req, res, (err) => (err ? reject(err) : resolve()));
-});
-
 // Only an active admin may pass.
 const requireAdmin = catchAsync(async (req, res, next) => {
-    const token = req.header('x-access-token');
+    const token = tokenFromRequest(req);
     if (!token) throw new ApiError(httpStatus.UNAUTHORIZED, 'Admin authentication required');
     const admin = await verifyAdminToken(token);
     if (!admin) throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired admin token');
@@ -40,20 +34,14 @@ const requireAdmin = catchAsync(async (req, res, next) => {
     next();
 });
 
-// A logged-in user is required; guests are rejected.
-const requireUser = catchAsync(async (req, res, next) => {
-    if (!req.header('x-access-token')) throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
-    await runUserAuth(req, res);
-    if (res.headersSent) return;
-    if (req.isGuest || !req.body.user) throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
-    next();
-});
+// A signed-in user is required; guests are rejected.
+const requireUser = authenticate;
 
 // An admin, or a logged-in user who owns every record addressed by the request.
 // getIds(req) returns the id(s) the request acts on; ownerField is the column holding the owner's user id.
 // allowUnowned lets anyone act on records that have no owner yet (public Access-card purchase flow).
 const requireOwnerOrAdmin = ({ model, ownerField = 'user_id', getIds, allowUnowned = false }) => catchAsync(async (req, res, next) => {
-    const token = req.header('x-access-token');
+    const token = tokenFromRequest(req);
     if (token) {
         const admin = await verifyAdminToken(token);
         if (admin) {
@@ -73,11 +61,10 @@ const requireOwnerOrAdmin = ({ model, ownerField = 'user_id', getIds, allowUnown
     const allUnowned = records.every((r) => r[ownerField] === null || r[ownerField] === undefined);
     if (allowUnowned && allUnowned) return next();
 
-    if (!token) throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
-    await runUserAuth(req, res);
-    if (res.headersSent) return;
-    const user = req.body.user;
-    if (req.isGuest || !user) throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+    if (!token) throw ApiError.withCode(httpStatus.UNAUTHORIZED, 'Please sign in.', 'SIGN_IN_REQUIRED');
+    await identify(req);
+    const user = req.user;
+    if (!user) throw ApiError.withCode(httpStatus.UNAUTHORIZED, 'Please sign in.', 'SIGN_IN_REQUIRED');
 
     const ownsAll = records.length === ids.length && records.every((r) => String(r[ownerField]) === String(user.id));
     if (!ownsAll) throw new ApiError(httpStatus.FORBIDDEN, 'You can only change your own records');

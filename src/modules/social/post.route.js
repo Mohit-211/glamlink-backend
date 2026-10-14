@@ -2,26 +2,26 @@ const express = require('express');
 const router = express.Router();
 
 const postController = require('./post.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const { authenticate } = require('../../core/auth/authenticate');
 const postMiddleware = require('./post.middleware');
 
 
-router.post('', [userAuthMiddleware.verifyAuthJWTToken], postController.createPost);
-router.get('/all', [userAuthMiddleware.verifyAuthJWTToken], postController.getAllPostByUserId);
-router.get('/all/user/:user_id', [userAuthMiddleware.verifyAuthJWTToken], postController.getAllOtherUserPostByUserId);
-router.get('/details/:id', [userAuthMiddleware.verifyAuthJWTToken], postController.postDetailsById);
-router.delete('/:id', [userAuthMiddleware.verifyAuthJWTToken, postMiddleware.isPostOwner], postController.deletePostById);
-router.patch('/:id', [userAuthMiddleware.verifyAuthJWTToken, postMiddleware.isPostOwner], postController.editPost);
+router.post('', [authenticate], postController.createPost);
+router.get('/all', [authenticate], postController.getAllPostByUserId);
+router.get('/all/user/:user_id', [authenticate], postController.getAllOtherUserPostByUserId);
+router.get('/details/:id', [authenticate], postController.postDetailsById);
+router.delete('/:id', [authenticate, postMiddleware.isPostOwner], postController.deletePostById);
+router.patch('/:id', [authenticate, postMiddleware.isPostOwner], postController.editPost);
 
-router.post('/like', [userAuthMiddleware.verifyAuthJWTToken], postController.likeAndDislikePost);
-router.get('/like/:post_id', [userAuthMiddleware.verifyAuthJWTToken], postController.getAllUserLikedPostByPostId);
+router.post('/like', [authenticate], postController.likeAndDislikePost);
+router.get('/like/:post_id', [authenticate], postController.getAllUserLikedPostByPostId);
 
-router.post('/comment', [userAuthMiddleware.verifyAuthJWTToken], postController.createCommenetInPost);
-router.get('/comment/:post_id', [userAuthMiddleware.verifyAuthJWTToken], postController.getAllCommentsByPostId);
-router.delete('/comment/:comment_id', [userAuthMiddleware.verifyAuthJWTToken], postController.deleteCommentFromPost);
+router.post('/comment', [authenticate], postController.createCommenetInPost);
+router.get('/comment/:post_id', [authenticate], postController.getAllCommentsByPostId);
+router.delete('/comment/:comment_id', [authenticate], postController.deleteCommentFromPost);
 
-router.post('/save', [userAuthMiddleware.verifyAuthJWTToken], postController.savePost);
-router.get('/save', [userAuthMiddleware.verifyAuthJWTToken], postController.getAllSavedPost);
+router.post('/save', [authenticate], postController.savePost);
+router.get('/save', [authenticate], postController.getAllSavedPost);
 
-router.post('/report', [userAuthMiddleware.verifyAuthJWTToken], postController.reportPost);
+router.post('/report', [authenticate], postController.reportPost);
 module.exports = router;

@@ -510,8 +510,7 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
             where: {
               id: card.user_id,
               is_active: true,
-              status: "ACCEPTED",
-              role_id: "7",
+              account_type: "professional",
             },
           });
 
