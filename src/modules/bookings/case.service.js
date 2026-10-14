@@ -105,7 +105,7 @@ const caseDetail = async (body, params, header) => {
                 {
                     model: Appointment,
                     as: 'case_appointments',
-                    attributes: ['id', 'user_id', 'counselor_id', 'slot_id', 'case_id', 'notes', 'call_type', 'slot_duration_in_minuites', 'total_amount', 'is_active', 'is_user_canceled', 'is_counselor_canceled', 'is_term_form_accepted_by_user', 'status', 'is_counselor_joined', 'is_user_joined', 'is_user_canceled', 'is_counselor_canceled', 'is_payment_done', 'is_rescheduled_done', 'is_refund_needed', 'timing_status'],
+                    attributes: ['id', 'user_id', 'counselor_id', 'slot_id', 'case_id', 'notes', 'slot_duration_in_minuites', 'total_amount', 'is_active', 'is_user_canceled', 'is_counselor_canceled', 'is_term_form_accepted_by_user', 'status', 'is_counselor_joined', 'is_user_joined', 'is_user_canceled', 'is_counselor_canceled', 'is_payment_done', 'is_rescheduled_done', 'is_refund_needed', 'timing_status'],
                     include: [
                         {
                             model: User,

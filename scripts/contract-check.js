@@ -45,6 +45,21 @@ const normalize = (v) => {
     return v;
 };
 
+// Where two bodies differ: "removed a.b", "added a.c", "changed a.d". Array items are compared by index,
+// and paths are reported once per shape (array indexes shown as []).
+const diffPaths = (a, b, p = '', out = new Set()) => {
+    const isObj = (v) => v && typeof v === 'object';
+    if (isObj(a) && isObj(b)) {
+        for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+            const q = Array.isArray(a) ? `${p}[]` : p ? `${p}.${k}` : k;
+            if (!(k in b)) out.add(`removed ${q}`);
+            else if (!(k in a)) out.add(`added ${q}`);
+            else diffPaths(a[k], b[k], q, out);
+        }
+    } else if (JSON.stringify(a) !== JSON.stringify(b)) out.add(`changed ${p || '(body)'}`);
+    return [...out];
+};
+
 (async () => {
     const db = await mysql.createConnection({
         host: process.env.CENTRAL_MYSQL_HOST, port: Number(process.env.CENTRAL_MYSQL_PORT),
@@ -141,7 +156,12 @@ const normalize = (v) => {
         if (diffs.length) {
             exitCode = 1;
             console.log(`CONTRACT CHANGED for ${diffs.length} endpoint(s):`);
-            for (const k of diffs) console.log(`  ${k}: status ${expected[k] && expected[k].status} -> ${results[k] && results[k].status}`);
+            for (const k of diffs) {
+                console.log(`  ${k}: status ${expected[k] && expected[k].status} -> ${results[k] && results[k].status}`);
+                const changes = diffPaths(expected[k] && expected[k].body, results[k] && results[k].body);
+                for (const c of changes.slice(0, 15)) console.log(`    ${c}`);
+                if (changes.length > 15) console.log(`    ... ${changes.length - 15} more`);
+            }
         } else {
             console.log(`contract identical for all ${Object.keys(results).length} endpoints`);
         }

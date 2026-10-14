@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../core/db/central.db');
-const { appointmentTypes, callTypes, rolesTypes } = require('../core/config/types');
+const { appointmentTypes } = require('../core/config/types');
 
 
 
@@ -123,40 +123,6 @@ Appointment.init({
     is_refund_needed: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
-    },
-    call_type: {
-        type: DataTypes.ENUM,
-        values: [callTypes.VIDEO, callTypes.VOICE],
-        defaultValue: callTypes.VIDEO,
-    },
-    counselor_zego_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-    },
-    user_zego_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-    },
-    zego_call_id : {
-        type: DataTypes.STRING(200),
-        allowNull: true
-    },
-    call_end_by: {
-        type: DataTypes.ENUM,
-        values: [rolesTypes.User, rolesTypes.CLLR],
-        allowNull: true,
-    },
-    call_start_time:{
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    call_end_time: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    call_duration_in_minuites: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
     },
     is_active: {
         type: DataTypes.BOOLEAN,

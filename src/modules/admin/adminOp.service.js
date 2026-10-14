@@ -774,7 +774,6 @@ const getAllAppointment = async (body, header, query) => {
         "service_id",
         "case_id",
         "notes",
-        "call_type",
         "duration",
         "total_amount",
         "is_active",

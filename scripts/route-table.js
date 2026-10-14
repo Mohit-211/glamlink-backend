@@ -11,7 +11,9 @@
  */
 const path = require('path'), fs = require('fs'), Module = require('module');
 const outFile = process.argv[2]; const appDir = path.resolve(process.argv[3] || path.join(__dirname, '..'));
-// Without an output file the table goes to stdout.
+// Without an output file the table goes to stdout, and the app's own log lines go to stderr.
+const writeTable = process.stdout.write.bind(process.stdout);
+if (!outFile) process.stdout.write = process.stderr.write.bind(process.stderr);
 Object.assign(process.env, {
   APP_NAME: 'x', NODE_ENV: 'production', CENTRAL_MYSQL_HOST: '127.0.0.1', CENTRAL_MYSQL_USER: 'x', CENTRAL_MYSQL_DB: 'x',
   CENTRAL_MYSQL_PORT: '1', JWT_SECRET: 'abcd', ACCESSDOMAINS: 'http://localhost', STRIPE_SECRET_KEY: 'sk_test_x',
@@ -66,5 +68,5 @@ const table = ['# ROUTES ' + routes.length, ...routes, '# LOADED ' + loaded.leng
 if (outFile) {
   fs.writeFileSync(outFile, table);
   console.log('routes', routes.length, 'loaded', loaded.length, 'partial', partial.size);
-} else process.stdout.write(table + '\n');
+} else writeTable(table + '\n');
 setTimeout(() => process.exit(0), 300);

@@ -32,15 +32,6 @@ const paymentStatusTypes = {
     CANCELLED: 'CANCELLED',
 };
 
-const rolesTypes = {
-    ADM: 'Admin',
-    SUP_ADM: 'Super Admin',
-    SUB_ADM: 'Sub Admin',
-    ENG: 'Engineer',
-    EDTR: 'Editor',
-    User: 'User',
-    CLLR: 'Counselor'
-};
 
 const tokenTypes = {
     ACCESS: 'access',
@@ -122,10 +113,6 @@ const notificationMediumTypes = {
     push: 'PUSH'
 };
 
-const callTypes = {
-    VIDEO: 'VIDEO',
-    VOICE: 'VOICE',
-};
 
 const availabilityRuleTypes = {
     wday: 'wday',
@@ -206,12 +193,10 @@ module.exports = {
     paymentModeTypes,
     otpTypes,
     paymentStatusTypes,
-    rolesTypes,
     tokenTypes,
     currancyTypes,
     caseTypes,
     appointmentTypes,
-    callTypes,
     availabilityRuleTypes,
     daysOfWeek,
     notificationTypes,

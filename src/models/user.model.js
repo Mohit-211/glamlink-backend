@@ -51,10 +51,6 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    square_customer_id: {
-      type: DataTypes.STRING(200),
-      allowNull: true,
-    },
     onboarding_status: {
       type: DataTypes.ENUM,
       values: ["pending", "completed", "incomplete"],
