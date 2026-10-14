@@ -23,7 +23,7 @@ const postReviewAndRating = async (reqBody) => {
 			throw new ApiError(httpStatus.BAD_REQUEST, "Product not found");
 		}
 
-		// Check if the user has purchased the course
+		// Check if the user has purchased the product
 		const purchaseRecord = await OrderDetails.findOne({
 			where: {
 				user_id: user.id,
