@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdmin } = require('../../../middlewares/access.middleware');
 
 const { productTypeController } = require('../../../controllers');
 const { userAuthMiddleware } = require('../../../middlewares');
 
 router.post('/createProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.createProductType);
 router.get('/getAllProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.getAllProductType);
-router.get('/getProductTypeById/:id', productTypeController.getProductTypeById);
+router.get('/getProductTypeById/:id', requireAdmin, productTypeController.getProductTypeById);
 router.get('/getProductTypeName',[userAuthMiddleware.verifyAuthJWTToken], productTypeController.getProductTypeName);
-router.put('/updateProductType/:id', productTypeController.updateProductType);
-router.post('/delete', productTypeController.deleteProductType);
+router.put('/updateProductType/:id', requireAdmin, productTypeController.updateProductType);
+router.post('/delete', requireAdmin, productTypeController.deleteProductType);
 
 
 module.exports = router;

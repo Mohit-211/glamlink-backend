@@ -3,15 +3,16 @@ const express = require("express");
 const { partnershipInquiryController } = require("../../../controllers/Common");
 
 const router = express.Router();
+const { requireAdmin } = require('../../../middlewares/access.middleware');
 
 // Public
 router.post("/", partnershipInquiryController.createPartnershipInquiry);
 
 // Admin
-router.get("/", partnershipInquiryController.getAllPartnershipInquiries);
+router.get("/", requireAdmin, partnershipInquiryController.getAllPartnershipInquiries);
 
-router.get("/:id", partnershipInquiryController.findPartnershipInquiryById);
+router.get("/:id", requireAdmin, partnershipInquiryController.findPartnershipInquiryById);
 
-router.post("/delete", partnershipInquiryController.deletePartnershipInquiry);
+router.post("/delete", requireAdmin, partnershipInquiryController.deletePartnershipInquiry);
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
+const { BannerMedia } = require('../../../models');
 
 
 const { userAuthMiddleware } = require('../../../middlewares');
@@ -9,7 +11,7 @@ router.post('/createBanner', [userAuthMiddleware.verifyAuthJWTToken],bannerContr
 router.get('/getAllBanner',  bannerController.getAllBanner);
 router.get('/findBannerById/:id',  bannerController.findBannerById);
 router.put('/updateBanner/:id',[userAuthMiddleware.verifyAuthJWTToken], bannerController.updateBanner);
-router.post('/deleteBanner', bannerController.deleteBanner);
+router.post('/deleteBanner', requireOwnerOrAdmin({ model: BannerMedia, ownerField: 'user_id', getIds: (req) => req.body.banner_id }), bannerController.deleteBanner);
 
 router.get('/getAllBannerByProfessional', [userAuthMiddleware.verifyAuthJWTToken], bannerController.getAllBannerByProfessional);
 

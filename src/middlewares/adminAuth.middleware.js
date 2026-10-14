@@ -20,7 +20,7 @@ const validateCreateAdminBody = catchAsync(async (req, res, next) => {
             return responseWrapper(res, '', 'Please Enter Required Fields : [name || email_id || password || role_id || department_id]', httpStatus.BAD_REQUEST);
         };
 
-        if (role_id === config.SUP_ADM_ROLE_ID) {
+        if (String(role_id) === String(config.SUP_ADM_ROLE_ID)) {
             return responseWrapper(res, '', 'You are not authorized to create this role.', httpStatus.BAD_REQUEST);
         };
 

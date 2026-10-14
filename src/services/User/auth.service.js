@@ -1,6 +1,7 @@
 /** @format */
 
 const httpStatus = require("http-status");
+const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require("../../utils/otpAttempts");
 const bcrypt = require("bcryptjs");
 const randomize = require("randomatic");
 const moment = require("moment");
@@ -42,6 +43,7 @@ const sendOTP = async (body, headers) => {
       where: { email: body?.email, type: body?.type, role_id: role_id },
     });
     if (existingOtp) await existingOtp.destroy({ force: true });
+    resetOtpAttempts(otpAttemptKey("user", email, type, role_id));
     const generatedOTP = randomize("0", 4);
     const otpObj = {
       email: email,
@@ -94,9 +96,17 @@ const verifyOTP = async (email, otp, type, role_id) => {
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Email or Type");
     }
 
-    if (otp !== otpDoc.code) {
+    const attemptKey = otpAttemptKey("user", email, type, role_id);
+    if (String(otp) !== String(otpDoc.code)) {
+      if (recordOtpFailure(attemptKey)) {
+        resetOtpAttempts(attemptKey);
+        otpDoc.is_active = false;
+        await otpDoc.save();
+        throw new ApiError(httpStatus.TOO_MANY_REQUESTS, "Too many incorrect codes. Please request a new OTP.");
+      }
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid OTP Entered");
     }
+    resetOtpAttempts(attemptKey);
 
     if (otpDoc.otp_expiration_time < new Date()) {
       throw new ApiError(httpStatus.BAD_REQUEST, "OTP has been Expired");
@@ -173,7 +183,6 @@ const register = async (body, files, headers) => {
       user_name,
     } = body;
     const { role_id } = headers;
-    console.log("body", body);
 
     let salt = bcrypt.genSaltSync(10);
 
@@ -214,7 +223,6 @@ const register = async (body, files, headers) => {
       );
     }
 
-    console.log(user, "user");
 
     let profileObj = {};
     profileObj = {
@@ -434,7 +442,6 @@ const login = async (reqBody, headers) => {
 
  
 
-    console.log("Result from Sequelize:", user);
     if (!user) {
       throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
     }

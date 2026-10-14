@@ -107,7 +107,7 @@ const createUserPromotion = async (reqBody, res) => {
 		const paymentIntent = await stripe.paymentIntents.create({
 			customer: customer.id,
 			amount: totalAmount * 100,
-			currency: currency || "usd",
+			currency: "usd",
 			payment_method_types: [paymentMethod || "card"],
 			metadata: {
 				user_id: user.id,

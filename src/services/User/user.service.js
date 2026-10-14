@@ -2801,6 +2801,8 @@ const search = async (body, query, params) => {
   const safeSort = sortBy?.toLowerCase() === "desc" ? "DESC" : "ASC";
   try {
     const searchTerm = name.startsWith("#") ? name.substring(1) : name;
+    // Escaped for the raw LIKE literals below (searchTerm is user input).
+    const likeTerm = sequelize.escape(`%${searchTerm}%`);
     // Get the list of users blocked by the current user
     const blockedByUserIds = await UserBlock.findAll({
       where: {
@@ -2973,16 +2975,16 @@ const search = async (body, query, params) => {
           id: { [Op.notIn]: blockedUserIds },
           [Op.or]: [
             Sequelize.literal(
-              `EXISTS (SELECT 1 FROM services WHERE services.user_id = User.id AND services.name LIKE '%${searchTerm}%')`,
+              `EXISTS (SELECT 1 FROM services WHERE services.user_id = User.id AND services.name LIKE ${likeTerm})`,
             ),
             Sequelize.literal(
-              `EXISTS (SELECT 1 FROM profiles WHERE profiles.user_id = User.id AND profiles.name LIKE '%${searchTerm}%')`,
+              `EXISTS (SELECT 1 FROM profiles WHERE profiles.user_id = User.id AND profiles.name LIKE ${likeTerm})`,
             ),
             Sequelize.literal(
-              `EXISTS (SELECT 1 FROM profiles WHERE profiles.user_id = User.id AND profiles.profession LIKE '%${searchTerm}%')`,
+              `EXISTS (SELECT 1 FROM profiles WHERE profiles.user_id = User.id AND profiles.profession LIKE ${likeTerm})`,
             ),
             Sequelize.literal(
-              `EXISTS (SELECT 1 FROM user_promotions WHERE user_promotions.user_id = User.id AND user_promotions.title LIKE '%${searchTerm}%')`,
+              `EXISTS (SELECT 1 FROM user_promotions WHERE user_promotions.user_id = User.id AND user_promotions.title LIKE ${likeTerm})`,
             ),
           ],
         },

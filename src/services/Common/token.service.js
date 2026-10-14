@@ -1,3 +1,4 @@
+const httpStatus = require('http-status');
 const jwt = require('jsonwebtoken')
 const moment = require('moment')
 const config = require('../../config/config');
@@ -27,19 +28,14 @@ const generateToken = (userId, expires, type, role_id, secret = config.jwt.secre
 
 const saveToken = async (token, userId, expires, type, role_id, fcm_token) => {
     try {
-        let sql = '';
-        if (fcm_token) {
-            sql = `INSERT INTO user_tokens ( user_id, token_type, token, expired_at, fcm_token, created_at, updated_at, role_id) values (
-                '${userId}', '${type}', '${token}', '${expires}' , '${fcm_token}', now(), now(), ${role_id})`;
-        } else {
-            sql = `INSERT INTO user_tokens ( user_id, token_type, token, expired_at, created_at, updated_at, role_id) values (
-                '${userId}', '${type}', '${token}', '${expires}' , now(), now(), ${role_id})`;
-        }
-
+        // Values are bound, never interpolated: fcm_token comes from a request header.
+        const sql = `INSERT INTO user_tokens (user_id, token_type, token, expired_at, fcm_token, created_at, updated_at, role_id)
+            VALUES (:userId, :type, :token, :expires, :fcm_token, now(), now(), :role_id)`;
 
         let tokenDoc = await sequelize.query(
             sql, {
-            type: QueryTypes.INSERT
+            type: QueryTypes.INSERT,
+            replacements: { userId, type, token, expires, fcm_token: fcm_token || null, role_id },
         });
         return tokenDoc;
 

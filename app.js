@@ -6,8 +6,6 @@ const compression = require('compression');
 const httpStatus = require('http-status');
 const cron = require('node-cron');
 const path = require('path');
-const fs = require('fs')
-const moment = require('moment');
 const app = express();
 app.set("trust proxy", 1);
 
@@ -25,7 +23,6 @@ require('./src/config/firebaseConfig.js');
 const PUBLIC_DIR = path.resolve(__dirname, './public');
 
 
-const responseWrapper = require('./src/config/responseWrapper');
 const handleFileUploads = require('./src/config/multer.js');
 const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/controllers/Common/crmPayment.controller.js');
 const { updateUserPromotions } = require('./src/services/Common/promotion.service.js');
@@ -96,7 +93,7 @@ app.use(cors(corsConfigs));
 
 // limit repeated failed requests to auth endpoints
 if (config.env === 'production') {
-  app.use('/api/v1/auth', authLimiter);
+  app.use(['/api/v1/user/auth', '/api/v1/admin/auth'], authLimiter);
 };
 
 app.get('/api/healthcheck', function (req, res) {
@@ -107,46 +104,10 @@ app.get('/api/healthcheck', function (req, res) {
 });
 
 
-app.get('/test', (req, res, next) => {
-  res.status(200).send('Hello World !!')
-});
 
 // Added multer with all v1 api routes
 app.use('/api/v1', handleFileUploads, routes);
 
-app.get('/api/v1/logs', (req, res) => {
-  const currentDate = moment().format('YYYY-MM-DD');
-  const logFileName = `${currentDate}.log`;
-  const logFilePath = path.join(__dirname, 'logs', logFileName);
-  fs.readFile(logFilePath, 'utf8', (err, data) => {
-    if (err) {
-      return responseWrapper(res, [], 'success');
-    } else {
-      const logs = data.split('\n');
-      return responseWrapper(res, logs, 'success');
-    }
-  });
-});
-
-app.delete('/api/v1/logs', async (req, res) => {
-  const logDirectory = path.join(__dirname, 'logs');
-  fs.readdir(logDirectory, async (err, files) => {
-    if (err) {
-      return responseWrapper(res, '', 'Error reading log directory', 400);
-    } else {
-      files.forEach(file => {
-        if (file.endsWith('.log')) {
-          fs.unlink(path.join(logDirectory, file), err => {
-            if (err) {
-              return responseWrapper(res, '', 'Error deleting log file', 400);
-            }
-          });
-        }
-      });
-      return responseWrapper(res, '', 'All log files deleted successfully');
-    }
-  });
-});
 
 // All File Apis
 app.use('/images', express.static(`${PUBLIC_DIR}/uploads/images`));

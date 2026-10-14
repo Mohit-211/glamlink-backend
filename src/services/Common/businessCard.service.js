@@ -4959,7 +4959,6 @@ const createBusinessCardSubscriptionPublic = async (body) => {
 };
 
 const createBusinessCardSubscription = async (body) => {
-  console.log("body", body);
 
   try {
     const { user, business_card_id, plan_type } = body;

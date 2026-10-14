@@ -1,4 +1,5 @@
 const httpStatus = require('http-status');
+const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require('../../utils/otpAttempts');
 const bcrypt = require('bcryptjs');
 const randomize = require('randomatic');
 const jwt = require('jsonwebtoken');
@@ -121,6 +122,7 @@ const sendOTP = async (email) => {
         await emailService.sendForgotPasswordOTP(email, generatedOTP);
 
         await Admin.update({ otp: generatedOTP, is_otp_valid: true }, { where: { email: user.email } });
+        resetOtpAttempts(otpAttemptKey('admin', email));
         return true;
 
     } catch (error) {
@@ -139,9 +141,17 @@ const verifyOTP = async (email, otp, otp_type) => {
             throw new ApiError(httpStatus.NOT_FOUND, 'Invalid Email');
         };
 
-        if (otp !== user.otp || user.is_otp_valid === false) {
+        const attemptKey = otpAttemptKey('admin', email);
+        if (user.is_otp_valid === false || String(otp) !== String(user.otp)) {
+            if (user.is_otp_valid !== false && recordOtpFailure(attemptKey)) {
+                resetOtpAttempts(attemptKey);
+                user.is_otp_valid = false;
+                await user.save();
+                throw new ApiError(httpStatus.TOO_MANY_REQUESTS, 'Too many incorrect codes. Please request a new OTP.');
+            }
             throw new ApiError(httpStatus.NOT_FOUND, 'Invalid OTP Entered');
         };
+        resetOtpAttempts(attemptKey);
         let token = '';
         if (otp_type === otpTypes.FORGOT_PASSWORD) {
             token = jwt.sign(

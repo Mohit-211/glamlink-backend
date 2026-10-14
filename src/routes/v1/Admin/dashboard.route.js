@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdmin } = require('../../../middlewares/access.middleware');
+
+// Every route in this router is admin-only.
+router.use(requireAdmin);
 
 const {  dashboardController } = require('../../../controllers');
 

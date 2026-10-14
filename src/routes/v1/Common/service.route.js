@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdmin } = require('../../../middlewares/access.middleware');
 
 const { serviceController } = require('../../../controllers');
 const { userAuthMiddleware } = require('../../../middlewares');
@@ -18,7 +19,7 @@ router.post('/bookings', [userAuthMiddleware.verifyAuthJWTToken], serviceControl
 router.post('/service-list', serviceController.getServiceListByCategory);
 
 router.post('/get-other-service-list',serviceController.getOtherServiceListByCategory);
-router.post('/deleteServiceByAdmin',serviceController.deleteServiceByAdmin);
+router.post('/deleteServiceByAdmin', requireAdmin,serviceController.deleteServiceByAdmin);
 
 module.exports = router;
 

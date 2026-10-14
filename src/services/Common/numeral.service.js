@@ -9,7 +9,6 @@ const NUMERAL_API_KEY = config.NUMERAL_API_KEY || "";
 const NUMERAL_BASE_URL = config.NUMERAL_BASE_URL || "";
 
 const calculateCheckoutTax = async (reqBody) => {
-	console.log(reqBody,"reqBody")
 	try {
 		const { user } = reqBody;
 

@@ -118,7 +118,7 @@ const createPaymentIntent = catchAsync(async (req, res) => {
 		// Create a Payment Intent
 		const paymentIntent = await stripe.paymentIntents.create({
 			amount: amount * 100, // Convert amount to cents
-			currency: currency || "usd",
+			currency: "usd",
 			payment_method_types: [paymentMethod || "card"],
 			customer: customer.id,
 			metadata: {

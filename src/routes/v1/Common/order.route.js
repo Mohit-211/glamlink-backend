@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
+const { OrderDetails } = require('../../../models');
 
 const { orderController } = require('../../../controllers');
 const { userAuthMiddleware } = require('../../../middlewares');
@@ -16,11 +18,11 @@ router.post('/getAllProfessionalOrders', [userAuthMiddleware.verifyAuthJWTToken]
 router.get('/checkAddressProvided',[userAuthMiddleware.verifyAuthJWTToken],  orderController.checkAddressProvided);
 
 //ADMIN API
-router.get('/getAllOrders', orderController.getAllOrders);
-router.get('/getOrderById/:id', orderController.getOrderById);
-router.post('/updateOrderStatus/:id', orderController.updateOrderStatus);
-router.get('/getShipmentStatus/:id', orderController.getShipmentStatus);
-router.post('/createShipmentLabel/:id', orderController.createShipmentLabel);
+router.get('/getAllOrders', requireAdmin, orderController.getAllOrders);
+router.get('/getOrderById/:id', requireAdmin, orderController.getOrderById);
+router.post('/updateOrderStatus/:id', requireAdmin, orderController.updateOrderStatus);
+router.get('/getShipmentStatus/:id', requireOwnerOrAdmin({ model: OrderDetails, ownerField: 'professional_id', getIds: (req) => req.params.id }), orderController.getShipmentStatus);
+router.post('/createShipmentLabel/:id', requireOwnerOrAdmin({ model: OrderDetails, ownerField: 'professional_id', getIds: (req) => req.params.id }), orderController.createShipmentLabel);
 
 
 router.post('/addNewAddress-public', orderController.addNewAddressPublic);

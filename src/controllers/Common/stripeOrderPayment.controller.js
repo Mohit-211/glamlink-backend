@@ -271,7 +271,7 @@ const createPaymentIntent = catchAsync(async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       customer: customer.id,
       amount: total_amount_including_tax * 100,
-      currency: currency || "usd",
+      currency: "usd",
       payment_method_types: [paymentMethod || "card"],
       metadata: {
         user_id: user.id,
@@ -292,7 +292,7 @@ const createPaymentIntent = catchAsync(async (req, res) => {
     const payment = await Payment.create({
       transaction_id: paymentIntent.id,
       amount: total_amount_including_tax,
-      currency: currency || "usd",
+      currency: "usd",
       description,
       user_id: user.id,
       payment_method: paymentMethod || "APPLE_PAY",
@@ -506,38 +506,47 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       const orderId = metadata.order_id; // Undefined for CRM subscription
       const promotionPaymentId = metadata.promotion_payment_id;
 
+      // Everything we sell is priced in USD; ignore charges in any other currency.
+      if (charge.currency !== "usd") {
+        console.error(`Ignoring charge ${chargeId}: unexpected currency ${charge.currency}`);
+        return res.status(200).json({ received: true });
+      }
+
       // ✅ Handle Promotion Payment First
       if (promotionPaymentId) {
-        console.log("🎯 Processing Promotion Payment...");
+        const promotionPayment = await PromotionPayment.findOne({
+          where: { id: promotionPaymentId, transaction_id: paymentIntentId },
+        });
+        const expectedCents = promotionPayment
+          ? Math.round(Number(promotionPayment.amount) * 100)
+          : null;
+        if (!promotionPayment || charge.amount !== expectedCents) {
+          console.error(`Promotion payment ${promotionPaymentId} does not match charge ${chargeId}; not activating`);
+          return res.status(200).json({ received: true });
+        }
+        const professionalId = promotionPayment.professional_id;
+        // Only the promotions created for this payment (set server-side in promotion.service.js).
+        const promotionIds = String(metadata.user_promotion_ids || "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean);
 
-        // Create PromotionPayment entry
-        await PromotionPayment.update(
-          {
-            receipt_url: receiptUrl,
-            payment_status: "SUCCESS",
-          },
-          { where: { transaction_id: paymentIntentId } },
-        );
-
-        // Update user promotion status
-        await User.update(
-          {
-            is_promoted: true,
-          },
-          { where: { id: userId } },
-        );
+        await promotionPayment.update({
+          receipt_url: receiptUrl,
+          payment_status: "SUCCESS",
+        });
 
         await UserPromotion.update(
-          {
-            is_active: true,
-          },
-          { where: { user_id: userId } },
+          { is_active: true },
+          { where: { id: { [Op.in]: promotionIds }, user_id: professionalId } },
         );
 
-        // 🔔 Send emails
-        await sendPromotionPurchaseEmails(userId);
+        await User.update({ is_promoted: true }, { where: { id: professionalId } });
 
-        console.log(`✅ User ${userId} marked as promoted`);
+        // 🔔 Send emails
+        await sendPromotionPurchaseEmails(professionalId);
+
+        console.log(`✅ User ${professionalId} marked as promoted`);
         return res.status(200).json({ received: true });
       }
 
@@ -903,6 +912,11 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
           `❌ Payment record not found in both tables for transaction: ${paymentIntentId}`,
         );
         return res.status(404).send("Payment record not found");
+      }
+
+      if (charge.amount !== Math.round(Number(paymentRecord.amount) * 100)) {
+        console.error(`Payment ${paymentRecord.id} amount does not match charge ${chargeId}; order not activated`);
+        return res.status(200).json({ received: true });
       }
 
       // **Step 4: Process Product Purchase if Found in `payments`**

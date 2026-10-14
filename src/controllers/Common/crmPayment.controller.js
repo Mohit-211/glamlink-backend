@@ -39,7 +39,7 @@ const checkUserPremiumStatus = async () => {
 			);
 		}
 
-		console.log("Expired Users: ", checkUser);
+		if (checkUser.length) console.log("Premium expired for users:", checkUser.map((u) => u.id));
 		return checkUser;
 	} catch (error) {
 		console.error(error);

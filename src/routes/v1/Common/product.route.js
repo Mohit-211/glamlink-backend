@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
+const { Product } = require('../../../models');
 
 const { productController } = require('../../../controllers');
 const { userAuthMiddleware } = require('../../../middlewares');
@@ -8,15 +10,15 @@ router.post('/createProduct', [userAuthMiddleware.verifyAuthJWTToken],productCon
 router.get('/getAllProducts',[userAuthMiddleware.verifyAuthJWTToken],  productController.getAllProducts);
 router.get('/getAllProductsByBeuticianId/:id',productController.getAllProductsByBeuticianId);
 router.get('/findProductById/:id',[userAuthMiddleware.verifyAuthJWTToken],  productController.findProductById);
-router.put('/updateProduct/:id', productController.updateProduct);
-router.post('/delete', productController.deleteProduct);
+router.put('/updateProduct/:id', requireOwnerOrAdmin({ model: Product, ownerField: 'user_id', getIds: (req) => req.params.id }), productController.updateProduct);
+router.post('/delete', requireOwnerOrAdmin({ model: Product, ownerField: 'user_id', getIds: (req) => req.body.product_id }), productController.deleteProduct);
 router.post('/getAllProductsForUser',[userAuthMiddleware.verifyAuthJWTToken], productController.getAllProductsForUser);
 
 
-router.get('/getAllProductsForAdmin', productController.getAllProductsForAdmin);
-router.get('/getPendingProductCount',productController.getPendingProductCount);
+router.get('/getAllProductsForAdmin', requireAdmin, productController.getAllProductsForAdmin);
+router.get('/getPendingProductCount', requireAdmin,productController.getPendingProductCount);
 router.get('/getProductById/:id',productController.getProductById);
-router.post('/updateProductStatus/:id', productController.updateProductStatus);
+router.post('/updateProductStatus/:id', requireAdmin, productController.updateProductStatus);
 
 router.post('/provideServiceLocation', [userAuthMiddleware.verifyAuthJWTToken],productController.provideServiceLocation);
 router.get('/checkServiceLocation',[userAuthMiddleware.verifyAuthJWTToken],  productController.checkServiceLocation);

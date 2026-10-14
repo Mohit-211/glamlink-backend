@@ -527,14 +527,11 @@ const validateForgetPassordToken = catchAsync(async (req, res, next) => {
 });
 
 const setRoleIdIfNotPresent = catchAsync(async (req, res, next) => {
-  console.log("BEFORE role_id =", req.headers.role_id);
-  console.log("ALL HEADERS =", JSON.stringify(req.headers, null, 2));
 
   if (!req.headers.role_id) {
     req.headers.role_id = config.CLLR_ROLE_ID;
   }
 
-  console.log("AFTER role_id =", req.headers.role_id);
 
   next();
 });

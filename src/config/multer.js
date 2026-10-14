@@ -134,8 +134,12 @@ function getFileExtension(file) {
 }
 
 // Initialize multer upload
+// Per-file size cap; override with UPLOAD_MAX_MB.
+const MAX_FILE_BYTES = (Number(process.env.UPLOAD_MAX_MB) || 50) * 1024 * 1024;
+
 const upload = multer({
   storage: storage,
+  limits: { fileSize: MAX_FILE_BYTES },
   fileFilter: (req, file, cb) => {
     checkFileType(file, cb);
   },
@@ -152,11 +156,26 @@ const upload = multer({
 ]);
 
 // Middleware to handle file uploads
+// Deletes this request's stored files if the request ends in an error (including failed auth),
+// so rejected uploads don't pile up on disk.
+const removeFilesOnFailure = (req, res) => {
+  res.once("finish", () => {
+    if (res.statusCode < 400 || !req.files) return;
+    Object.values(req.files)
+      .flat()
+      .forEach((file) => file && file.path && fs.unlink(file.path, () => {}));
+  });
+};
+
 const handleFileUploads = (req, res, next) => {
   upload(req, res, (err) => {
     if (err) {
+      if (err instanceof multer.MulterError) {
+        return next(new ApiError(httpStatus.BAD_REQUEST, err.code === "LIMIT_FILE_SIZE" ? "File is too large." : err.message));
+      }
       return next(err);
     }
+    removeFilesOnFailure(req, res);
 
     try {
       const fileTypes = [
