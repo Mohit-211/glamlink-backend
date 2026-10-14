@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 
 const { Availability } = require('../../models');
 const catchAsync = require('../../core/http/catchAsync');

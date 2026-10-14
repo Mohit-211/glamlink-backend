@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 
 const catchAsync = require('../../core/http/catchAsync');
 const contactUsService = require('./contactUs.service');

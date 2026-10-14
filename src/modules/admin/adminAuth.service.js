@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require('../../core/auth/otpAttempts');
 const bcrypt = require('bcryptjs');
 const randomize = require('randomatic');

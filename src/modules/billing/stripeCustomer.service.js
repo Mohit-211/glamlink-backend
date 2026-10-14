@@ -1,7 +1,7 @@
 /** @format */
 
 // Stripe keys per payment method and the Stripe customer for a user (shared by checkout, promotions and Access-card payments).
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const Stripe = require("stripe");
 const ApiError = require("../../core/http/ApiError");
 const config = require("../../core/config/config");

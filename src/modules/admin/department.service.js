@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const moment = require('moment')
 
 const { Department } = require('../../models');

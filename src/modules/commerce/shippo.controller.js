@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const ApiError = require("../../core/http/ApiError");
 const catchAsync = require("../../core/http/catchAsync");
 const { OrderDetails } = require("../../models");

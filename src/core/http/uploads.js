@@ -2,7 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const ApiError = require("./ApiError");
-const httpStatus = require("http-status");
+const httpStatus = require("./status");
 const config = require("../config/config");
 const crypto = require("crypto");
 

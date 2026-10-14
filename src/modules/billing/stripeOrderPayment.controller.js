@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");
 const Stripe = require("stripe");
 const moment = require("moment");

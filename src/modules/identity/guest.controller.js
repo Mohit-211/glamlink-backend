@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const guestService = require('./guest.service');
 const responseWrapper = require('../../core/http/responseWrapper');
 const catchAsync = require('../../core/http/catchAsync');

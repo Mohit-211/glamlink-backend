@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const momentTz = require('moment-timezone');
 const Sequelize = require('sequelize');
 

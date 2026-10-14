@@ -9,7 +9,7 @@ const {
   emailVerificationFormat,
 } = require("./templates");
 const ApiError = require("../../core/http/ApiError");
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const { User, Profile, UserPromotion, Customer } = require("../../models");
 const {
   newAccessUserEmailFormat,

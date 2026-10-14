@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const {
   Product,
   Order,
@@ -1195,7 +1195,6 @@ const addNewAddressPublic = async (reqBody) => {
   } catch (error) {
   console.log("FULL ERROR =>", error);
   console.log("STATUS =>", error.statusCode);
-  console.log("HTTPSTATUS =>", httpStatus);
 
   throw new ApiError(
     error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,

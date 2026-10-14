@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const config = require('../../core/config/config');
 const pick = require('../../core/utils/pick');
 const catchAsync = require('../../core/http/catchAsync');

@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const Stripe = require("stripe");
 const { CRMPayment } = require("../../models");
 const catchAsync = require("../../core/http/catchAsync");

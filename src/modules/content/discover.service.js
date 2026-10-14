@@ -1,4 +1,4 @@
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const moment = require("moment");
 const ApiError = require("../../core/http/ApiError");
 const Education = require("../../models/education.model");

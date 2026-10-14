@@ -1,4 +1,4 @@
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const { UserGlamCoinEvent, GlamCoinRule, Profile } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 const { Sequelize } = require('sequelize');

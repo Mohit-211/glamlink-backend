@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const jwt = require('jsonwebtoken')
 const moment = require('moment')
 const config = require('../../core/config/config');

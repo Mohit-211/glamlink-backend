@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const catchAsync = require("../../core/http/catchAsync");
 const professionsalFormService = require("./professionalForm.service");
 const responseWrapper = require("../../core/http/responseWrapper");

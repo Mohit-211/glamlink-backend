@@ -1,7 +1,7 @@
 /** @format */
 
 const { randomUUID } = require("crypto");
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const { Guest } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 

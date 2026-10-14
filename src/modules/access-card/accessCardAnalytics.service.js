@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const { Op, fn, col, literal } = require("sequelize");
 
 const ApiError = require("../../core/http/ApiError");

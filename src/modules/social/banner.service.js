@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 const ApiError = require("../../core/http/ApiError");
 const { BannerMedia, User, Profile } = require("../../models");
 const config = require("../../core/config/config");

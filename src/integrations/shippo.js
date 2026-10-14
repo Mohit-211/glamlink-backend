@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../core/http/status");
 const axios = require("axios");
 const config = require("../core/config/config");
 const { UserAddress } = require("../models");

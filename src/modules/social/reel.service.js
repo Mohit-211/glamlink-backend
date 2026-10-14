@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const { Sequelize } = require('sequelize')
 
 const { Reel, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, Reel_Tag } = require('../../models');

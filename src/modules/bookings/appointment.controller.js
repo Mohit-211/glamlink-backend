@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const pick = require('../../core/utils/pick');
 const catchAsync = require('../../core/http/catchAsync');
 const appointmentService = require('./appointment.service');

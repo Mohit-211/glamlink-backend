@@ -1,6 +1,6 @@
 /** @format */
 
-const httpStatus = require("http-status");
+const httpStatus = require("../../core/http/status");
 
 const { Product, ProductAttachment, Cart } = require("../../models");
 const ApiError = require("../../core/http/ApiError");

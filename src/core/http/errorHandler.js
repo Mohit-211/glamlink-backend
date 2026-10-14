@@ -1,5 +1,5 @@
 const ApiError = require('./ApiError');
-const httpStatus = require('http-status');
+const httpStatus = require('./status');
 
 const errorHandler = (err, req, res, next) => {
     next(err)

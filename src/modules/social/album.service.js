@@ -1,5 +1,5 @@
 
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 const moment = require('moment')
 const { Album, AlbumAttachment, AlbumComment, AlbumLike, AlbumAttachmentComment, AlbumAttachmentLike, User, Profile, UserAttachment } = require('../../models');
 const ApiError = require('../../core/http/ApiError');

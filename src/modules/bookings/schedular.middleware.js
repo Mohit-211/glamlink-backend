@@ -1,4 +1,4 @@
-const httpStatus = require('http-status');
+const httpStatus = require('../../core/http/status');
 
 const { User, Availability } = require('../../models');
 const { daysOfWeek } = require('../../core/config/types');
