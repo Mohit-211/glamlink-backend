@@ -6,8 +6,8 @@ node_modules/
 .env.*
 !.env.example
 
-# Runtime files: uploads and logs live in ./storage (see src/core/config/paths.js).
-# public/uploads and logs are the old locations, still present on existing servers.
+# Runtime files live outside the repo (see src/core/config/paths.js). These are the old in-repo
+# locations, still present on existing servers, plus a guard in case STORAGE_DIR points inside the repo.
 /storage/
 /public/uploads/
 /logs/

@@ -10,8 +10,9 @@ while (!fs.existsSync(path.join(root, 'package.json'))) {
     root = parent;
 }
 
-// Runtime files (uploads, logs) live outside the code, in ./storage by default; override with STORAGE_DIR.
-const STORAGE_DIR = process.env.STORAGE_DIR ? path.resolve(process.env.STORAGE_DIR) : path.join(root, 'storage');
+// Runtime files live outside the repo: by default in a `storage` folder next to it
+// (/var/www/backend -> /var/www/storage). Override with STORAGE_DIR.
+const STORAGE_DIR = process.env.STORAGE_DIR ? path.resolve(process.env.STORAGE_DIR) : path.join(root, '..', 'storage');
 const UPLOADS_DIR = path.join(STORAGE_DIR, 'uploads');
 
 module.exports = {
