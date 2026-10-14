@@ -11,7 +11,7 @@ app.set("trust proxy", 1);
 
 const config = require('./src/core/config/config.js');
 const routes = require('./src/routes');
-const morgan = require('./src/core/http/morgan.js');
+const accessLog = require('./src/core/http/accessLog.js');
 const { authLimiter } = require('./src/core/http/rateLimiter.js');
 const corsConfigs = require('./src/core/http/corsConfigs.js');
 const credentials = require('./src/core/http/credentials.js');
@@ -70,8 +70,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
 if (config.env !== 'test') {
-  app.use(morgan.successHandler);
-  app.use(morgan.errorHandler);
+  app.use(accessLog);
 };
 
 

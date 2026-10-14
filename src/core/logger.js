@@ -1,27 +1,28 @@
-const winston = require('winston');
+// Console logger: one line per entry with an ISO timestamp and the level. pm2 collects stdout and
+// stderr into its log files; errors go to stderr.
+const util = require('util');
 const config = require('./config/config.js');
 
-const enumerateErrorFormat = winston.format((info) => {
-    if (info instanceof Error) {
-        Object.assign(info, { message: info.stack });
-    }
-    return info;
-});
+const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
+const COLORS = { error: 31, warn: 33, info: 32, debug: 34 };
+const isDev = config.env === 'development';
+const maxLevel = isDev ? LEVELS.debug : LEVELS.info;
 
-const logger = winston.createLogger({
-    level: config.env === 'development' ? 'debug' : 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        enumerateErrorFormat(),
-        config.env === 'development' ? winston.format.colorize() : winston.format.uncolorize(),
-        winston.format.splat(),
-        winston.format.printf(({ level, message, timestamp }) => `${timestamp} ${level}: ${message}`)
-    ),
-    transports: [
-        new winston.transports.Console({
-            stderrLevels: ['error'],
-        }),
-    ],
-});
+const format = (arg) => {
+    if (arg instanceof Error) return arg.stack;
+    return typeof arg === 'string' ? arg : util.inspect(arg, { depth: 4 });
+};
 
-module.exports = logger;
+const log = (level) => (...args) => {
+    if (LEVELS[level] > maxLevel) return;
+    const label = isDev ? `\x1b[${COLORS[level]}m${level}\x1b[39m` : level;
+    const line = `${new Date().toISOString()} ${label}: ${args.map(format).join(' ')}\n`;
+    (level === 'error' ? process.stderr : process.stdout).write(line);
+};
+
+module.exports = {
+    error: log('error'),
+    warn: log('warn'),
+    info: log('info'),
+    debug: log('debug'),
+};
