@@ -58,7 +58,7 @@ ProfessionalPayout.init(
 	},
 	{
 		sequelize,
-		tableName: "professiona_payouts",
+		tableName: "professional_payouts",
 		timestamps: true,
 		underscored: true,
 		paranoid: true,

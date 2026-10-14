@@ -406,10 +406,9 @@ const getMostBookedProfessional = async () => {
     const topBookedProfessionals = await Booking.findAll({
         attributes: [
             "professional_id",
-            // PENDING-MIGRATION: raw column name bookings.counselor_id (also in group below)
-            [Sequelize.fn("COUNT", Sequelize.col("counselor_id")), "booking_count"],
+            [Sequelize.fn("COUNT", Sequelize.col("Booking.professional_id")), "booking_count"],
         ],
-        group: ["counselor_id"],
+        group: ["Booking.professional_id"],
         order: [[Sequelize.literal("booking_count"), "DESC"]],
         include: [
             {

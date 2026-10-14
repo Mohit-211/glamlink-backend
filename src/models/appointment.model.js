@@ -12,7 +12,6 @@ Appointment.init({
         primaryKey: true,
     },
     professional_id: {
-        field: 'counselor_id', // PENDING-MIGRATION: rename column counselor_id
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
         onDelete: 'CASCADE',
@@ -90,7 +89,6 @@ Appointment.init({
         defaultValue: appointmentTypes.UPCOMING,
     },
     is_professional_joined: {
-        field: 'is_counselor_joined', // PENDING-MIGRATION: rename column is_counselor_joined
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
@@ -111,7 +109,6 @@ Appointment.init({
         defaultValue: false
     },
     is_professional_canceled: {
-        field: 'is_counselor_canceled', // PENDING-MIGRATION: rename column is_counselor_canceled
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },

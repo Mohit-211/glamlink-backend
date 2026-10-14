@@ -499,9 +499,8 @@ const getUserById = async (id) => {
             "number_of_reviews_given", // Alias for the number of reviews given
           ],
           [
-            // PENDING-MIGRATION: raw SQL uses the column name reviews.counselor_id
             literal(
-              `(SELECT COUNT(*) FROM reviews WHERE reviews.counselor_id = user_profile.user_id AND reviews.is_active = true)`,
+              `(SELECT COUNT(*) FROM reviews WHERE reviews.professional_id = user_profile.user_id AND reviews.is_active = true)`,
             ),
             "number_of_reviews_taken", // Alias for the number of reviews taken
           ],
