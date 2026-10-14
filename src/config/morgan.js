@@ -5,6 +5,7 @@ const logger = require('./logger.js')
 const moment = require('moment');
 const fs = require('fs');
 const path = require('path');
+const { LOGS_DIR } = require('./paths');
 
 morgan.token('message', (req, res) => res.locals.errorMessage || '');
 
@@ -20,7 +21,7 @@ const successHandler = morgan(successResponseFormat, {
             const currentTime = moment().format('YYYY-MM-DD');
             const currentTime1 = moment().format();
             const logMessage = `${currentTime1}<=>${message.trim()}\n`;
-            const logsDir = path.join(__dirname, '../../logs');
+            const logsDir = LOGS_DIR;
             const fileName = path.join(logsDir, `${currentTime}.log`);
             fs.access(fileName, fs.constants.F_OK, (err) => {
                 if (err) {
@@ -55,7 +56,7 @@ const errorHandler = morgan(errorResponseFormat, {
             const currentTime = moment().format('YYYY-MM-DD');
             const currentTime1 = moment().format();
             const logMessage = `${currentTime1}<=> Error ${message.trim()}\n`;
-            const logsDir = path.join(__dirname, '../../logs');
+            const logsDir = LOGS_DIR;
             const fileName = path.join(logsDir, `${currentTime}.log`);
             fs.access(fileName, fs.constants.F_OK, (err) => {
                 if (err) {

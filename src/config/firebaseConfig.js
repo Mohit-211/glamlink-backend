@@ -1,8 +1,7 @@
-const path = require('path');
 const admin = require('firebase-admin');
 const logger = require('./logger');
 
-const keyPath = path.join(__dirname, './serviceAccountKey.json');
+const { FIREBASE_KEY_FILE: keyPath } = require('./paths');
 const serviceAccount = require(keyPath);
 
 // The committed key file is a placeholder; production drops the real one in place.

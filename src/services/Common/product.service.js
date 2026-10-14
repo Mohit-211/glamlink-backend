@@ -4,6 +4,7 @@ const httpStatus = require("http-status");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment-timezone");
 const path = require("path");
+const { IMAGES_DIR } = require("../../config/paths");
 const fs = require("fs");
 const {
 	Product,
@@ -630,9 +631,7 @@ const updateProduct = async (body, files, id) => {
 			});
 
 			for (const image of imagesToRemove) {
-				const filePath = path.join(
-					__dirname,
-					"../../../public/uploads/images",
+				const filePath = path.join(IMAGES_DIR,
 					image.file_name
 				);
 				await image.destroy({ force: true });

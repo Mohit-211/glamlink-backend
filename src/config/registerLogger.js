@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
 
-const logDir = path.join(__dirname, '../../logs');
+const { LOGS_DIR: logDir } = require('./paths');
 const logFile = path.join(logDir, 'register-attempts.log');
 
 // Ensure logs folder exists

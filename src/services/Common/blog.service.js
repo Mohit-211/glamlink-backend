@@ -4,6 +4,7 @@ const httpStatus = require("http-status");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment-timezone");
 const path = require("path");
+const { IMAGES_DIR } = require("../../config/paths");
 const fs = require("fs");
 const {
 	Blog,
@@ -316,9 +317,7 @@ const updateBlog = async (body, files, id) => {
 				where: { blog_id: blogDoc.id, is_active: true },
 			});
 			for (const oldAttachment of oldAttachments) {
-				const filePath = path.join(
-					__dirname,
-					"../../../public/uploads/images",
+				const filePath = path.join(IMAGES_DIR,
 					oldAttachment.file_name
 				);
 				await oldAttachment.destroy({ force: true });

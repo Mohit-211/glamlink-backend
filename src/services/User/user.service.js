@@ -2,6 +2,7 @@
 
 const httpStatus = require("http-status");
 const path = require("path");
+const { IMAGES_DIR } = require("../../config/paths");
 const fs = require("fs");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment");
@@ -3281,9 +3282,7 @@ const addImageInsideProfile = async (body, files) => {
       });
 
       for (const oldAttachment of images) {
-        const filePath = path.join(
-          __dirname,
-          "../../../public/uploads/images",
+        const filePath = path.join(IMAGES_DIR,
           oldAttachment.file_name,
         );
         if (filePath) {

@@ -7,7 +7,7 @@ const config = require("./config");
 const crypto = require("crypto");
 
 // Define base directory for uploads
-const PUBLIC_DIR = path.resolve(__dirname, "../../public/uploads");
+const { UPLOADS_DIR: PUBLIC_DIR } = require("./paths");
 
 // Ensure all required directories exist
 const ensureDirectoryExists = (dir) => {

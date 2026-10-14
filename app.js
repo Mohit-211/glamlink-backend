@@ -20,7 +20,7 @@ const ApiError = require('./src/utils/ApiError.js');
 const errorHandler = require('./src/utils/errorHandler.js');
 require('./src/models');
 require('./src/config/firebaseConfig.js');
-const PUBLIC_DIR = path.resolve(__dirname, './public');
+const { PUBLIC_DIR } = require('./src/config/paths');
 
 
 const handleFileUploads = require('./src/config/multer.js');

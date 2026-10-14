@@ -283,8 +283,7 @@ const updateDiscoverSortOrder = async (type, body) => {
 // Hardcoded to match the same path multer.js already writes images to
 // (public/uploads/images). Kept independent from multer.js on purpose —
 // zero changes needed to that shared, production file.
-// was: const IMAGES_DIR = path.resolve(__dirname, "../../public/uploads/images");
-const IMAGES_DIR = path.resolve(__dirname, "../../../public/uploads/images");
+const { IMAGES_DIR } = require("../../config/paths");
 
 // Every cover image is normalized to this exact ratio (5 : 5.5) and
 // converted to webp, so every Shop card is visually consistent no matter
