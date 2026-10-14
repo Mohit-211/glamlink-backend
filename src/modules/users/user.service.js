@@ -2549,7 +2549,7 @@ const search = async (body, query, params) => {
           },
           {
             model: BrandAssociation,
-            as: "beautician_brand_associations",
+            as: "professional_brand_associations",
             attributes: ["id", "user_id", "brand_id", "status", "is_active"],
             where: { status: userStatusTypes.ACCEPTED },
             required: false,
@@ -2596,7 +2596,7 @@ const search = async (body, query, params) => {
                       "no_of_post_posted",
                       "no_of_service_provided",
                       "profession",
-                      "no_of_beautician_associated",
+                      "no_of_professionals_associated",
                       "user_coin_balances",
                     ],
                   },
@@ -2860,7 +2860,7 @@ const getAllRandomProfessionalList = async (body, query, isGuest) => {
   }
 };
 
-const searchBeautycianByPlaceApi = async (body, query) => {
+const searchProfessionalByPlaceApi = async (body, query) => {
   let { place, item } = query;
   const { user } = body;
 
@@ -3239,7 +3239,7 @@ const getBlockList = async (body) => {
   }
 };
 
-const nearByBeauticiansList = async (body) => {
+const nearbyProfessionalsList = async (body) => {
   try {
     const { latitude, longitude, user } = body;
 
@@ -3251,7 +3251,7 @@ const nearByBeauticiansList = async (body) => {
       );
     }
 
-    // Find nearby beauticians with profile details and attachments
+    // Find nearby professionals with profile details and attachments
     const results = await sequelize.query(
       `SELECT u.id, u.email, u.latitude, u.longitude, u.role_id, 
                 p.id AS profile_id, p.name AS profile_name, p.dialing_code, p.qualification, p.language, p.mobile, p.is_active AS profile_is_active, p.created_at, p.about, p.overall_ratings, p.no_of_user_rated, p.no_of_user_reviewed, p.address,
@@ -3276,12 +3276,12 @@ const nearByBeauticiansList = async (body) => {
     if (!Array.isArray(results)) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        "Failed to get nearby beauticians",
+        "Failed to get nearby professionals",
       );
     }
 
     // Structure the result to include profile data under 'user_profile' key and attach the user attachments
-    const nearbyBeauticians = results.map((user) => ({
+    const nearbyProfessionals = results.map((user) => ({
       id: user.id,
       email: user.email,
       latitude: user.latitude,
@@ -3318,7 +3318,7 @@ const nearByBeauticiansList = async (body) => {
         : [],
     }));
 
-    return nearbyBeauticians;
+    return nearbyProfessionals;
   } catch (error) {
     console.error("Error:", error);
     throw new ApiError(
@@ -3536,7 +3536,7 @@ const requestForAssociationWithBrand = async (reqBody) => {
     if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID)) {
       throw new ApiError(
         httpStatus.FORBIDDEN,
-        "Only Beautician can access this api",
+        "Only Professional can access this api",
       );
     }
     const brandDoc = await User.findOne({
@@ -3597,7 +3597,7 @@ const getAllAssociationRequest = async (reqBody) => {
     }
     const association =
       user.role_id === Number(config.BRND_ROLE_ID)
-        ? "brand_association_beautician"
+        ? "brand_association_professional"
         : "brand_association_brand";
     const associationDocs = await BrandAssociation.findAll({
       where: filter,
@@ -3642,7 +3642,7 @@ const getAllAssociationRequest = async (reqBody) => {
                 "no_of_post_posted",
                 "no_of_service_provided",
                 "profession",
-                "no_of_beautician_associated",
+                "no_of_professionals_associated",
                 "user_coin_balances",
               ],
             },
@@ -3723,8 +3723,8 @@ const answerAssociationRequest = async (reqBody) => {
       });
 
       if (userProfileDoc) {
-        userProfileDoc.no_of_beautician_associated = Math.max(
-          (userProfileDoc.no_of_beautician_associated || 0) + 1,
+        userProfileDoc.no_of_professionals_associated = Math.max(
+          (userProfileDoc.no_of_professionals_associated || 0) + 1,
           1,
         );
         await userProfileDoc.save();
@@ -3763,7 +3763,7 @@ const getAllAssociationProviders = async (reqBody) => {
     }
     const association =
       user.role_id === Number(config.BRND_ROLE_ID)
-        ? "brand_association_beautician"
+        ? "brand_association_professional"
         : "brand_association_brand";
     const associationDocs = await BrandAssociation.findAll({
       where: filter,
@@ -3808,7 +3808,7 @@ const getAllAssociationProviders = async (reqBody) => {
                 "no_of_post_posted",
                 "no_of_service_provided",
                 "profession",
-                "no_of_beautician_associated",
+                "no_of_professionals_associated",
                 "user_coin_balances",
               ],
             },
@@ -3881,8 +3881,8 @@ const deleteAssociation = async (reqBody) => {
       });
 
       if (userProfileDoc) {
-        userProfileDoc.no_of_beautician_associated = Math.max(
-          (userProfileDoc.no_of_beautician_associated || 0) - 1,
+        userProfileDoc.no_of_professionals_associated = Math.max(
+          (userProfileDoc.no_of_professionals_associated || 0) - 1,
           0,
         );
         await userProfileDoc.save();
@@ -4018,8 +4018,8 @@ const analyzeSkin = async (body, files) => {
 
   console.log(summary, "summary");
 
-  // Step 3: Fetch beauticians + services
-  const beauticians = await User.findAll({
+  // Step 3: Fetch professionals + services
+  const professionals = await User.findAll({
     where: { role_id: 7, is_active: true },
     include: [
       { association: "user_profile" },
@@ -4037,7 +4037,7 @@ const analyzeSkin = async (body, files) => {
   });
 
   // 💡 Clean data before sending to AI
-  const cleanBeauticians = beauticians.map((b) => ({
+  const cleanProfessionals = professionals.map((b) => ({
     id: b.id,
     name: b.user_profile?.name || b.user_name,
     about: b.user_profile?.about || undefined,
@@ -4052,9 +4052,9 @@ const analyzeSkin = async (body, files) => {
 
   // Step 4: Create personalized recommendation based on summary + services
   const recommendations =
-    await openaiService.getBeauticianServiceRecommendation(
+    await openaiService.getProfessionalServiceRecommendation(
       summary,
-      cleanBeauticians,
+      cleanProfessionals,
     );
 
   console.log(recommendations, "recommendations");
@@ -4077,12 +4077,12 @@ const analyzeSkin = async (body, files) => {
     data: {
       ...record.toJSON(), // ensures proper JSON structure
       recommendations, // include AI recommendations
-      cleanBeauticians, // include beauticians fetched
+      cleanProfessionals, // include professionals fetched
     },
   };
 };
 
-async function getBeauticians() {
+async function getProfessionals() {
   let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=36.1699,-115.1398&radius=5000&type=beauty_salon&keyword=beautician&key=${config.GOOGLE_API_KEY}`;
 
   let allPlaces = [];
@@ -4114,19 +4114,19 @@ async function getBeauticians() {
   return allPlaces;
 }
 
-const getMapBeauticianList = async (body, query) => {
+const getMapProfessionalList = async (body, query) => {
   try {
     const { category, radious } = query;
-    const mapBeauticianList = await getBeauticians(category, radious);
+    const mapProfessionalList = await getProfessionals(category, radious);
 
-    if (!mapBeauticianList) {
+    if (!mapProfessionalList) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        "Failed to fetch beauticial list",
+        "Failed to fetch professional list",
       );
     }
 
-    return mapBeauticianList;
+    return mapProfessionalList;
   } catch (error) {
     throw new ApiError(
       error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
@@ -4188,14 +4188,14 @@ module.exports = {
   removeUserFromFollowList,
   getAllRandomProfessionalList,
 
-  searchBeautycianByPlaceApi,
+  searchProfessionalByPlaceApi,
 
   addImageInsideProfile,
   getAllAlbumImages,
   reportUser,
   blockUser,
   getBlockList,
-  nearByBeauticiansList,
+  nearbyProfessionalsList,
   updateUsername,
   addLinkTreeLink,
   getSuggestionUsersList,
@@ -4211,6 +4211,6 @@ module.exports = {
   getUserRewardList,
   updateExternalBooking,
   analyzeSkin,
-  getMapBeauticianList,
+  getMapProfessionalList,
   getGoogleLocationDetails,
 };

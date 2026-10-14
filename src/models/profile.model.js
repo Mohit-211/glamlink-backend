@@ -73,7 +73,8 @@ Profile.init(
 			allowNull: false,
 			defaultValue: 0,
 		},
-		no_of_beautician_associated: {
+		no_of_professionals_associated: {
+			field: 'no_of_beautician_associated', // PENDING-MIGRATION: rename column no_of_beautician_associated
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 0,

@@ -57,7 +57,7 @@ router.post('/create-service-list', adminOpController.createServiceListUsingCSV)
 
 router.post('/foundersToogle', [adminAuthMiddleware.validateJWTtoken], adminOpController.foundersToogle);
 router.get('/getAllReferral', adminOpController.getAllReferral);
-router.get('/getAllReferralByBeauticianId/:id', adminOpController.getAllReferralByBeauticianId);
+router.get('/getAllReferralByProfessionalId/:id', adminOpController.getAllReferralByProfessionalId);
 
 
 // glam coin

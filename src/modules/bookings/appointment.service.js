@@ -926,9 +926,9 @@ const createAppointmentForEmployee = async (body, header) => {
 
 		const { timezone } = header;
 
-		// 1️⃣ Validate employee under this beautician
+		// 1️⃣ Validate employee under this professional
 
-		// 2️⃣ Validate service belongs to beautician or employee
+		// 2️⃣ Validate service belongs to professional or employee
 		const serviceDoc = await Service.findOne({
 			where: {
 				id: service_id,
@@ -947,7 +947,7 @@ const createAppointmentForEmployee = async (body, header) => {
 		if (!availabilityDoc)
 			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Availability Id.");
 
-		// 3️⃣ Ensure Case exists between customer and beautician
+		// 3️⃣ Ensure Case exists between customer and professional
 		const [caseDoc] = await Case.findOrCreate({
 			where: {
 				professional_id: user.id,

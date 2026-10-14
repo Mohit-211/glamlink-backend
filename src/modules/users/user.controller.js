@@ -224,7 +224,7 @@ const getSuggestionUsersList = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '');
 });
 
-const searchBeautycianByPlaceApi = catchAsync(async (req, res) => {
+const searchProfessionalByPlaceApi = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
     const query = pick(req.query, ['sortBy', 'limit', 'page', 'item', 'place', 'nextPageToken']);
 
@@ -239,7 +239,7 @@ const searchBeautycianByPlaceApi = catchAsync(async (req, res) => {
     };
     let offset = (query['page'] - 1) * query['limit'];
     query['offset'] = offset;
-    const response = await userOpService.searchBeautycianByPlaceApi(body, query);
+    const response = await userOpService.searchProfessionalByPlaceApi(body, query);
     return responseWrapper(res, response, '');
 });
 
@@ -275,9 +275,9 @@ const getBlockList = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '');
 });
 
-const nearByBeauticiansList = catchAsync(async (req, res) => {
+const nearbyProfessionalsList = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user', 'longitude', 'latitude']);
-    const response = await userOpService.nearByBeauticiansList(body);
+    const response = await userOpService.nearbyProfessionalsList(body);
     return responseWrapper(res, response, '');
 });
 
@@ -346,8 +346,8 @@ const analyzeSkin = catchAsync(async (req, res) => {
     return responseWrapper(res, response, 'Face analysis completed successfully.');
 });
 
-const getMapBeauticianList = catchAsync(async (req, res) => {
-    let response = await userOpService.getMapBeauticianList(req.body, req.query);
+const getMapProfessionalList = catchAsync(async (req, res) => {
+    let response = await userOpService.getMapProfessionalList(req.body, req.query);
     return responseWrapper(res, response, 'List fetch successfully.');
 });
 
@@ -378,13 +378,13 @@ module.exports = {
 
     removeUserFromFollowList,
     getAllRandomProfessionalList,
-    searchBeautycianByPlaceApi,
+    searchProfessionalByPlaceApi,
     addImageInsideProfile,
     getAllAlbumImages,
     reportUser,
     blockUser,
     getBlockList,
-    nearByBeauticiansList,
+    nearbyProfessionalsList,
     updateUsername,
     addLinkTreeLink,
     getSuggestionUsersList,
@@ -400,7 +400,7 @@ module.exports = {
     getUserRewardList,
     updateExternalBooking,
     analyzeSkin,
-    getMapBeauticianList,
+    getMapProfessionalList,
 
     getGoogleLocationDetails,
 };

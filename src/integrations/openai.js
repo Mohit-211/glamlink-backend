@@ -45,28 +45,28 @@ async function askAIQuestion(summary, question) {
 }
 
 
-async function getBeauticianServiceRecommendation (summary, beauticians) {
-  const beauticianSummary = beauticians.map(b => {
+async function getProfessionalServiceRecommendation (summary, professionals) {
+  const professionalSummary = professionals.map(b => {
     const aboutText = b.about ? `About: ${b.about}` : "";
     const serviceList = b.services.map(s => `- ${s.name} ($${s.price})`).join("\n");
-    return `Beautician: ${b.name}\n${aboutText}\nServices:\n${serviceList}`;
+    return `Professional: ${b.name}\n${aboutText}\nServices:\n${serviceList}`;
   }).join("\n\n");
 
   const prompt = `
 You are a professional AI skincare consultant.
-A user's skin analysis summary is provided below, followed by a list of available beauticians and their services.
+A user's skin analysis summary is provided below, followed by a list of available professionals and their services.
 
 --- USER SKIN SUMMARY ---
 ${summary}
 
---- AVAILABLE BEAUTICIANS ---
-${beauticianSummary}
+--- AVAILABLE PROFESSIONALS ---
+${professionalSummary}
 
 Please analyze the user's skin needs and recommend:
-1. The **most suitable beautician(s)**.
+1. The **most suitable professional(s)**.
 2. The **specific services** that best match their skin concerns.
 3. A friendly, human-style explanation of why these were chosen.
-4. If no “About” text is available for a beautician, skip it gracefully.
+4. If no “About” text is available for a professional, skip it gracefully.
 
 Your answer should sound like a personal skincare consultation.
 `;
@@ -82,4 +82,4 @@ Your answer should sound like a personal skincare consultation.
 
 
 
-module.exports = { getAISkinExplanation, askAIQuestion,getBeauticianServiceRecommendation };
+module.exports = { getAISkinExplanation, askAIQuestion,getProfessionalServiceRecommendation };

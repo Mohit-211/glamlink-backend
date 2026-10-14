@@ -296,7 +296,7 @@ const verifyAuthJWTToken = catchAsync(async (req, res, next) => {
           "profession",
           "linktree",
           "website_link",
-          "no_of_beautician_associated",
+          "no_of_professionals_associated",
           "user_coin_balances",
           "external_booking",
           "booking_link",
@@ -551,7 +551,7 @@ const validateNewServiceBody = catchAsync(async (req, res, next) => {
     return responseWrapper(
       res,
       "",
-      "Only Beautycian can create new services.",
+      "Only Professional can create new services.",
       httpStatus.BAD_REQUEST,
     );
   }

@@ -342,8 +342,8 @@ const getAllReferral = catchAsync(async (req, res) => {
 	return responseWrapper(res, response, "", httpStatus.OK);
 });
 
-const getAllReferralByBeauticianId = catchAsync(async (req, res) => {
-	const response = await adminOpService.getAllReferralByBeauticianId(req.params.id);
+const getAllReferralByProfessionalId = catchAsync(async (req, res) => {
+	const response = await adminOpService.getAllReferralByProfessionalId(req.params.id);
 	return responseWrapper(res, response, "", httpStatus.OK);
 });
 
@@ -394,7 +394,7 @@ module.exports = {
 	unpromoteAll,
 	getUserPromotions,
 	getAllReferral,
-	getAllReferralByBeauticianId,
+	getAllReferralByProfessionalId,
 	getAllGlamCoinRules,
 	editGlamCoinRules
 };

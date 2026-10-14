@@ -49,7 +49,7 @@ const calculateCheckoutTax = async (reqBody) => {
 			const product = cartItem.cart_product;
 			const category = product.numeral_tax_category;
 			const quantity = cartItem.total_items || 1;
-			const sellerId = product.user_id; // Seller ID (Beautician)
+			const sellerId = product.user_id; // Seller ID (Professional)
 
 			if (!category) {
 				throw new Error(`🚨 Product ${product.name} is missing a tax category.`);

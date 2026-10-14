@@ -984,15 +984,15 @@ async function initTableRelation() {
 
   User.hasMany(BrandAssociation, {
     foreignKey: "user_id",
-    as: "beautician_brand_associations",
+    as: "professional_brand_associations",
   });
   User.hasMany(BrandAssociation, {
     foreignKey: "brand_id",
-    as: "brand_beautician_associations",
+    as: "brand_professional_associations",
   });
   BrandAssociation.belongsTo(User, {
     foreignKey: "user_id",
-    as: "brand_association_beautician",
+    as: "brand_association_professional",
   });
   BrandAssociation.belongsTo(User, {
     foreignKey: "brand_id",
@@ -1000,7 +1000,7 @@ async function initTableRelation() {
   });
 
   User.belongsTo(User, {
-    as: "referrer", // alias for the beautician who referred
+    as: "referrer", // alias for the professional who referred
     foreignKey: "referred_by",
   });
 

@@ -65,7 +65,7 @@ Customer.init(
 		},
 		professional_id: {
 			type: DataTypes.BIGINT.UNSIGNED,
-			allowNull: true, // beautician or CRM owner
+			allowNull: true, // professional or CRM owner
 		},
 
 		// Engagement

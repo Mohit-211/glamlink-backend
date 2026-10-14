@@ -250,7 +250,7 @@ Buyer Details:
 - Email: ${buyer.email}
 - User ID: ${buyer.id}
 
-Seller (Beautician) Details:
+Seller (Professional) Details:
 - Name: ${seller?.user_profile?.name}
 - Email: ${seller.email}
 - User ID: ${seller.id}
@@ -334,17 +334,17 @@ Glamlink System`;
   return await sendEmail("support@glamlink.net", subject, text);
 };
 
-const sendNewProductAlertToAdmin = async (beautician, product) => {
+const sendNewProductAlertToAdmin = async (professional, product) => {
   const subject = `🆕 New Product Uploaded on Glamlink (Pending Approval)`;
 
   const text = `
 Hello Admin,
 
-A new product has been uploaded by a beautician and is awaiting your approval.
+A new product has been uploaded by a professional and is awaiting your approval.
 
-Beautician Details:
-• Name: ${beautician?.user_profile?.name || beautician?.email}
-• Email: ${beautician.email}
+Professional Details:
+• Name: ${professional?.user_profile?.name || professional?.email}
+• Email: ${professional.email}
 
 Product Details:
 • Name: ${product.name}
@@ -393,13 +393,13 @@ The Glamlink Team`;
 
 const sendProductStatusNotificationToAdmin = async (
   productName,
-  beauticianName,
+  professionalName,
   status,
 ) => {
   const subject = `Product "${productName}" has been ${status}`;
   const text = `Hello Admin,
 
-The product "${productName}" listed by ${beauticianName} has been ${status}.
+The product "${productName}" listed by ${professionalName} has been ${status}.
 
 Thanks,  
 Glamlink System`;
@@ -407,15 +407,15 @@ Glamlink System`;
   await sendEmail("support@glamlink.net", subject, text);
 };
 
-const sendProductDeletionEmailToBeautician = async (
-  beauticianEmail,
-  beauticianName,
+const sendProductDeletionEmailToProfessional = async (
+  professionalEmail,
+  professionalName,
   productNames,
 ) => {
   const subject = `🚫 Product Deletion Notice – Glamlink`;
 
   const text = `
-Hi ${beauticianName},
+Hi ${professionalName},
 
 We want to inform you that the following product(s) you listed on Glamlink have been deleted from the platform:
 
@@ -427,7 +427,7 @@ Thank you,
 The Glamlink Team
 `;
 
-  await sendEmail(beauticianEmail, subject, text);
+  await sendEmail(professionalEmail, subject, text);
 };
 
 const sendProductDeletionEmailToAdmin = async (deletedProductInfo) => {
@@ -439,7 +439,7 @@ Hello Admin,
 The following product(s) have been deleted from Glamlink:
 
 ${deletedProductInfo
-  .map((item) => `- "${item.productName}" by ${item.beauticianName}`)
+  .map((item) => `- "${item.productName}" by ${item.professionalName}`)
   .join("\n")}
 
 Best,  
@@ -449,11 +449,11 @@ Glamlink System
   await sendEmail("support@glamlink.net", subject, text); // Replace with actual admin email
 };
 
-const sendFormSubmissionEmails = async (beauticianEmail, beauticianName) => {
-  // ✅ Mail to Beautician
-  const beauticianSubject = `📩 GlamLink Form Submitted`;
-  const beauticianText = `
-Hi ${beauticianName},
+const sendFormSubmissionEmails = async (professionalEmail, professionalName) => {
+  // ✅ Mail to Professional
+  const professionalSubject = `📩 GlamLink Form Submitted`;
+  const professionalText = `
+Hi ${professionalName},
 
 Thank you for submitting your applicant form on GlamLink.
 
@@ -465,14 +465,14 @@ Regards,
 The GlamLink Team
 `;
 
-  await sendEmail(beauticianEmail, beauticianSubject, beauticianText);
+  await sendEmail(professionalEmail, professionalSubject, professionalText);
 
   // ✅ Mail to Admin
-  const adminSubject = `📝 New Applicant Form Submission – ${beauticianName}`;
+  const adminSubject = `📝 New Applicant Form Submission – ${professionalName}`;
   const adminText = `
 Hello Admin,
 
-Beautician ${beauticianName} has submitted the applicant form on GlamLink.
+Professional ${professionalName} has submitted the applicant form on GlamLink.
 
 Please review their responses via the Admin Dashboard.
 
@@ -484,20 +484,20 @@ The GlamLink System
 };
 
 const sendFormStatusUpdateEmails = async (
-  beauticianName,
-  beauticianEmail,
+  professionalName,
+  professionalEmail,
   status,
 ) => {
-  // ✅ Email to Beautician
-  const beauticianSubject =
+  // ✅ Email to Professional
+  const professionalSubject =
     status === "approved"
       ? "🎉 Your Application Has Been Approved – Glamlink"
       : "⚠️ Your Application Was Rejected – Glamlink";
 
-  const beauticianText =
+  const professionalText =
     status === "approved"
       ? `
-Hi ${beauticianName},
+Hi ${professionalName},
 
 Congratulations! Your applicant form has been approved.
 
@@ -509,7 +509,7 @@ Best regards,
 The Glamlink Team
 `
       : `
-Hi ${beauticianName},
+Hi ${professionalName},
 
 We regret to inform you that your applicant form has been rejected after review.
 
@@ -519,16 +519,16 @@ Best regards,
 The Glamlink Team
 `;
 
-  await sendEmail(beauticianEmail, beauticianSubject, beauticianText);
+  await sendEmail(professionalEmail, professionalSubject, professionalText);
 
   // ✅ Email to Admin
   const adminSubject = `📄 Application ${
     status === "approved" ? "Approved" : "Rejected"
-  } – ${beauticianName}`;
+  } – ${professionalName}`;
   const adminText = `
 Hello Admin,
 
-The application form submitted by ${beauticianName} has been **${status}**.
+The application form submitted by ${professionalName} has been **${status}**.
 
 You can review their details from the Admin Dashboard.
 
@@ -567,15 +567,15 @@ const sendAppointmentEmails = async (appointment, timezone) => {
     }
   }
 
-  // 3️⃣ Fetch beautician (always from users)
-  const beautician = await User.findByPk(professional_id, {
+  // 3️⃣ Fetch professional (always from users)
+  const professional = await User.findByPk(professional_id, {
     include: [{ model: Profile, as: "user_profile" }],
   });
 
   const userName = user?.user_profile?.name || "User";
   const userEmail = user?.email || "unknown@glamlink.net";
-  const beauticianName = beautician?.user_profile?.name || "Beautician";
-  const beauticianEmail = beautician?.email || "support@glamlink.net";
+  const professionalName = professional?.user_profile?.name || "Professional";
+  const professionalEmail = professional?.email || "support@glamlink.net";
 
   // 4️⃣ Admin static email
   const adminEmail = "support@glamlink.net";
@@ -589,7 +589,7 @@ const sendAppointmentEmails = async (appointment, timezone) => {
   const userText = `
 Hi ${userName},
 
-Your appointment with ${beauticianName} has been successfully booked.
+Your appointment with ${professionalName} has been successfully booked.
 
 🗓 Date: ${date}  
 🕒 Time: ${start_time}
@@ -602,9 +602,9 @@ The Glamlink Team
 
   await sendEmail(userEmail, subject, userText);
 
-  // 📨 Email to Beautician
-  const beauticianText = `
-Hi ${beauticianName},
+  // 📨 Email to Professional
+  const professionalText = `
+Hi ${professionalName},
 
 A new appointment has been booked by ${userName}.
 
@@ -617,7 +617,7 @@ Thanks,
 The Glamlink Team
 `;
 
-  await sendEmail(beauticianEmail, subject, beauticianText);
+  await sendEmail(professionalEmail, subject, professionalText);
 
   // 📨 Email to Admin
   const adminText = `
@@ -626,7 +626,7 @@ Hello Admin,
 A new appointment has been scheduled.
 
 👤 User: ${userName} (${userEmail})  
-🎨 Beautician: ${beauticianName} (${beauticianEmail})  
+🎨 Professional: ${professionalName} (${professionalEmail})  
 🗓 Date: ${date}  
 🕒 Time: ${start_time} to ${end_time} (${timezone})
 
@@ -647,8 +647,8 @@ const sendPromotionPurchaseEmails = async (userId) => {
 
     if (!user) throw new Error("User not found");
 
-    const beauticianName = user.user_profile?.name || "Beautician";
-    const beauticianEmail = user.email;
+    const professionalName = user.user_profile?.name || "Professional";
+    const professionalEmail = user.email;
 
     const adminEmail = "support@glamlink.net";
 
@@ -661,9 +661,9 @@ const sendPromotionPurchaseEmails = async (userId) => {
 
     const subject = `🚀 Promotion Activated – Glamlink`;
 
-    // ✅ Email to Beautician
-    const beauticianText = `
-Hi ${beauticianName},
+    // ✅ Email to Professional
+    const professionalText = `
+Hi ${professionalName},
 
 Congratulations! Your promotion for **${promotionTitle}** is now active on Glamlink.
 
@@ -675,13 +675,13 @@ Best regards,
 The Glamlink Team
 `;
 
-    await sendEmail(beauticianEmail, subject, beauticianText);
+    await sendEmail(professionalEmail, subject, professionalText);
 
     // ✅ Email to Admin
     const adminText = `
 Hello Admin,
 
-A new promotion has been purchased by ${beauticianName}.
+A new promotion has been purchased by ${professionalName}.
 
 📌 Promotion Title: ${promotionTitle}  
 
@@ -703,15 +703,15 @@ const sendSubscriptionSuccessEmails = async (userId) => {
 
     if (!user) throw new Error("User not found");
 
-    const beauticianName = user.user_profile?.name || "Beautician";
-    const beauticianEmail = user.email;
+    const professionalName = user.user_profile?.name || "Professional";
+    const professionalEmail = user.email;
     const adminEmail = "support@glamlink.net";
 
     const subject = `✅ CRM Subscription Activated – Glamlink`;
 
-    // ✅ Beautician Email
-    const beauticianText = `
-Hi ${beauticianName},
+    // ✅ Professional Email
+    const professionalText = `
+Hi ${professionalName},
 
 Thank you for purchasing the Glamlink CRM Subscription.
 
@@ -729,14 +729,14 @@ Hello Admin,
 
 A CRM subscription has been successfully purchased.
 
-👤 Beautician: ${beauticianName}  
-📧 Email: ${beauticianEmail}  
+👤 Professional: ${professionalName}  
+📧 Email: ${professionalEmail}  
 
 
 – Glamlink System
 `;
 
-    await sendEmail(beauticianEmail, subject, beauticianText);
+    await sendEmail(professionalEmail, subject, professionalText);
     await sendEmail(adminEmail, subject, adminText);
   } catch (err) {
     console.error("❌ Failed to send subscription success emails:", err);
@@ -1037,7 +1037,7 @@ module.exports = {
   sendNewProductAlertToAdmin,
   sendProductApprovalEmail,
   sendProductStatusNotificationToAdmin,
-  sendProductDeletionEmailToBeautician,
+  sendProductDeletionEmailToProfessional,
   sendProductDeletionEmailToAdmin,
   sendFormSubmissionEmails,
   sendFormStatusUpdateEmails,

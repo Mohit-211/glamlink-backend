@@ -30,7 +30,7 @@ const {
 	sendNewProductAlertToAdmin,
 	sendProductApprovalEmail,
 	sendProductStatusNotificationToAdmin,
-	sendProductDeletionEmailToBeautician,
+	sendProductDeletionEmailToProfessional,
 	sendProductDeletionEmailToAdmin,
 } = require("../../integrations/mailer/email.service");
 
@@ -710,42 +710,42 @@ const deleteProduct = async (body) => {
 		await ProductTypeMapping.destroy({ where: { product_id: productIds } });
 
 		// Collect deletion data for email
-		const beauticianProductMap = {};
+		const professionalProductMap = {};
 		const deletedProductInfo = [];
 
 		for (const product of products) {
-			const beautician = await User.findByPk(product.user_id, {
+			const professional = await User.findByPk(product.user_id, {
 				include: ["user_profile"],
 			});
 
-			if (!beautician) continue;
+			if (!professional) continue;
 
-			const beauticianEmail = beautician.email;
-			const beauticianName = beautician.user_profile?.name || "Beautician";
+			const professionalEmail = professional.email;
+			const professionalName = professional.user_profile?.name || "Professional";
 
 			// Admin summary
 			deletedProductInfo.push({
 				productName: product.name,
-				beauticianId: beautician.id,
-				beauticianName,
+				professionalId: professional.id,
+				professionalName,
 			});
 
-			// Group per beautician
-			if (!beauticianProductMap[beauticianEmail]) {
-				beauticianProductMap[beauticianEmail] = {
-					name: beauticianName,
+			// Group per professional
+			if (!professionalProductMap[professionalEmail]) {
+				professionalProductMap[professionalEmail] = {
+					name: professionalName,
 					products: [],
 				};
 			}
-			beauticianProductMap[beauticianEmail].products.push(product.name);
+			professionalProductMap[professionalEmail].products.push(product.name);
 		}
 
 		// Delete the products
 		await Promise.all(products.map((product) => product.destroy()));
 
-		// Send emails to beauticians
-		for (const [email, data] of Object.entries(beauticianProductMap)) {
-			await sendProductDeletionEmailToBeautician(
+		// Send emails to professionals
+		for (const [email, data] of Object.entries(professionalProductMap)) {
+			await sendProductDeletionEmailToProfessional(
 				email,
 				data.name,
 				data.products
@@ -1108,14 +1108,14 @@ const updateProductStatus = async (reqBody, id) => {
 			throw new ApiError(httpStatus.NOT_FOUND, "Product not found");
 		}
 
-		// ✅ Fetch beautician
-		const beautician = await User.findOne({
+		// ✅ Fetch professional
+		const professional = await User.findOne({
 			where: { id: product.user_id },
 			include: ["user_profile"],
 		});
 
-		if (!beautician) {
-			throw new ApiError(httpStatus.NOT_FOUND, "Beautician not found");
+		if (!professional) {
+			throw new ApiError(httpStatus.NOT_FOUND, "Professional not found");
 		}
 
 		// ✅ If approved, update status and save tax category
@@ -1139,13 +1139,13 @@ const updateProductStatus = async (reqBody, id) => {
 
 			// Send emails
 			await sendProductApprovalEmail(
-				beautician.email,
+				professional.email,
 				product.name,
 				"approved"
 			);
 			await sendProductStatusNotificationToAdmin(
 				product.name,
-				beautician.user_profile?.name || "Beautician",
+				professional.user_profile?.name || "Professional",
 				"approved"
 			);
 		} else {
@@ -1153,13 +1153,13 @@ const updateProductStatus = async (reqBody, id) => {
 			await Product.update({ status: "rejected" }, { where: { id } });
 
 			await sendProductApprovalEmail(
-				beautician.email,
+				professional.email,
 				product.name,
 				"rejected"
 			);
 			await sendProductStatusNotificationToAdmin(
 				product.name,
-				beautician.user_profile?.name || "Beautician",
+				professional.user_profile?.name || "Professional",
 				"rejected"
 			);
 		}

@@ -2081,7 +2081,7 @@ const getAllReferral = async () => {
           attributes: ["id", "name", "user_id"],
         },
         {
-          model: User, // self-join: the beautician whose code was used
+          model: User, // self-join: the professional whose code was used
           as: "referrer",
           attributes: ["id", "referral_code"],
           include: [
@@ -2106,21 +2106,21 @@ const getAllReferral = async () => {
   }
 };
 
-const getAllReferralByBeauticianId = async (id) => {
+const getAllReferralByProfessionalId = async (id) => {
   try {
-    // Get beautician first to fetch their referral_code
-    const beautician = await User.findOne({
+    // Get professional first to fetch their referral_code
+    const professional = await User.findOne({
       where: { id: id, is_active: true },
       attributes: ["id", "referral_code"],
     });
 
-    if (!beautician) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Beautician not found");
+    if (!professional) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Professional not found");
     }
 
-    console.log(beautician, "beautician");
+    console.log(professional, "professional");
 
-    // Now fetch all users who used this beautician's referral_code
+    // Now fetch all users who used this professional's referral_code
     const referredUsers = await User.findAll({
       where: { referred_by: id },
       attributes: [
@@ -2144,8 +2144,8 @@ const getAllReferralByBeauticianId = async (id) => {
     console.log(referredUsers, "referredUsers");
 
     return {
-      beauticianId: beautician.id,
-      referral_code: beautician.referral_code,
+      professionalId: professional.id,
+      referral_code: professional.referral_code,
       users: referredUsers,
     };
   } catch (error) {
@@ -2239,7 +2239,7 @@ module.exports = {
   unpromoteAll,
   getUserPromotions,
   getAllReferral,
-  getAllReferralByBeauticianId,
+  getAllReferralByProfessionalId,
   getAllGlamCoinRules,
   editGlamCoinRules,
 };

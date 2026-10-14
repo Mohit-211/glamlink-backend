@@ -12,7 +12,7 @@ router.post('/addLinkTreeLink', [userAuthMiddleware.verifyAuthJWTToken], userOpC
 router.get('/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllUserList);
 router.get('/list/random-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllRandomProfessionalList);
 router.get('/list/suggestion/follow', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getSuggestionUsersList);
-router.post('/list/nearby-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearByBeauticiansList);
+router.post('/list/nearby-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearbyProfessionalsList);
 
 router.post('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateProfile);
 router.post('/notifications', [userAuthMiddleware.verifyAuthJWTToken], userOpController.notificationToogle);
@@ -36,7 +36,7 @@ router.post('/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController
 router.post('/post-by-tag/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllPostByTag);
 router.post('/reel-by-tag/search', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllReelByTag);
 
-router.get('/find-beautician', userOpController.searchBeautycianByPlaceApi);
+router.get('/find-professional', userOpController.searchProfessionalByPlaceApi);
 
 
 //Images
@@ -53,18 +53,18 @@ router.post('/startFreeTrial', [userAuthMiddleware.verifyAuthJWTToken], userOpCo
 
 router.post('/requestForPromotion', [userAuthMiddleware.verifyAuthJWTToken], userOpController.requestForPromotion);
 
-router.post('/beautician/brand/association', [userAuthMiddleware.verifyAuthJWTToken], userOpController.requestForAssociationWithBrand);
-router.get('/beautician/brand/association/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationRequest);
-router.post('/beautician/brand/association/answer', [userAuthMiddleware.verifyAuthJWTToken], userOpController.answerAssociationRequest);
-router.delete('/beautician/brand/association/remove', [userAuthMiddleware.verifyAuthJWTToken], userOpController.deleteAssociation);
-router.get('/beautician/brand/association/success/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationProviders);
+router.post('/professional/brand/association', [userAuthMiddleware.verifyAuthJWTToken], userOpController.requestForAssociationWithBrand);
+router.get('/professional/brand/association/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationRequest);
+router.post('/professional/brand/association/answer', [userAuthMiddleware.verifyAuthJWTToken], userOpController.answerAssociationRequest);
+router.delete('/professional/brand/association/remove', [userAuthMiddleware.verifyAuthJWTToken], userOpController.deleteAssociation);
+router.get('/professional/brand/association/success/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllAssociationProviders);
 
 router.get('/reward/list/all', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getUserRewardList);
 router.post('/updateExternalBooking', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateExternalBooking);
 
 router.post('/analyze-face', [userAuthMiddleware.verifyAuthJWTToken], userOpController.analyzeSkin);
 
-router.get('/nearby/map/beautician/list', userOpController.getMapBeauticianList);
+router.get('/nearby/map/professional/list', userOpController.getMapProfessionalList);
 
 router.get('/google-locations/details/:placeId', userOpController.getGoogleLocationDetails);
 

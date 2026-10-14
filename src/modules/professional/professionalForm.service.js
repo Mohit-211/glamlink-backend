@@ -173,13 +173,13 @@ const updateStatus = async (reqBody, id) => {
 		// ✅ Update status in ProfessionalFormAnswer table
 		await ProfessionalFormAnswer.update({ status }, { where: { user_id: id } });
 
-		const beautician = await User.findByPk(id, {
+		const professional = await User.findByPk(id, {
 			include: ["user_profile"],
 		});
-		const beauticianName = beautician.user_profile?.name || "Beautician";
-		const beauticianEmail = beautician.email;
+		const professionalName = professional.user_profile?.name || "Professional";
+		const professionalEmail = professional.email;
 
-		await sendFormStatusUpdateEmails(beauticianName,beauticianEmail, status);
+		await sendFormStatusUpdateEmails(professionalName,professionalEmail, status);
 
 		return {
 			success: true,
@@ -331,13 +331,13 @@ const submitForm = async (reqBody, files) => {
 
 		await User.update({ is_form_filled: true }, { where: { id: user.id } });
 
-		const beautician = await User.findByPk(user.id, {
+		const professional = await User.findByPk(user.id, {
 			include: ["user_profile"],
 		});
-		const beauticianName = beautician.user_profile?.name || "Beautician";
-		const beauticianEmail = beautician.email;
+		const professionalName = professional.user_profile?.name || "Professional";
+		const professionalEmail = professional.email;
 
-		await sendFormSubmissionEmails(beauticianEmail, beauticianName);
+		await sendFormSubmissionEmails(professionalEmail, professionalName);
 
 		return { message: "Form submitted successfully", answers: answerEntries };
 	} catch (error) {

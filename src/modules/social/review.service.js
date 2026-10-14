@@ -403,7 +403,7 @@ const createCommenetInReview = async (body) => {
 		if (user.id !== reviewDoc.professional_id) {
 			throw new ApiError(
 				httpStatus.BAD_REQUEST,
-				"Only beautician can reply this review."
+				"Only professional can reply this review."
 			);
 		}
 		const commentObj = {
