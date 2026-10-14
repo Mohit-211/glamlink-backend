@@ -6,6 +6,9 @@ const sequelizeOptions = {
     host: config.databases.central.host,
     dialect: 'mysql',
     supportBigNumbers: true,
+    // Production is MariaDB, where JSON columns are text with a json_valid check. mysql2 >= 3.23 parses
+    // them into objects; the code (and the website's API responses) expect strings, so keep them as strings.
+    dialectOptions: { jsonStrings: true },
     collate: 'utf8mb4_unicode_ci',
     pool: {
         max: 10,

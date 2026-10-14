@@ -1,13 +1,13 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../core/db/central.db');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 class Review extends Model { };
 Review.init(
     {
         id: {
             type: DataTypes.UUID,
-            defaultValue: () => uuidv4(),
+            defaultValue: () => randomUUID(),
             primaryKey: true,
             allowNull: false,
         },

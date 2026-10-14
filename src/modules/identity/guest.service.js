@@ -1,13 +1,13 @@
 /** @format */
 
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("crypto");
 const httpStatus = require("http-status");
 const { Guest } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
 const createGuestUser = async (deviceInfo) => {
 	try {
-		const guestUid = "guest_" + uuidv4();
+		const guestUid = "guest_" + randomUUID();
 		const guest = await Guest.create({
 			guest_uid: guestUid,
 			device_info: deviceInfo || null,
