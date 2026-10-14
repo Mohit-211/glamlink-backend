@@ -5,13 +5,13 @@
  * that was read while still loading (a circular-import hazard). Routes are recorded as routers register
  * them, so the output is the same on Express 4 and 5.
  *
- *   node scripts/route-table.js <outFile> [appDir]
+ *   node scripts/route-table.js [outFile] [appDir]
  *
  * Diff two outputs to prove a refactor kept the API surface identical.
  */
 const path = require('path'), fs = require('fs'), Module = require('module');
 const outFile = process.argv[2]; const appDir = path.resolve(process.argv[3] || path.join(__dirname, '..'));
-if (!outFile) { console.error('usage: node scripts/route-table.js <outFile> [appDir]'); process.exit(2); }
+// Without an output file the table goes to stdout.
 Object.assign(process.env, {
   APP_NAME: 'x', NODE_ENV: 'production', CENTRAL_MYSQL_HOST: '127.0.0.1', CENTRAL_MYSQL_USER: 'x', CENTRAL_MYSQL_DB: 'x',
   CENTRAL_MYSQL_PORT: '1', JWT_SECRET: 'abcd', ACCESSDOMAINS: 'http://localhost', STRIPE_SECRET_KEY: 'sk_test_x',
@@ -62,6 +62,9 @@ const walk = (router, prefix) => (entries.get(router) || []).forEach((e) => {
 });
 walk(app._router || app.router, '');
 const loaded = Object.keys(require.cache).filter(f => f.startsWith(appDir) && !f.includes('node_modules')).map(f => path.relative(appDir, f)).sort();
-fs.writeFileSync(outFile, ['# ROUTES ' + routes.length, ...routes, '# LOADED ' + loaded.length, ...loaded, '# PARTIAL ' + partial.size, ...[...partial].sort()].join('\n'));
-console.log('routes', routes.length, 'loaded', loaded.length, 'partial', partial.size);
+const table = ['# ROUTES ' + routes.length, ...routes, '# LOADED ' + loaded.length, ...loaded, '# PARTIAL ' + partial.size, ...[...partial].sort()].join('\n');
+if (outFile) {
+  fs.writeFileSync(outFile, table);
+  console.log('routes', routes.length, 'loaded', loaded.length, 'partial', partial.size);
+} else process.stdout.write(table + '\n');
 setTimeout(() => process.exit(0), 300);
