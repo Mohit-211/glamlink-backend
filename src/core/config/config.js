@@ -1,66 +1,33 @@
 const fs = require('fs')
-const path = require('path')
-const Joi = require('joi')
 
 // Node loads .env natively. Variables already set in the environment take precedence.
 // Quote any value that contains #, or everything from the # onwards is dropped.
 const { ENV_FILE } = require('./paths');
 if (fs.existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 
-const envVarsSchema = Joi.object()
-    .keys({
-        APP_NAME: Joi.string().required().description('Your Application Name'),
-        NODE_ENV: Joi.string().valid('production', 'development', 'test').required(),
-        PORT: Joi.number().default(5000),
+const fail = (message) => {
+    throw new Error(`Config validation error: ${message}`);
+};
 
-        CENTRAL_MYSQL_HOST: Joi.string().required().description('Central Mysql Host'),
-        CENTRAL_MYSQL_USER: Joi.string().required().description('Central Mysql User'),
-        CENTRAL_MYSQL_DB: Joi.string().required().description('Central Mysql DB'),
-        CENTRAL_MYSQL_PORT: Joi.string().required().description('Central Port'),
+// Empty values (`KEY=`) count as unset.
+const envVars = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== ''));
 
+const REQUIRED = ['APP_NAME', 'NODE_ENV', 'CENTRAL_MYSQL_HOST', 'CENTRAL_MYSQL_USER', 'CENTRAL_MYSQL_DB', 'CENTRAL_MYSQL_PORT', 'JWT_SECRET'];
+const missing = REQUIRED.filter((key) => envVars[key] === undefined);
+if (missing.length) fail(`missing ${missing.join(', ')}`);
+if (!['production', 'development', 'test'].includes(envVars.NODE_ENV)) fail('NODE_ENV must be one of production, development, test');
 
-        JWT_SECRET: Joi.string().required().description('JWT secret key'),
-        JWT_ACCESS_EXPIRATION_MINUTES: Joi.number().default(30).description('minutes after which access tokens expire'),
-        SMTP_HOST: Joi.string().description('server that will send the emails'),
-        SMTP_PORT: Joi.number().description('port to connect to the email server'),
-        SMTP_USERNAME: Joi.string().description('username for email server'),
-        SMTP_PASSWORD: Joi.string().description('password for email server'),
-        EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
-        DEFAULT_API_DATA_LIMIT: Joi.number().default(15),
-        ACCESSDOMAINS: Joi.string().description('All allow origin URL coma seprated'),
-        STORY_VALIDATION_TIME_SPAN_HOURS: Joi.string().description('How much time a story is valid to show'),
-        API_BASE_URL: Joi.string().description('Base url for apis'),
-        DEFAULT_TIMEZONE: Joi.string().default('UTC').description('Default Timezone for application'),
-        STRIPE_PUBLISHABLE_KEY: Joi.string().description('Stripe Secret Credential'),
-        STRIPE_SECRET_KEY: Joi.string().description('Stripe Secret Credential'),
-        STRIPE_WEBHOOK_SECRET_INTENT_CHARGE: Joi.string().description('Stripe Secret Credential'),
-        STRIPE_WEBHOOK_SECRET_CUSTOMER_INVOICE_PRICE: Joi.string().description('Stripe Secret Credential'),
+const number = (key, fallback) => {
+    if (envVars[key] === undefined) return fallback;
+    const value = Number(envVars[key]);
+    if (Number.isNaN(value)) fail(`${key} must be a number`);
+    return value;
+};
 
-        SUP_ADM_ROLE_ID: Joi.string(),
-        USR_ROLE_ID: Joi.string(),
-        CLLR_ROLE_ID: Joi.string(),
-        BRND_ROLE_ID: Joi.string(),
-        ADM_DEPT_ID: Joi.string(),
-        SUPER_ADMIN_NAME: Joi.string(),
-        SUPER_ADMIN_PASSWORD: Joi.string(),
-        SUPER_ADMIN_EMAIL: Joi.string(),
-
-        GOOGLE_PLACE_API_KEY: Joi.string(),
-        GOOGLE_PLACE_API_URL: Joi.string(),
-        GOOGLE_API_KEY: Joi.string(),
-        
-        DELETED_EMAIL: Joi.string(),
-        DELETED_NAME: Joi.string(),
-
-    })
-    .unknown();
-
-const { value: envVars, error } = envVarsSchema.prefs({ errors: { label: 'key' } }).validate(process.env);
-
-
-if (error) {
-    throw new Error(`Config validation error: ${error.message}`);
-}
+envVars.PORT = number('PORT', 5000);
+envVars.SMTP_PORT = number('SMTP_PORT');
+envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
+envVars.DEFAULT_TIMEZONE ??= 'UTC';
 
 module.exports = {
     app_name: envVars.APP_NAME,
