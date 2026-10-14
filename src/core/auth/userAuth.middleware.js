@@ -20,7 +20,7 @@ const validatePassword = require("../utils/validatePassword");
 const { tokenTypes, otpTypes } = require("../config/types");
 const catchAsync = require("../http/catchAsync");
 const ApiError = require("../http/ApiError");
-const randomize = require("randomatic");
+const randomDigits = require("../utils/randomDigits");
 const { sendEmailVerification } = require("../../integrations/mailer/email.service");
 
 const config = require("../config/config");
@@ -99,7 +99,7 @@ const validateRegisterUserBody = catchAsync(async (req, res, next) => {
           },
         });
         if (existingOtp) await existingOtp.destroy({ force: true });
-        const generatedOTP = randomize("0", 4);
+        const generatedOTP = randomDigits(4);
         const otpObj = {
           user_id: userDoc.id,
           email: email,

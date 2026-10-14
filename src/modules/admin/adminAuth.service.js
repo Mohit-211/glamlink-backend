@@ -1,7 +1,7 @@
 const httpStatus = require('../../core/http/status');
 const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require('../../core/auth/otpAttempts');
 const bcrypt = require('bcryptjs');
-const randomize = require('randomatic');
+const randomDigits = require('../../core/utils/randomDigits');
 const jwt = require('jsonwebtoken');
 
 const { Admin, Department, Role } = require('../../models');
@@ -118,7 +118,7 @@ const sendOTP = async (email) => {
         if (!user) {
             throw new ApiError(httpStatus.NOT_FOUND, 'Invalid Email');
         };
-        const generatedOTP = randomize('0', 6);
+        const generatedOTP = randomDigits(6);
         await emailService.sendForgotPasswordOTP(email, generatedOTP);
 
         await Admin.update({ otp: generatedOTP, is_otp_valid: true }, { where: { email: user.email } });

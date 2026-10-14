@@ -3,7 +3,7 @@
 const httpStatus = require("../../core/http/status");
 const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require("../../core/auth/otpAttempts");
 const bcrypt = require("bcryptjs");
-const randomize = require("randomatic");
+const randomDigits = require("../../core/utils/randomDigits");
 const moment = require("moment");
 const {
   OTP,
@@ -44,7 +44,7 @@ const sendOTP = async (body, headers) => {
     });
     if (existingOtp) await existingOtp.destroy({ force: true });
     resetOtpAttempts(otpAttemptKey("user", email, type, role_id));
-    const generatedOTP = randomize("0", 4);
+    const generatedOTP = randomDigits(4);
     const otpObj = {
       email: email,
       code: generatedOTP,
@@ -257,7 +257,7 @@ const register = async (body, files, headers) => {
       },
     });
     if (existingOtp) await existingOtp.destroy({ force: true });
-    const generatedOTP = randomize("0", 4);
+    const generatedOTP = randomDigits(4);
     const otpObj = {
       user_id: user.id,
       email: email,
@@ -459,7 +459,7 @@ const login = async (reqBody, headers) => {
         },
       });
       if (existingOtp) await existingOtp.destroy({ force: true });
-      const generatedOTP = randomize("0", 4);
+      const generatedOTP = randomDigits(4);
       const otpObj = {
         user_id: user.id,
         email: user.email,
