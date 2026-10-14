@@ -8,6 +8,8 @@ const cron = require('node-cron');
 const path = require('path');
 const app = express();
 app.set("trust proxy", 1);
+// Express 5 defaults to the simple parser; keep nested query params (a[b]=1) parsed as objects.
+app.set("query parser", "extended");
 
 const config = require('./src/core/config/config.js');
 const routes = require('./src/routes');
@@ -64,6 +66,11 @@ app.use(
 app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
+// Express 5 leaves req.body undefined when no parser ran (e.g. GET); middleware and handlers expect an object.
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 
 
 // gzip compression
