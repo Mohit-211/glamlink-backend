@@ -6,7 +6,7 @@ const { IMAGES_DIR } = require("../../core/config/paths");
 const fs = require("fs");
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment");
-const axios = require("axios");
+const httpClient = require("../../core/http/httpClient");
 
 const {
   User,
@@ -1628,7 +1628,7 @@ const getCoordinates = async (address) => {
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
 
   try {
-    const response = await axios.get(url);
+    const response = await httpClient.get(url);
     const data = response.data;
 
     if (data.status === "OK") {
@@ -1669,7 +1669,7 @@ const getRouteInfo = async (originLat, originLng, destLat, destLng) => {
   };
 
   try {
-    const response = await axios.post(url, payload, {
+    const response = await httpClient.post(url, payload, {
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
@@ -2914,7 +2914,7 @@ const searchBeautycianByPlaceApi = async (body, query) => {
         headers: {},
       };
 
-      let apiResponse = await axios.request(axiosConfig);
+      let apiResponse = await httpClient.request(axiosConfig);
       let { html_attributions, next_page_token, results } = apiResponse.data;
 
       response.push(...results);
@@ -4113,7 +4113,7 @@ async function getBeauticians() {
   let allPlaces = [];
 
   while (url) {
-    const res = await axios.get(url);
+    const res = await httpClient.get(url);
 
     const filtered = res.data.results.map((place) => ({
       //   name: place.name,
@@ -4162,7 +4162,7 @@ const getMapBeauticianList = async (body, query) => {
 
 const fetchDetails = async (placeId) => {
   try {
-    const response = await axios.get(
+    const response = await httpClient.get(
       `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${config.GOOGLE_API_KEY}`,
     );
     return response.data.result;

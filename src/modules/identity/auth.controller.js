@@ -7,7 +7,7 @@ const userAuthService = require('./auth.service');
 const pick = require('../../core/utils/pick');
 const responseWrapper = require('../../core/http/responseWrapper');
 const { logRegisterAttempt } = require('./registerLogger');
-const axios = require("axios"); 
+const httpClient = require("../../core/http/httpClient"); 
 
 
 const sendOTP = catchAsync(async (req, res) => {
@@ -53,7 +53,7 @@ const register = catchAsync(async (req, res) => {
   }
 
   try {
-    const verifyRes = await axios.post(
+    const verifyRes = await httpClient.post(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       new URLSearchParams({
         secret: process.env.TURNSTILE_SECRET_KEY,

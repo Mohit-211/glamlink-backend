@@ -23,7 +23,7 @@ const {
   saveAddressToDatabase,
   validateAddressInShippo,
 } = require("../../integrations/shippo");
-const axios = require("axios");
+const httpClient = require("../../core/http/httpClient");
 const config = require("../../core/config/config");
 
 const getAllUserOrders = async (body) => {
@@ -951,7 +951,7 @@ const updateOrderStatus = async (id, reqBody) => {
 
 const getShipmentStatus = async (shipmentId) => {
   try {
-    const response = await axios.get(
+    const response = await httpClient.get(
       `https://api.goshippo.com/shipments/${shipmentId}/`,
       {
         headers: {
@@ -981,7 +981,7 @@ const createShipmentLabel = async (orderId) => {
     }
 
     // Step 1: Get available rates
-    const ratesResponse = await axios.get(
+    const ratesResponse = await httpClient.get(
       `https://api.goshippo.com/shipments/${orderDoc.shippo_shipment_id}`,
       {
         headers: {
@@ -1024,7 +1024,7 @@ const createShipmentLabel = async (orderId) => {
     });
 
     // Step 3: Buy shipping label
-    const labelResponse = await axios.post(
+    const labelResponse = await httpClient.post(
       `https://api.goshippo.com/transactions/`,
       {
         rate: cheapestRate.object_id,

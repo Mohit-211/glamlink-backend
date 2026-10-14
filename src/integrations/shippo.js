@@ -1,14 +1,14 @@
 /** @format */
 
 const httpStatus = require("../core/http/status");
-const axios = require("axios");
+const httpClient = require("../core/http/httpClient");
 const config = require("../core/config/config");
 const { UserAddress } = require("../models");
 const ApiError = require("../core/http/ApiError");
 
 const createShipment = async (orderDoc, userAddress, addressFrom, parcel) => {
   try {
-    const response = await axios.post(
+    const response = await httpClient.post(
       "https://api.goshippo.com/shipments/",
       {
         address_from: addressFrom,
@@ -33,7 +33,7 @@ const createShipment = async (orderDoc, userAddress, addressFrom, parcel) => {
 
 const createAddressInShippo = async (addressData) => {
   try {
-    const response = await axios.post(
+    const response = await httpClient.post(
       "https://api.goshippo.com/addresses/",
       addressData,
       {
@@ -97,7 +97,7 @@ const saveAddressToDatabase = async (
 
 const validateAddressInShippo = async (addressId) => {
   try {
-    const response = await axios.get(
+    const response = await httpClient.get(
       `https://api.goshippo.com/addresses/${addressId}/validate`,
       {
         headers: {

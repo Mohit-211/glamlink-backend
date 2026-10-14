@@ -1,6 +1,6 @@
 /** @format */
 
-const axios = require("axios");
+const httpClient = require("../../core/http/httpClient");
 const { getAllProductsInCart } = require("./cart.service");
 const { getAllUserAddress } = require("./order.service");
 const config = require("../../core/config/config");
@@ -108,7 +108,7 @@ const calculateCheckoutTax = async (reqBody) => {
 
 						console.log("📤 Sending Request to NumeralHQ:", JSON.stringify(requestData, null, 2));
 
-						const response = await axios.post(
+						const response = await httpClient.post(
 							"https://api.numeralhq.com/tax/calculations",
 							requestData,
 							{

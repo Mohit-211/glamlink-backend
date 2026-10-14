@@ -37,7 +37,7 @@ const { Op, Sequelize } = require("sequelize");
 const sequelize = require("../../core/db/central.db");
 const Stripe = require("stripe");
 const stripe = new Stripe(config.STRIPE_SECRET_KEY);
-const axios = require("axios");
+const httpClient = require("../../core/http/httpClient");
 const {
   getCustomer,
 } = require("../billing/stripeCustomer.service");
@@ -4292,7 +4292,7 @@ const getBusinessCardShippingRate = async (body) => {
 
     // ================= GET SHIPPO RATES =================
 
-    const shipmentResponse = await axios.post(
+    const shipmentResponse = await httpClient.post(
       "https://api.goshippo.com/shipments/",
       {
         address_from: addressFrom,
@@ -4568,7 +4568,7 @@ const getBusinessCardShippingRatePublic = async (body) => {
     // GET SHIPPO RATES
     // =========================================================
 
-    const shipmentResponse = await axios.post(
+    const shipmentResponse = await httpClient.post(
       "https://api.goshippo.com/shipments/",
       {
         address_from: addressFrom,

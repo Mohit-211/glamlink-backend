@@ -6,7 +6,7 @@ const { Event, Shop, JournalTopic } = require("../../models");
 const sharp = require("sharp");
 const { parse } = require("csv-parse/sync");
 const path = require("path");
-const axios = require("axios");
+const httpClient = require("../../core/http/httpClient");
 const crypto = require("crypto");
 const fs = require("fs");
 const config = require("../../core/config/config");
@@ -308,7 +308,7 @@ const fixEncoding = (str) => {
 const downloadAndSaveImage = async (imageUrl) => {
   if (!imageUrl) return null;
   try {
-    const response = await axios.get(imageUrl, {
+    const response = await httpClient.get(imageUrl, {
       responseType: "arraybuffer",
       timeout: 15000,
       maxRedirects: 5,
