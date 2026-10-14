@@ -46,6 +46,11 @@ userLoginTiming.init({
         type: DataTypes.DATE,
         allowNull: true
     },
+    // The sign-in session (auth_sessions) this login belongs to
+    session_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: true,
+    },
     token_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: true,

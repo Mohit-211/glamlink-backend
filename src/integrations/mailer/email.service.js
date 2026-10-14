@@ -3,10 +3,8 @@
 const { longDate } = require("../../core/utils/time");
 const config = require("../../core/config/config");
 const logger = require("../../core/logger");
-const {
-  forgotPasswordSendOTPFormat,
-  emailVerificationFormat,
-} = require("./templates");
+const { forgotPasswordSendOTPFormat } = require("./templates");
+const { verifyEmailFormat, resetPasswordFormat } = require("./templates/accountTemplate");
 const ApiError = require("../../core/http/ApiError");
 const httpStatus = require("../../core/http/status");
 const { User, Profile, UserPromotion, Customer } = require("../../models");
@@ -50,31 +48,41 @@ const sendEmail = async (to, subject, text, html) => {
   }
 };
 
-const sendEmailVerification = async (to, otp) => {
+// Account emails. Failures are logged, not thrown: the request still succeeds and the person can ask for
+// a new link.
+const sendVerifyEmailLink = async ({ to, name, link }) => {
   try {
-    const message = {
-      from: `${config.email.from}`,
-      to: `${to}`,
-      subject: "Please verify your email",
-      text: `Please click on the following link to verify your email`,
-      html: `${emailVerificationFormat(otp)}`,
-    };
-    transport.sendMail(message, (error, info) => {
-      if (error) {
-        console.log("Email sent error:  ", error);
-        return false;
-      } else {
-        return true;
-      }
-    });
+    const text = `Hi ${name || "there"},
+
+Please confirm your email address to finish setting up your Glamlink account (this link works for 24 hours):
+${link}
+
+If you did not create a Glamlink account, you can ignore this email.
+
+The Glamlink Team`;
+    await sendEmail(to, "Verify your email for Glamlink", text, verifyEmailFormat({ name, link }));
   } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+    logger.error("Verification email failed:", error);
   }
 };
 
+const sendResetPasswordLink = async ({ to, name, link }) => {
+  try {
+    const text = `Hi ${name || "there"},
+
+Reset your Glamlink password with this link (it works for 1 hour, once):
+${link}
+
+If you did not ask to reset your password, you can ignore this email.
+
+The Glamlink Team`;
+    await sendEmail(to, "Reset your Glamlink password", text, resetPasswordFormat({ name, link }));
+  } catch (error) {
+    logger.error("Password reset email failed:", error);
+  }
+};
+
+// Admin password reset (admins still use a one-time code).
 const sendForgotPasswordOTP = async (to, otp) => {
   try {
     const message = {
@@ -923,18 +931,10 @@ Welcome to Glamlink.
 
 Your account has been created and your Access Card is ready.
 
-Sign in using the information below.
+Set a password to sign in and manage your card (this link works for 7 days):
+${data.setPasswordLink}
 
-Account Email:
-${data.email}
-
-Password:
-${data.password}
-
-Sign In:
-https://glamlink.net/login
-
-For your security, please change your password after your first sign-in.
+Your sign-in email: ${data.email}
 
 Thank you,
 The Glamlink Team
@@ -943,8 +943,7 @@ The Glamlink Team
     const html = newAccessUserEmailFormat({
       name: data.name,
       email: data.email,
-      password: data.password,
-      businessCardLink: data.businessCardLink,
+      setPasswordLink: data.setPasswordLink,
       qrCodeUrl: data.qrCodeUrl,
     });
 
@@ -1024,7 +1023,8 @@ ${data.message}
 
 module.exports = {
   sendForgotPasswordOTP,
-  sendEmailVerification,
+  sendVerifyEmailLink,
+  sendResetPasswordLink,
   sendOrderConfirmationToSeller,
   sendOrderConfirmationToBuyer,
   sendReceiptToUser,

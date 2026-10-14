@@ -18,8 +18,7 @@ const {
   Payment,
   AccessOrder,
 } = require("../../models");
-const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
+const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../identity/account.service");
 const QRCode = require("qrcode");
 const path = require("path");
 const { UPLOADS_DIR } = require("../../core/config/paths");
@@ -136,52 +135,18 @@ const selectBusinessCardPlan = async (body) => {
 
         let user = await User.findOne({
           where: {
-            email: card.email,
+            email: normalizeEmail(card.email),
           },
         });
 
         if (!user) {
-          const plainPassword = crypto.randomBytes(5).toString("hex");
-          const salt = bcrypt.genSaltSync(10);
-
-          let username = card.name?.trim().toLowerCase().replace(/\s+/g, "");
-          let finalUsername = username;
-          let count = 1;
-
-          while (
-            await User.findOne({
-              where: {
-                user_name: finalUsername,
-              },
-            })
-          ) {
-            finalUsername = `${username}${count++}`;
-          }
-
-          user = await User.create({
-            email: card.email,
-            user_name: finalUsername,
-            role_id: "7",
-            status: "ACCEPTED",
-            password: bcrypt.hashSync(plainPassword, salt),
-          });
-
-          await Profile.create({
-            user_id: user.id,
-            name: card.name,
-            email: card.email,
-            mobile: card.phone,
-          });
-
-          await card.update({
-            user_id: user.id,
-          });
-
+          ({ user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone }));
+          await card.update({ user_id: user.id });
           await sendNewAccessUserEmail({
             to: card.email,
             name: card.name,
-            email: card.email,
-            password: plainPassword,
+            email: user.email,
+            setPasswordLink: await setPasswordLink(user),
             businessCardLink: card.business_card_link,
             qrCodeUrl: card.business_card_qr,
           });
@@ -276,8 +241,8 @@ const createBusinessCard = async (body, files) => {
     if (email) {
       existingUser = await User.findOne({
         where: {
-          email,
-          role_id: "7",
+          email: normalizeEmail(email),
+          account_type: "professional",
         },
         attributes: ["id", "status", "is_active"],
       });
@@ -900,7 +865,7 @@ const createBusinessCardByAdmin = async (body, files) => {
     if (email) {
       existingUser = await User.findOne({
         where: {
-          email,
+          email: normalizeEmail(email),
           is_active: true,
         },
         attributes: ["id"],
@@ -1561,116 +1526,35 @@ const createBusinessCardByAdmin = async (body, files) => {
          NEW USER
          ======================================================= */
 
-      const plainPassword =
-        crypto.randomBytes(5).toString(
-          "hex",
-        );
-
-      const salt =
-        bcrypt.genSaltSync(10);
-
-      let username =
-        cardDoc.name
-          ?.trim()
-          .toLowerCase()
-          .replace(/\s+/g, "");
-
-      /*
-       * Keep existing behavior.
-       * Make sure username has a fallback.
-       */
-      if (!username) {
-        username = `user${cardDoc.id}`;
-      }
-
-      let finalUsername =
-        username;
-
-      let count = 1;
-
-      while (
-        await User.findOne({
-          where: {
-            user_name:
-              finalUsername,
-          },
-          attributes: ["id"],
-        })
-      ) {
-        finalUsername =
-          `${username}${count++}`;
-      }
-
-      /* =====================================================
-         CREATE USER
-         ===================================================== */
-
-      const user =
-        await User.create({
-          email: cardDoc.email,
-
-          user_name:
-            finalUsername,
-
-          role_id: 7,
-
-          status: "ACCEPTED",
-
-          password:
-            bcrypt.hashSync(
-              plainPassword,
-              salt,
-            ),
-        });
-
-      /* =====================================================
-         CREATE PROFILE
-         ===================================================== */
-
-      await Profile.create({
-        user_id: user.id,
-
-        name: cardDoc.name,
-
+      const { user } = await accessCardOwner({
         email: cardDoc.email,
-
-        mobile: cardDoc.phone,
+        name: cardDoc.name,
+        phone: cardDoc.phone,
       });
-
-      /* =====================================================
-         LINK USER TO CARD
-         ===================================================== */
 
       await cardDoc.update({
         user_id: user.id,
       });
 
       /* =====================================================
-         BACKGROUND WELCOME EMAIL
+         BACKGROUND WELCOME EMAIL (with a link to set a password)
          DO NOT WAIT
          ===================================================== */
 
-      sendNewAccessUserEmail({
-        to: cardDoc.email,
-
-        name: cardDoc.name,
-
-        email: cardDoc.email,
-
-        password:
-          plainPassword,
-
-        businessCardLink:
-          publicLink,
-
-        qrCodeUrl:
-          qrPublicUrl,
-      }).catch((err) => {
-        console.error(
-          "sendNewAccessUserEmail failed:",
-          err,
-        );
-      });
+      setPasswordLink(user)
+        .then((link) => sendNewAccessUserEmail({
+          to: cardDoc.email,
+          name: cardDoc.name,
+          email: user.email,
+          setPasswordLink: link,
+          qrCodeUrl: qrPublicUrl,
+        }))
+        .catch((err) => {
+          console.error(
+            "sendNewAccessUserEmail failed:",
+            err,
+          );
+        });
     }
 
     /* =========================================================

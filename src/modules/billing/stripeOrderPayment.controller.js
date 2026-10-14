@@ -5,7 +5,7 @@ const { Op } = require("sequelize");
 const Stripe = require("stripe");
 const { todayDate } = require("../../core/utils/time");
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
+const { accessCardOwner, setPasswordLink } = require("../identity/account.service");
 const {
   Payment,
   User,
@@ -490,7 +490,7 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
         }
 
         let user = null;
-        let plainPassword = null;
+        let newOwner = false;
 
         // =========================================================
         // RESOLVE USER
@@ -528,73 +528,23 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
         }
 
         // CASE 3:
-        // Public payment and no user is linked yet.
-        // This means this is genuinely a NEW user.
+        // Public payment and no user is linked yet: the account for the card's email. An existing account
+        // is used (a user account becomes professional); otherwise one is created without a password and
+        // the welcome email carries a link to set it.
         if (!user) {
-          user = await User.findOne({
-            where: {
-              email: card.email,
-              is_active: true,
-              status: "ACCEPTED",
-              role_id: "7",
+          const owner = await accessCardOwner({
+            email: card.email,
+            name: card.name,
+            phone: card.phone,
+            extra: {
+              stripe_customer_id: paymentRecord.stripe_customer_id,
+              stripe_subscription_id: paymentRecord.stripe_subscription_id,
+              subscription_status: "PENDING",
             },
           });
-
-          if (user) {
-            console.log(`✅ Existing user found by email: ${user.id}`);
-
-            await card.update({
-              user_id: user.id,
-            });
-
-            await paymentRecord.update({
-              user_id: user.id,
-            });
-          }
-        }
-
-        // CASE 4:
-        // Truly new user
-        if (!user) {
-          plainPassword = crypto.randomBytes(5).toString("hex");
-
-          const salt = bcrypt.genSaltSync(10);
-          const hashedPassword = bcrypt.hashSync(plainPassword, salt);
-
-          let username = card.name?.trim().toLowerCase().replace(/\s+/g, "");
-
-          let finalUsername = username;
-          let count = 1;
-
-          while (
-            await User.findOne({
-              where: {
-                user_name: finalUsername,
-              },
-            })
-          ) {
-            finalUsername = `${username}${count++}`;
-          }
-
-          user = await User.create({
-            email: card.email,
-            user_name: finalUsername,
-            role_id: "7",
-            status: "ACCEPTED",
-            password: hashedPassword,
-            stripe_customer_id: paymentRecord.stripe_customer_id,
-            stripe_subscription_id: paymentRecord.stripe_subscription_id,
-            subscription_status: "PENDING",
-          });
-
-          console.log(`✅ New user created: ${user.id}`);
-
-          await Profile.create({
-            user_id: user.id,
-            name: card.name,
-            email: card.email,
-            mobile: card.phone,
-          });
+          user = owner.user;
+          newOwner = owner.created;
+          console.log(`✅ ${newOwner ? "New" : "Existing"} user for card email: ${user.id}`);
 
           await card.update({
             user_id: user.id,
@@ -688,13 +638,13 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
         // SEND ACCESS CARD EMAIL AFTER SUCCESSFUL PAYMENT
         // =========================================================
 
-        if (plainPassword) {
+        if (newOwner) {
           // Brand-new user created during public payment
           await sendNewAccessUserEmail({
             to: card.email,
             name: card.name,
-            email: card.email,
-            password: plainPassword,
+            email: user.email,
+            setPasswordLink: await setPasswordLink(user),
             businessCardLink: card.business_card_link,
             qrCodeUrl: card.business_card_qr,
           });

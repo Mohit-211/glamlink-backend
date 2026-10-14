@@ -281,7 +281,9 @@ User.init(
   },
 );
 
-User.afterCreate(async (user) => {
+// Saves inside the creating transaction, if any: outside it, the save would wait on the row lock that very
+// transaction holds.
+User.afterCreate(async (user, { transaction } = {}) => {
   const socketId = `${user.role_id}-${user.id}-socketId`;
   user.socket_id = socketId;
 
@@ -289,10 +291,10 @@ User.afterCreate(async (user) => {
 
   try {
     user.referral_code = referralCode;
-    await user.save();
-  } catch (err) {
+    await user.save({ transaction });
+  } catch {
     user.referral_code = `${referralCode}${user.id}`;
-    await user.save();
+    await user.save({ transaction });
   }
 });
 

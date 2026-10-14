@@ -27,7 +27,9 @@ const number = (key, fallback) => {
 envVars.PORT = number('PORT', 5000);
 envVars.SMTP_PORT = number('SMTP_PORT');
 envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
-envVars.JWT_ACCESS_EXPIRATION_DAYS = number('JWT_ACCESS_EXPIRATION_DAYS', 7);
+envVars.ACCESS_TOKEN_MINUTES = number('ACCESS_TOKEN_MINUTES', 15);
+envVars.REFRESH_TOKEN_DAYS = number('REFRESH_TOKEN_DAYS', 30);
+envVars.WEBSITE_URL = (envVars.WEBSITE_URL || 'https://glamlink.net').replace(/\/+$/, '');
 envVars.DEFAULT_TIMEZONE ??= 'UTC';
 envVars.MAIL_TRANSPORT ??= 'smtp';
 if (!['smtp', 'log'].includes(envVars.MAIL_TRANSPORT)) fail('MAIL_TRANSPORT must be smtp or log');
@@ -47,7 +49,8 @@ module.exports = {
     },
     jwt: {
         secret: envVars.JWT_SECRET,
-        accessExpirationDays: envVars.JWT_ACCESS_EXPIRATION_DAYS,
+        accessTokenMinutes: envVars.ACCESS_TOKEN_MINUTES,
+        refreshTokenDays: envVars.REFRESH_TOKEN_DAYS,
     },
     email: {
         smtp: {
@@ -66,6 +69,8 @@ module.exports = {
     accessDomains: envVars.ACCESSDOMAINS,
     defaultLimit: envVars.DEFAULT_API_DATA_LIMIT,
     API_BASE_URL: envVars.API_BASE_URL,
+    // The website, for links in emails (verify email, reset password)
+    WEBSITE_URL: envVars.WEBSITE_URL,
     DEFAULT_TIMEZONE: envVars.DEFAULT_TIMEZONE,
     STORY_VALIDATION_TIME_SPAN_HOURS: envVars.STORY_VALIDATION_TIME_SPAN_HOURS,
     

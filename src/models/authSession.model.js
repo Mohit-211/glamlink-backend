@@ -32,6 +32,11 @@ AuthSession.init({
         type: DataTypes.STRING(20),
         allowNull: true,
     },
+    // The app's Firebase push token for this device
+    push_token: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+    },
     user_agent: {
         type: DataTypes.STRING(500),
         allowNull: true,

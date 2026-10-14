@@ -1,142 +1,110 @@
 const httpStatus = require('../../core/http/status');
-
-const validatePassword = require('../../core/utils/validatePassword');
 const catchAsync = require('../../core/http/catchAsync');
 const ApiError = require('../../core/http/ApiError');
-const userAuthService = require('./auth.service');
-const pick = require('../../core/utils/pick');
 const responseWrapper = require('../../core/http/responseWrapper');
+const httpClient = require('../../core/http/httpClient');
+const logger = require('../../core/logger');
+const authService = require('./auth.service');
 const { logRegisterAttempt } = require('./registerLogger');
-const httpClient = require("../../core/http/httpClient"); 
 
-
-const sendOTP = catchAsync(async (req, res) => {
-
-    const body = pick(req.body, ['email', 'type']);
-    const headers = pick(req.headers, ['role_id']);
-    let response = await userAuthService.sendOTP(body, headers);
-    return responseWrapper(res, response, 'OTP has been Sent To Your Email');
-});
-
-const verifyOTP = catchAsync(async (req, res) => {
-
-    const status = await userAuthService.verifyOTP(req.body.email, req.body.otp, req.body.type, req.headers.role_id);
-    if (!status) {
-        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Ineternal Server Error');
+// Which client is calling: the website signs in professionals only.
+const contextOf = (req) => {
+    const client = req.body.client || req.headers['x-client'];
+    return {
+        client: client === 'website' ? 'website' : 'app',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        timezone: req.headers.timezone,
+        pushToken: req.body.fcm_token || req.headers.fcm_token,
     };
-    return responseWrapper(res, status, 'OTP has been verified. Please Create Your Profile.', httpStatus.OK);
+};
 
-});
-
+// Cloudflare Turnstile on registration, when TURNSTILE_SECRET_KEY is set.
+const verifyCaptcha = async (req) => {
+    if (!process.env.TURNSTILE_SECRET_KEY) return;
+    const token = req.body.turnstile_token;
+    if (!token) throw ApiError.withCode(httpStatus.BAD_REQUEST, 'Captcha token is required', 'CAPTCHA_REQUIRED');
+    let passed = false;
+    try {
+        const res = await httpClient.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            new URLSearchParams({ secret: process.env.TURNSTILE_SECRET_KEY, response: token, remoteip: req.ip }),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 },
+        );
+        passed = Boolean(res.data.success);
+    } catch (error) {
+        logger.warn('Captcha verification request failed:', error.message);
+    }
+    if (!passed) throw ApiError.withCode(httpStatus.BAD_REQUEST, 'Captcha verification failed', 'CAPTCHA_FAILED');
+};
 
 const register = catchAsync(async (req, res) => {
-  // ========== 1. LOG ATTEMPT ==========
-  const clientIp =
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req.headers["x-real-ip"] ||
-    req.ip;
-
-  logRegisterAttempt({
-    ip: clientIp,
-    userAgent: req.headers["user-agent"] || "unknown",
-    role_id: req.headers.role_id,
-    email: req.body?.email || "",
-    name: req.body?.name || "",
-  });
-
-  // ========== 2. VERIFY CAPTCHA ==========
-  const captchaToken = req.body.turnstile_token;
-  console.log("Captcha token:", captchaToken);
-
-  if (!captchaToken) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Captcha token is required");
-  }
-
-  try {
-    const verifyRes = await httpClient.post(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      new URLSearchParams({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: captchaToken,
-        remoteip: clientIp,
-      }),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
-
-    if (!verifyRes.data.success) {
-      console.log("Captcha failed:", verifyRes.data);
-      throw new ApiError(httpStatus.BAD_REQUEST, "Captcha verification failed");
-    }
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    console.error("Captcha verify error:", err.message);
-    throw new ApiError(httpStatus.BAD_REQUEST, "Captcha verification failed");
-  }
-  // =====================================
-
-  // ========== 3. CONTINUE REGISTER ==========
-  const headers = pick(req.headers, ["role_id"]);
-  let response = await userAuthService.register(req.body, req.files, headers);
-
-  return responseWrapper(
-    res,
-    response,
-    "User Created Successfully. Please Check Your Email to verify Your Account.",
-    httpStatus.CREATED
-  );
+    logRegisterAttempt({
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown',
+        role_id: req.body.account_type || '',
+        email: req.body.email || '',
+        name: req.body.name || '',
+    });
+    await verifyCaptcha(req);
+    const result = await authService.register(req.body, req.files, contextOf(req));
+    return responseWrapper(res, result, 'Please check your email for a link to verify your account.', httpStatus.CREATED);
 });
 
-const singleSignOn = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['name', 'email', 'provider', 'provider_id', 'latitude', 'longitude', 'profession', 'ip_address']);
-    const headers = pick(req.headers, ['role_id', 'timezone', 'fcm_token']);
-    let response = await userAuthService.singleSignOn(body, headers);
-    return responseWrapper(res, response, '', httpStatus.OK);
+const verifyEmail = catchAsync(async (req, res) => {
+    const result = await authService.verifyEmail(req.body.token, contextOf(req));
+    return responseWrapper(res, result, 'Your email is verified.');
+});
+
+const resendVerification = catchAsync(async (req, res) => {
+    await authService.resendVerification(req.body.email);
+    return responseWrapper(res, {}, 'If that account needs verifying, we have sent a new link.');
 });
 
 const login = catchAsync(async (req, res) => {
-    console.log("Controller role_id:", req.headers.role_id);
-    const response = await userAuthService.login(req.body, req.headers);
-    return responseWrapper(res, response, 'Successfully Logged in.');
+    const result = await authService.login(req.body, contextOf(req));
+    return responseWrapper(res, result, 'Signed in.');
 });
 
-const resetPassword = catchAsync(async (req, res) => {
-    const { new_password, confirm_password } = req.body;
-
-    if (!validatePassword(new_password)) {
-
-        return responseWrapper(res, '', 'Password should have a minimum length of 8 characters and must have at least 2 digits and No Blank Space', httpStatus.BAD_REQUEST);
-    };
-
-    if (new_password !== confirm_password) {
-        return responseWrapper(res, '', 'Password and Confirm Password must be equal', httpStatus.BAD_REQUEST);
-    };
-
-    const response = await userAuthService.resetPassword(req.body);
-    return responseWrapper(res, response, 'Password changed Successfully.');
-});
-
-const forgotPassword = catchAsync(async (req, res) => {
-
-    const response = await userAuthService.forgotPassword(req.body);
-    return responseWrapper(res, response, 'Password changed Successfully.');
+const refresh = catchAsync(async (req, res) => {
+    const tokens = await authService.refresh(req.body.refresh_token);
+    return responseWrapper(res, tokens, 'Session refreshed.');
 });
 
 const logout = catchAsync(async (req, res) => {
-    const response = await userAuthService.logout(req.body, req.headers,req.isGuest);
-    return responseWrapper(res, response, 'Successfully Logged out.');
+    await authService.logout(req.session, contextOf(req));
+    return responseWrapper(res, {}, 'Signed out.');
+});
+
+const logoutEverywhere = catchAsync(async (req, res) => {
+    await authService.logoutEverywhere(req.user);
+    return responseWrapper(res, {}, 'Signed out on every device.');
+});
+
+const forgotPassword = catchAsync(async (req, res) => {
+    await authService.forgotPassword(req.body.email);
+    return responseWrapper(res, {}, 'If an account uses that email, we have sent a link to reset the password.');
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+    await authService.resetPassword(req.body);
+    return responseWrapper(res, {}, 'Your password is updated. Please sign in.');
+});
+
+const changePassword = catchAsync(async (req, res) => {
+    await authService.changePassword(req.user, req.session, req.body);
+    return responseWrapper(res, {}, 'Your password is updated. Other devices have been signed out.');
 });
 
 module.exports = {
     register,
-    singleSignOn,
+    verifyEmail,
+    resendVerification,
     login,
-    resetPassword,
-    sendOTP,
-    verifyOTP,
-    forgotPassword,
+    refresh,
     logout,
+    logoutEverywhere,
+    forgotPassword,
+    resetPassword,
+    changePassword,
 };

@@ -1,7 +1,8 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const bcrypt = require("bcryptjs");
+const { createAccount, normalizeEmail } = require("../identity/account.service");
+const { revokeUserSessions } = require("../../core/auth/sessions");
 const Sequelize = require("sequelize");
 const { toDateTime, timeAgo, slotTiming } = require("../../core/utils/time");
 const { literal } = require("sequelize");
@@ -656,6 +657,7 @@ const deleteUser = async (body) => {
         Feed.destroy({ where: { user_id: userId } }),
 
         UserToken.destroy({ where: { user_id: userId } }),
+        revokeUserSessions(userId, "account_deleted"),
         userLoginTiming.destroy({ where: { user_id: userId } }),
         UserAddress.destroy({ where: { user_id: userId } }),
         UserAttachment.destroy({ where: { user_id: userId } }),
@@ -1175,42 +1177,33 @@ const createUser = async (body) => {
       email,
       mobile,
       password,
-      confirm_password,
       city_id,
       state_id,
       role_id,
-      user,
     } = body;
 
-    let salt = bcrypt.genSaltSync(10);
-    const userObj = {
-      email: email,
-      password: bcrypt.hashSync(password, salt),
-      role_id: role_id,
-      status: userStatusTypes.ACCEPTED,
+    // The admin picks a role id; accounts are typed by it. Created by an admin, so verified.
+    const types = {
+      [String(config.USR_ROLE_ID)]: ["user", null],
+      [String(config.PROFESSIONAL_ROLE_ID)]: ["professional", "individual"],
+      [String(config.BRND_ROLE_ID)]: ["professional", "brand"],
     };
-    const userDoc = await User.create(userObj);
-
-    if (!userDoc) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to create New Record",
-      );
+    const type = types[String(role_id)];
+    if (!type) throw new ApiError(httpStatus.BAD_REQUEST, "Invalid role id.");
+    if (await User.findOne({ where: { email: normalizeEmail(email) } })) {
+      throw new ApiError(httpStatus.CONFLICT, "An account with this email already exists.");
     }
-    let profileObj = {
-      email: email,
-      name: name,
-      user_id: userDoc.id,
-      city_id: city_id,
-      state_id: state_id,
-    };
-
-    const userProfile = await Profile.create(profileObj);
-    if (!userProfile)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to create New Record",
-      );
+    await createAccount({
+      email,
+      name,
+      password,
+      accountType: type[0],
+      professionalType: type[1],
+      verified: true,
+      mobile,
+      stateId: state_id,
+      cityId: city_id,
+    });
 
     return "";
   } catch (error) {

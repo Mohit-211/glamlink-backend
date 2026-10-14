@@ -1,5 +1,5 @@
 const httpStatus = require('../../core/http/status');
-const { Notification, UserToken, User, UserAttachment, Profile } = require('../../models');
+const { Notification, AuthSession, User, UserAttachment, Profile } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { notificationTypes, notificationMediumTypes, notificationTypesArr } = require('../../core/config/types');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -128,14 +128,13 @@ const createNotification = async (reqBody) => {
         }
         let notificationDoc = await Notification.create(notificationObj);
 
-        // Function to get unique FCM tokens for a user
+        // The push tokens of the user's signed-in devices
         const getUniqueFCMTokens = async (user_id) => {
-            const tokens = await UserToken.findAll({
-                where: { user_id, fcm_token: { [Op.ne]: null } },
-                attributes: ['id', 'fcm_token']
+            const sessions = await AuthSession.findAll({
+                where: { user_id, revoked_at: null, expires_at: { [Op.gt]: new Date() }, push_token: { [Op.ne]: null } },
+                attributes: ['push_token']
             });
-            const uniqueTokensSet = new Set(tokens.map(token => token.fcm_token));
-            return Array.from(uniqueTokensSet);
+            return [...new Set(sessions.map((s) => s.push_token))];
         };
 
 

@@ -1,5 +1,6 @@
 /** @format */
 
+const { revokeUserSessions } = require("../../core/auth/sessions");
 const httpStatus = require("../../core/http/status");
 const path = require("path");
 const { IMAGES_DIR } = require("../../core/config/paths");
@@ -825,6 +826,7 @@ const deactivateAccount = async (reqBody) => {
 
     await Promise.all([
       UserToken.destroy(commonDestroyOptions),
+      revokeUserSessions(user.id, "account_deleted"),
       userLoginTiming.destroy(commonDestroyOptions),
       UserAttachment.destroy(commonDestroyOptions),
       UserBlock.destroy({

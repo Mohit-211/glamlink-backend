@@ -6,7 +6,8 @@ const textMuted = "#6b7280";
 const borderColor = "#e5e7eb";
 const bgLight = "#f9fafb";
 
-const emailWrapper = (innerContent) => `
+// `label` is the small word next to "Glamlink" in the header.
+const emailWrapper = (innerContent, label = "Access") => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,7 +26,7 @@ const emailWrapper = (innerContent) => `
           <tr>
             <td style="padding:28px 40px;border-bottom:1px solid ${borderColor};">
               <span style="font-size:18px;font-weight:700;color:${textDark};letter-spacing:-0.3px;">Glamlink</span>
-              <span style="font-size:13px;color:${textMuted};margin-left:8px;">Access</span>
+              <span style="font-size:13px;color:${textMuted};margin-left:8px;">${label}</span>
             </td>
           </tr>
 
@@ -216,8 +217,7 @@ const existingAccessCardEmailFormat = ({
 const newAccessUserEmailFormat = ({
   name,
   email,
-  password,
-  businessCardLink,
+  setPasswordLink,
   qrCodeUrl,
 }) => {
   const content = `
@@ -226,7 +226,7 @@ const newAccessUserEmailFormat = ({
         <p style="margin:0 0 16px;font-size:16px;font-weight:600;color:${textDark};">Welcome, ${name || "there"}.</p>
         <p style="margin:0 0 24px;font-size:14px;line-height:22px;color:${textMuted};">
           Your Glamlink account has been created and your Access Card is ready.
-          Use the credentials below to sign in and get started.
+          Set a password to sign in and manage your card.
         </p>
       </td>
     </tr>
@@ -235,44 +235,29 @@ const newAccessUserEmailFormat = ({
       <td style="padding:0 40px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${bgLight};border:1px solid ${borderColor};border-radius:6px;">
           <tr>
-            <td style="padding:16px 20px;border-bottom:1px solid ${borderColor};">
-              <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:${textMuted};text-transform:uppercase;letter-spacing:0.4px;">Email</p>
+            <td style="padding:16px 20px;">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:${textMuted};text-transform:uppercase;letter-spacing:0.4px;">Your sign-in email</p>
               <p style="margin:0;font-size:14px;color:${textDark};font-weight:600;">${email}</p>
             </td>
           </tr>
-          <tr>
-            <td style="padding:16px 20px;">
-              <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:${textMuted};text-transform:uppercase;letter-spacing:0.4px;">password</p>
-              <p style="margin:0;font-size:14px;color:${textDark};font-weight:600;font-family:'Courier New',monospace;">${password}</p>
-            </td>
-          </tr>
         </table>
       </td>
     </tr>
 
     <tr>
-      <td style="padding:16px 40px 0;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid #d97706;background-color:#fffbeb;">
-          <tr>
-            <td style="padding:12px 16px;">
-              <p style="margin:0;font-size:13px;line-height:19px;color:#92400e;">
-                For your security, please change this password immediately after your first sign-in.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-
-    <tr>
-      <td style="padding:28px 40px 36px;" align="center">
+      <td style="padding:28px 40px 8px;" align="center">
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td style="border-radius:6px;background-color:${brandColor};">
-              <a href="https://glamlink.net/login" target="_blank" style="display:inline-block;padding:12px 32px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Sign In to Your Account</a>
+              <a href="${setPasswordLink}" target="_blank" style="display:inline-block;padding:12px 32px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Set Your Password</a>
             </td>
           </tr>
         </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 40px 28px;" align="center">
+        <p style="margin:0;font-size:12px;color:${textMuted};">This link works for 7 days. After that, use "Forgot password" on the sign-in page.</p>
       </td>
     </tr>
 
@@ -827,6 +812,8 @@ const partnershipInquiryEmailFormat = ({
 
 module.exports = {
   existingAccessCardEmailFormat,
+  emailWrapper,
+  colors: { brandColor, textDark, textMuted, borderColor, bgLight },
   newAccessUserEmailFormat,
   businessCardApprovedFormat,
   businessCardRejectedFormat,

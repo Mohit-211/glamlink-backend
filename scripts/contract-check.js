@@ -7,8 +7,8 @@
  *   node scripts/contract-check.js compare <snapshot.json>
  *
  * Needs the repo .env pointing at a local copy of production. Snapshots contain real data:
- * keep them outside the repo. Cron jobs are disabled while it runs, and the test tokens it
- * inserts into user_tokens are deleted afterwards.
+ * keep them outside the repo. Cron jobs are disabled while it runs, and the sign-in session it creates
+ * for the card owner is deleted afterwards.
  */
 const path = require('path');
 const fs = require('fs');
@@ -85,12 +85,9 @@ const diffPaths = (a, b, p = '', out = new Set()) => {
     };
 
     const secret = process.env.JWT_SECRET;
-    const now = Math.floor(Date.now() / 1000);
     const tokens = {
         admin: jwt.sign({ id: ids.admin, role_id: 1, department_id: 1, is_backlisted: false }, Buffer.from(secret, 'hex'), { algorithm: 'HS256', expiresIn: '1h' }),
-        owner: jwt.sign({ sub: ids.owner, iat: now, exp: now + 3600, type: 'access', role_id: 7 }, secret),
     };
-    await db.query("INSERT INTO user_tokens (user_id, token_type, token, expired_at, created_at, updated_at, role_id) VALUES (?, 'access', ?, NOW() + INTERVAL 1 HOUR, NOW(), NOW(), 7)", [ids.owner, tokens.owner]);
 
     const P = '/api/v1';
     const endpoints = [
@@ -126,6 +123,9 @@ const diffPaths = (a, b, p = '', out = new Set()) => {
     ];
 
     const app = require(path.join(ROOT, 'app.js'));
+    const { createSession, revokeSession } = require(path.join(ROOT, 'src/core/auth/sessions'));
+    const ownerSession = await createSession({ id: ids.owner }, { client: 'contract-check' });
+    tokens.owner = ownerSession.tokens.access_token;
     const server = app.listen(0, '127.0.0.1');
     await new Promise((r) => server.once('listening', r));
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -138,7 +138,8 @@ const diffPaths = (a, b, p = '', out = new Set()) => {
         results[`${method} ${url} as ${who}`] = { status: res.status, body };
     }
 
-    await db.query('DELETE FROM user_tokens WHERE token = ?', [tokens.owner]);
+    await revokeSession(ownerSession.session.id, 'contract_check');
+    await db.query('DELETE FROM auth_sessions WHERE id = ?', [ownerSession.session.id]);
     await db.end();
     server.close();
 

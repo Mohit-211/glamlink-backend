@@ -97,9 +97,9 @@ app.use(credentials);
 app.use(cors(corsConfigs));
 
 
-// limit repeated failed requests to auth endpoints
+// Limit repeated attempts on admin sign-in (user sign-in limits its own routes: src/modules/identity/auth.route.js)
 if (config.env === 'production') {
-  app.use(['/api/v1/user/auth', '/api/v1/admin/auth'], authLimiter);
+  app.use('/api/v1/admin/auth', authLimiter);
 };
 
 app.get('/api/healthcheck', function (req, res) {
