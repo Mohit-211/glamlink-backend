@@ -1,4 +1,4 @@
-const firebase = require("firebase-admin");
+const { getDatabase, ServerValue } = require("firebase-admin/database");
 const httpStatus = require("../../core/http/status");
 const moment = require('moment');
 
@@ -28,7 +28,7 @@ const getMessages = async (body, param, header) => {
             messageRef = `${receiverDoc.id}R${receiverDoc.role_id}_${user.id}R${user.role_id}`;
         }
 
-        const conversationMessageRef = firebase.database().ref(`messages/${messageRef}`);
+        const conversationMessageRef = getDatabase().ref(`messages/${messageRef}`);
 
         let messages = [];
         await conversationMessageRef.once('value').then((snapshot) => {
@@ -69,21 +69,21 @@ const postMessage = async (body, header) => {
         };
 
         const conversationSenderRefPath = `userChatList/${user.id}R${user.role_id}/conversations/${receiverDoc.id}R${receiverDoc.role_id}/`;
-        const conversationSenderRef = firebase.database().ref(conversationSenderRefPath);
-        const conversationSenderMemberRef = firebase.database().ref(`${conversationSenderRefPath}/members`);
+        const conversationSenderRef = getDatabase().ref(conversationSenderRefPath);
+        const conversationSenderMemberRef = getDatabase().ref(`${conversationSenderRefPath}/members`);
 
-        const conversationMessageRef = firebase.database().ref(`messages/${messageRef}`);
+        const conversationMessageRef = getDatabase().ref(`messages/${messageRef}`);
 
 
         const conversationReceiverRefPath = `userChatList/${receiverDoc.id}R${receiverDoc.role_id}/conversations/${user.id}R${user.role_id}`;
-        const conversationReceiverRef = firebase.database().ref(conversationReceiverRefPath);
-        const conversationReceiverMemberRef = firebase.database().ref(`${conversationReceiverRefPath}/members`);
+        const conversationReceiverRef = getDatabase().ref(conversationReceiverRefPath);
+        const conversationReceiverMemberRef = getDatabase().ref(`${conversationReceiverRefPath}/members`);
 
 
         // Handle messages
         await conversationMessageRef.push({
             text: message,
-            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            createdAt: ServerValue.TIMESTAMP,
             timezone: timezone,
             senderId: user.id,
             receiverId: receiverDoc.id,
@@ -153,7 +153,7 @@ const getChatUserList = async (body, header) => {
         const { user } = body;
         const { timezone } = header;
         if (!timezone) throw new ApiError(httpStatus.BAD_REQUEST, 'Required Timezone');
-        const chatRoomRef = firebase.database().ref(`userChatList/${user.id}R${user.role_id}/conversations`);
+        const chatRoomRef = getDatabase().ref(`userChatList/${user.id}R${user.role_id}/conversations`);
         let list = [];
 
         await chatRoomRef.once('value').then((snapshot) => {
@@ -250,7 +250,7 @@ const markUserMessagesAsRead = async (body, param, header) => {
         }
 
         const conversationRefPath = `userChatList/${user.id}R${user.role_id}/conversations/${receiverDoc.id}R${receiverDoc.role_id}`;
-        const conversationRef = firebase.database().ref(conversationRefPath);
+        const conversationRef = getDatabase().ref(conversationRefPath);
 
         // Updating the value
         await conversationRef.update({

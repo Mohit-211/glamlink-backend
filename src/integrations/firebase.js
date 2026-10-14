@@ -1,4 +1,5 @@
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const logger = require('../core/logger');
 
 const { FIREBASE_KEY_FILE: keyPath } = require('../core/config/paths');
@@ -11,13 +12,12 @@ if (!serviceAccount.private_key) {
 } else {
   process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+  initializeApp({
+    credential: cert(serviceAccount),
     databaseURL: 'https://glamlink-5585b-default-rtdb.firebaseio.com',
   });
 
-  admin
-    .auth()
+  getAuth()
     .listUsers(1)
     .then(() => logger.info('Firebase is authenticated successfully.'))
     .catch((error) => logger.warn('Error authenticating with Firebase:', error));

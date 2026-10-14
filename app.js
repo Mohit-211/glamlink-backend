@@ -46,7 +46,7 @@ app.use(
 		useDefaults: true,
 		directives: {
 			'img-src': ["'self' data:", '*.google-analytics.com', '*.vimeocdn.com'],
-			'script-src': ["'self'", '*.polyfill.io', "'unsafe-eval'", "'unsafe-inline'"],
+			'script-src': ["'self'", "'unsafe-eval'", "'unsafe-inline'"],
 			'default-src': ["'self'", '*.google-analytics.com', '*.gstatic.com', '*.googleapis.com', 'vimeo.com', '*.vimeo.com']
 		}
 	})
