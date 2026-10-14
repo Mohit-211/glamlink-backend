@@ -1,8 +1,11 @@
-const dotenv = require('dotenv')
+const fs = require('fs')
 const path = require('path')
 const Joi = require('joi')
 
-dotenv.config({ path: require('./paths').ENV_FILE });
+// Node loads .env natively. Variables already set in the environment take precedence.
+// Quote any value that contains #, or everything from the # onwards is dropped.
+const { ENV_FILE } = require('./paths');
+if (fs.existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 
 const envVarsSchema = Joi.object()
     .keys({

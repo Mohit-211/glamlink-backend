@@ -7,33 +7,25 @@
   "author": "GLAMLINK",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=18.18"
+    "node": ">=24"
   },
   "scripts": {
     "start": "pm2 start ecosystem.config.json --no-daemon",
     "staging": "pm2 start ecosystem.staging-config.json --no-daemon",
-    "dev": "cross-env NODE_ENV=development nodemon --ext js,mjs,json,yaml index.js",
-    "auth": "cross-env NODE_ENV=development node src/modules/admin/createSuperAdmin.js",
-    "migrate": "cross-env NODE_ENV=development node src/core/db/migrateTable.js",
+    "dev": "node --watch index.js",
+    "auth": "node src/modules/admin/createSuperAdmin.js",
+    "migrate": "node src/core/db/migrateTable.js",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "check:routes": "node scripts/route-table.js",
     "check:contract": "node scripts/contract-check.js compare"
-  },
-  "nodemonConfig": {
-    "ignore": [
-      "storage/**"
-    ]
   },
   "dependencies": {
     "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.2",
     "cors": "^2.8.6",
-    "cross-env": "^7.0.3",
     "csv-parse": "^7.0.3",
-    "csv-parser": "^3.2.1",
-    "dotenv": "^16.6.1",
     "express": "^4.22.3",
     "express-rate-limit": "^6.11.2",
     "firebase-admin": "^13.10.0",
@@ -51,7 +43,6 @@
     "nodemailer": "^6.10.1",
     "openai": "^5.23.2",
     "password-validator": "^5.3.0",
-    "pm2": "^7.0.4",
     "qrcode": "^1.5.4",
     "randomatic": "^3.1.1",
     "sequelize": "^6.37.8",
@@ -61,7 +52,6 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14",
     "oxlint": "^1.88.0"
   }
 }

@@ -21,7 +21,7 @@ if (!['record', 'compare'].includes(mode) || !snapshotFile) {
 }
 
 const ROOT = path.resolve(__dirname, '..');
-require(path.join(ROOT, 'node_modules/dotenv')).config({ path: path.join(ROOT, '.env') });
+process.loadEnvFile(path.join(ROOT, '.env'));
 
 // No cron jobs: they would change data between runs.
 const originalLoad = Module._load;
