@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Route-table snapshot for refactors: loads app.js with external services stubbed (no database needed)
- * and writes every route (method, mount path, handler count), every app file loaded, and any module
- * that was read while still loading (a circular-import hazard).
+ * and writes every route (method, full path, handler count), every app file loaded, and any module
+ * that was read while still loading (a circular-import hazard). Routes are recorded as routers register
+ * them, so the output is the same on Express 4 and 5.
  *
  *   node scripts/route-table.js <outFile> [appDir]
  *
@@ -32,14 +33,34 @@ Module._load = function (request, parent, isMain) {
   return origLoad.apply(this, arguments);
 };
 process.on('unhandledRejection', () => {});
+
+// Record, per router, its routes and mounted sub-routers in registration order.
+const express = require(require.resolve('express', { paths: [appDir] }));
+let routerProto = Object.getPrototypeOf(express.Router());
+while (!Object.hasOwn(routerProto, 'use')) routerProto = Object.getPrototypeOf(routerProto); // Express 5: router -> instance -> Router.prototype
+const entries = new WeakMap();
+const log = (router) => entries.get(router) || entries.set(router, []).get(router);
+const { use, route } = routerProto;
+routerProto.route = function (p) {
+  const r = route.apply(this, arguments);
+  log(this).push({ path: p, route: r });
+  return r;
+};
+routerProto.use = function (first) {
+  const paths = typeof first === 'string' || Array.isArray(first) ? [].concat(first) : ['/'];
+  const fns = [...arguments].slice(typeof first === 'function' ? 0 : 1).flat(Infinity);
+  for (const fn of fns) if (fn && Array.isArray(fn.stack)) for (const p of paths) log(this).push({ path: p, router: fn });
+  return use.apply(this, arguments);
+};
+
 const app = require(path.join(appDir, 'app.js'));
+const join = (a, b) => (a + '/' + b).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
 const routes = [];
-const walk = (stack, prefix) => stack.forEach(l => {
-  const p = l.regexp ? l.regexp.source : '';
-  if (l.route) routes.push(Object.keys(l.route.methods).join(',').toUpperCase() + ' ' + prefix + ' ' + l.route.path + ' [' + l.route.stack.length + ' handlers]');
-  else if (l.handle && l.handle.stack) walk(l.handle.stack, prefix + ' ' + p);
+const walk = (router, prefix) => (entries.get(router) || []).forEach((e) => {
+  if (e.route) routes.push(Object.keys(e.route.methods).join(',').toUpperCase() + ' ' + join(prefix, e.path) + ' [' + e.route.stack.length + ' handlers]');
+  else walk(e.router, join(prefix, e.path));
 });
-walk(app._router.stack, '');
+walk(app._router || app.router, '');
 const loaded = Object.keys(require.cache).filter(f => f.startsWith(appDir) && !f.includes('node_modules')).map(f => path.relative(appDir, f)).sort();
 fs.writeFileSync(outFile, ['# ROUTES ' + routes.length, ...routes, '# LOADED ' + loaded.length, ...loaded, '# PARTIAL ' + partial.size, ...[...partial].sort()].join('\n'));
 console.log('routes', routes.length, 'loaded', loaded.length, 'partial', partial.size);
