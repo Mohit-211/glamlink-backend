@@ -281,7 +281,7 @@ const updateDiscoverSortOrder = async (type, body) => {
 // ======================= SHOP CSV BULK UPLOAD =======================
 
 // Hardcoded to match the same path multer.js already writes images to
-// (public/uploads/images). Kept independent from multer.js on purpose —
+// (storage/uploads/images). Kept independent from multer.js on purpose —
 // zero changes needed to that shared, production file.
 const { IMAGES_DIR } = require("../../core/config/paths");
 

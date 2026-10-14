@@ -23,6 +23,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const QRCode = require("qrcode");
 const path = require("path");
+const { UPLOADS_DIR } = require("../../core/config/paths");
 const fs = require("fs");
 const config = require("../../core/config/config");
 const {
@@ -736,15 +737,10 @@ const createBusinessCard = async (body, files) => {
        QR PATH / URL
        ========================================================= */
 
-    const PUBLIC_DIR =
-      path.join(
-        process.cwd(),
-        "public/uploads",
-      );
 
     const qrFolderPath =
       path.join(
-        PUBLIC_DIR,
+        UPLOADS_DIR,
         "images/qr",
       );
 
@@ -1485,15 +1481,10 @@ const createBusinessCardByAdmin = async (body, files) => {
        QR PATH / URL
        ========================================================= */
 
-    const PUBLIC_DIR =
-      path.join(
-        process.cwd(),
-        "public/uploads",
-      );
 
     const qrFolderPath =
       path.join(
-        PUBLIC_DIR,
+        UPLOADS_DIR,
         "images/qr",
       );
 
@@ -2438,15 +2429,10 @@ const createBusinessCardWithToken = async (body, files) => {
        QR PATH / URL
        ========================================================= */
 
-    const PUBLIC_DIR =
-      path.join(
-        process.cwd(),
-        "public/uploads",
-      );
 
     const qrFolderPath =
       path.join(
-        PUBLIC_DIR,
+        UPLOADS_DIR,
         "images/qr",
       );
 
@@ -3019,8 +3005,7 @@ const updateBusinessCard = async (id, body, files) => {
 
       const publicLink = `https://glamlink.net/access/${uniqueSlug}`;
 
-      const PUBLIC_DIR = path.join(process.cwd(), "public/uploads");
-      const qrFolderPath = path.join(PUBLIC_DIR, "images/qr");
+      const qrFolderPath = path.join(UPLOADS_DIR, "images/qr");
 
       if (!fs.existsSync(qrFolderPath)) {
         fs.mkdirSync(qrFolderPath, { recursive: true });

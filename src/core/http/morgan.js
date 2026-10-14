@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { LOGS_DIR } = require('../config/paths');
 
+fs.mkdirSync(LOGS_DIR, { recursive: true });
+
 morgan.token('message', (req, res) => res.locals.errorMessage || '');
 
 const getIpFormat = () => (config.env === 'production' ? ':remote-addr - ' : '');

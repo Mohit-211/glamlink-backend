@@ -20,7 +20,7 @@ const ApiError = require('./src/core/http/ApiError.js');
 const errorHandler = require('./src/core/http/errorHandler.js');
 require('./src/models');
 require('./src/integrations/firebase.js');
-const { PUBLIC_DIR } = require('./src/core/config/paths');
+const { UPLOADS_DIR } = require('./src/core/config/paths');
 
 
 const handleFileUploads = require('./src/core/http/uploads.js');
@@ -74,7 +74,6 @@ if (config.env !== 'test') {
   app.use(morgan.errorHandler);
 };
 
-app.use(express.static(PUBLIC_DIR));
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 1;
 
@@ -109,13 +108,10 @@ app.get('/api/healthcheck', function (req, res) {
 app.use('/api/v1', handleFileUploads, routes);
 
 
-// All File Apis
-app.use('/images', express.static(`${PUBLIC_DIR}/uploads/images`));
-app.use('/videos', express.static(`${PUBLIC_DIR}/uploads/videos`));
-app.use('/gifs', express.static(`${PUBLIC_DIR}/uploads/gifs`));
-app.use('/docs', express.static(`${PUBLIC_DIR}/uploads/docs`));
-app.use('/audios', express.static(`${PUBLIC_DIR}/uploads/audios`));
-app.use('/csv', express.static(`${PUBLIC_DIR}/uploads/csv`));
+// Uploaded files. Stored URLs look like <API_BASE_URL>/images/<file>, so keep these paths stable.
+['images', 'videos', 'gifs', 'docs', 'audios', 'csv'].forEach((folder) => {
+  app.use(`/${folder}`, express.static(path.join(UPLOADS_DIR, folder)));
+});
 
 // send back a 404 error for any unknown api request
 app.use((req, res, next) => {

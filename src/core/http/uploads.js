@@ -7,7 +7,7 @@ const config = require("../config/config");
 const crypto = require("crypto");
 
 // Define base directory for uploads
-const { UPLOADS_DIR: PUBLIC_DIR } = require("../config/paths");
+const { UPLOADS_DIR } = require("../config/paths");
 
 // Ensure all required directories exist
 const ensureDirectoryExists = (dir) => {
@@ -45,14 +45,14 @@ const getUploadFolder = (fieldname) => {
 
 // Ensure all category directories exist
 Object.keys(fileCategories).forEach((category) => {
-  ensureDirectoryExists(path.join(PUBLIC_DIR, category));
+  ensureDirectoryExists(path.join(UPLOADS_DIR, category));
 });
 
 // Set up multer storage engine
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadFolder = getUploadFolder(file.fieldname);
-    const uploadPath = path.join(PUBLIC_DIR, uploadFolder);
+    const uploadPath = path.join(UPLOADS_DIR, uploadFolder);
     ensureDirectoryExists(uploadPath);
     cb(null, uploadPath);
   },

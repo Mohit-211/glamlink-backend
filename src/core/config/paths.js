@@ -10,16 +10,17 @@ while (!fs.existsSync(path.join(root, 'package.json'))) {
     root = parent;
 }
 
-const PUBLIC_DIR = path.join(root, 'public');
-const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
+// Runtime files (uploads, logs) live outside the code, in ./storage by default; override with STORAGE_DIR.
+const STORAGE_DIR = process.env.STORAGE_DIR ? path.resolve(process.env.STORAGE_DIR) : path.join(root, 'storage');
+const UPLOADS_DIR = path.join(STORAGE_DIR, 'uploads');
 
 module.exports = {
     ROOT_DIR: root,
     ENV_FILE: path.join(root, '.env'),
-    PUBLIC_DIR,
+    STORAGE_DIR,
     UPLOADS_DIR,
     IMAGES_DIR: path.join(UPLOADS_DIR, 'images'),
-    LOGS_DIR: path.join(root, 'logs'),
+    LOGS_DIR: path.join(STORAGE_DIR, 'logs'),
     // The real key is dropped in at this path on the server; keep it fixed so deploys don't collide with it.
     FIREBASE_KEY_FILE: process.env.FIREBASE_KEY_FILE || path.join(root, 'src', 'config', 'serviceAccountKey.json'),
 };

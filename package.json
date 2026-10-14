@@ -20,7 +20,7 @@
   },
   "nodemonConfig": {
     "ignore": [
-      "public/uploads/**/*.*"
+      "storage/**"
     ]
   },
   "dependencies": {
