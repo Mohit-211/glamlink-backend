@@ -30,6 +30,30 @@ User.init(
         key: "id",
       },
     },
+    // user | professional | staff (CRM staff, until the CRM gets its own table). Replaces role_id.
+    account_type: {
+      type: DataTypes.ENUM("user", "professional", "staff"),
+      allowNull: true,
+    },
+    // individual | brand, for professionals only
+    professional_type: {
+      type: DataTypes.ENUM("individual", "brand"),
+      allowNull: true,
+    },
+    email_verified_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Set when a professional switches back to a user account; their professional data is purged 30 days later.
+    downgraded_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // On an account retired by the duplicate-email merge: the account it was merged into.
+    merged_into_user_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
     professional_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

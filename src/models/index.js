@@ -16,6 +16,9 @@ const Admin = require("./admin.model");
 const User = require("./user.model");
 const Profile = require("./profile.model");
 const UserToken = require("./userToken.model");
+const AuthSession = require("./authSession.model");
+const EmailToken = require("./emailToken.model");
+const UserIdentity = require("./userIdentity.model");
 const UserAttachment = require("./userAttachment.model");
 const userLoginTiming = require("./user_login_timings.model");
 const UserFees = require("./userFees.model");
@@ -176,6 +179,9 @@ module.exports = {
   UserReport,
   Profile,
   UserToken,
+  AuthSession,
+  EmailToken,
+  UserIdentity,
   UserAttachment,
   userLoginTiming,
   UserFees,
@@ -374,6 +380,12 @@ async function initTableRelation() {
   });
 
   User.hasMany(UserToken, { foreignKey: "user_id", as: "user_tokens" });
+  User.hasMany(AuthSession, { foreignKey: "user_id", as: "auth_sessions" });
+  AuthSession.belongsTo(User, { foreignKey: "user_id", as: "user" });
+  User.hasMany(EmailToken, { foreignKey: "user_id", as: "email_tokens" });
+  EmailToken.belongsTo(User, { foreignKey: "user_id", as: "user" });
+  User.hasMany(UserIdentity, { foreignKey: "user_id", as: "identities" });
+  UserIdentity.belongsTo(User, { foreignKey: "user_id", as: "user" });
   UserToken.belongsTo(User, { foreignKey: "user_id", as: "token_user" });
 
   UserToken.belongsTo(Profile, {
