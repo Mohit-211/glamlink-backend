@@ -13,7 +13,7 @@ const getAllAppointment = catchAsync(async (req, res) => {
 });
 
 const createAppointment = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'notes', 'counselor_id', 'start_time', 'end_time', 'service_id', 'date', 'availability_id', 'availabilityDoc', 'start_time_local', 'end_time_local']);
+    const body = pick(req.body, ['user', 'notes', 'professional_id', 'start_time', 'end_time', 'service_id', 'date', 'availability_id', 'availabilityDoc', 'start_time_local', 'end_time_local']);
     const header = pick(req.headers, ['timezone']);
     const response = await appointmentService.createAppointment(body, header);
     return responseWrapper(res, response, 'Appointment Schedule Successfully.', httpStatus.OK);

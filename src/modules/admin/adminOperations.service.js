@@ -538,9 +538,9 @@ const getReviewsGivenByUserId = async (reqBody) => {
 
 const getReviewsTakenByUserId = async (reqBody) => {
 	try {
-		const { counselor_id } = reqBody;
+		const { professional_id } = reqBody;
 		const userDoc = await Review.findAll({
-			where: { counselor_id: counselor_id, is_active: true },
+			where: { professional_id: professional_id, is_active: true },
 			include: [
 				{
 					model: User,
@@ -596,7 +596,7 @@ const getServicesByUserId = async (reqBody) => {
 	}
 };
 
-const getBookingsByCounsellorId = async (reqBody) => {
+const getBookingsByProfessionalId = async (reqBody) => {
 	try {
 		const { status,user_id } = reqBody;
 		let whereCondition = {};
@@ -605,13 +605,13 @@ const getBookingsByCounsellorId = async (reqBody) => {
 			whereCondition = {
 				status: ["ACCEPTED", "PENDING", "ONGOING"],
 				is_active: true,
-				counselor_id: user_id,
+				professional_id: user_id,
 			};
 		} else if (status === "COMPLETED") {
 			whereCondition = {
 				status: ["COMPLETED", "REJECTED","CANCELED"],
 				is_active: true,
-				counselor_id: user_id,
+				professional_id: user_id,
 			};
 		} else {
 			throw new ApiError(
@@ -637,7 +637,7 @@ const getBookingsByCounsellorId = async (reqBody) => {
 				},
 				{
 					model: User,
-					as: "appointment_counselor",
+					as: "appointment_professional",
 					attributes: ["id", "email"],
 					include: [
 						{
@@ -722,7 +722,7 @@ const getBookingsByUserId = async (reqBody) => {
 				},
 				{
 					model: User,
-					as: "appointment_counselor",
+					as: "appointment_professional",
 					attributes: ["id", "email"],
 					include: [
 						{
@@ -768,9 +768,9 @@ const getBookingsByUserId = async (reqBody) => {
 
 const getAvailablityByUserId = async (reqBody) => {
 	try {
-		const { counselor_id } = reqBody;
+		const { professional_id } = reqBody;
 		const userDoc = await Availability.findAll({
-			where: { counselor_id: counselor_id, is_active: true },
+			where: { professional_id: professional_id, is_active: true },
 			include: [
 				{
 					model: User,
@@ -812,7 +812,7 @@ module.exports = {
 	getReviewsGivenByUserId,
 	getReviewsTakenByUserId,
 	getServicesByUserId,
-	getBookingsByCounsellorId,
+	getBookingsByProfessionalId,
 	getBookingsByUserId,
 	getAvailablityByUserId,
 };

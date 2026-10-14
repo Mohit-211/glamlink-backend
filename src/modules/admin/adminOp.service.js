@@ -248,8 +248,8 @@ const getTotalCounts = async (reqBody) => {
       where: { role_id: config.USR_ROLE_ID, is_active: true },
     });
 
-    const counselorCount = await User.count({
-      where: { role_id: config.CLLR_ROLE_ID, is_active: true },
+    const professionalCount = await User.count({
+      where: { role_id: config.PROFESSIONAL_ROLE_ID, is_active: true },
     });
 
     const bookingCount = await Booking.count({
@@ -270,7 +270,7 @@ const getTotalCounts = async (reqBody) => {
 
     const response = {
       userCount,
-      counselorCount,
+      professionalCount,
       bookingCount,
       salesObtained,
     };
@@ -372,8 +372,8 @@ const getAllUsers = async (param, query) => {
     };
 
     // Determine role_id based on roleId
-    if (roleId === config.CLLR_ROLE_ID) {
-      where["role_id"] = config.CLLR_ROLE_ID;
+    if (roleId === config.PROFESSIONAL_ROLE_ID) {
+      where["role_id"] = config.PROFESSIONAL_ROLE_ID;
     } else {
       where["role_id"] = config.USR_ROLE_ID;
     }
@@ -499,6 +499,7 @@ const getUserById = async (id) => {
             "number_of_reviews_given", // Alias for the number of reviews given
           ],
           [
+            // PENDING-MIGRATION: raw SQL uses the column name reviews.counselor_id
             literal(
               `(SELECT COUNT(*) FROM reviews WHERE reviews.counselor_id = user_profile.user_id AND reviews.is_active = true)`,
             ),
@@ -591,11 +592,11 @@ const deleteUser = async (body) => {
         await Payment.destroy({ where: { user_id: userId } });
       } else if (user.role_id === 7) {
         await Follow.destroy({ where: { follower_id: userId } });
-        await Booking.destroy({ where: { counselor_id: userId } });
-        await BookingSlot.destroy({ where: { counselor_id: userId } });
-        await Case.destroy({ where: { counselor_id: userId } });
-        await Availability.destroy({ where: { counselor_id: userId } });
-        await Review.destroy({ where: { counselor_id: userId } });
+        await Booking.destroy({ where: { professional_id: userId } });
+        await BookingSlot.destroy({ where: { professional_id: userId } });
+        await Case.destroy({ where: { professional_id: userId } });
+        await Availability.destroy({ where: { professional_id: userId } });
+        await Review.destroy({ where: { professional_id: userId } });
         await PromotionPayment.destroy({ where: { professional_id: userId } });
         await CRMPayment.destroy({ where: { professional_id: userId } });
       }
@@ -769,7 +770,7 @@ const getAllAppointment = async (body, header, query) => {
       attributes: [
         "id",
         "user_id",
-        "counselor_id",
+        "professional_id",
         "slot_id",
         "service_id",
         "case_id",
@@ -778,13 +779,13 @@ const getAllAppointment = async (body, header, query) => {
         "total_amount",
         "is_active",
         "is_user_canceled",
-        "is_counselor_canceled",
+        "is_professional_canceled",
         "is_term_form_accepted_by_user",
         "status",
-        "is_counselor_joined",
+        "is_professional_joined",
         "is_user_joined",
         "is_user_canceled",
-        "is_counselor_canceled",
+        "is_professional_canceled",
         "is_payment_done",
         "is_rescheduled_done",
         "is_refund_needed",
@@ -795,7 +796,7 @@ const getAllAppointment = async (body, header, query) => {
       include: [
         {
           model: User,
-          as: "appointment_counselor",
+          as: "appointment_professional",
           attributes: ["id", "role_id"],
           include: [
             {
@@ -846,7 +847,7 @@ const getAllAppointment = async (body, header, query) => {
           as: "appointment_slot",
           attributes: [
             "id",
-            "counselor_id",
+            "professional_id",
             "booking_id",
             "remaining_seats",
             "duration",
@@ -1604,7 +1605,7 @@ const promotedToogle = async (body) => {
     // 1️⃣ Validate the target user
     const userDoc = await User.findOne({
       attributes: ["id", "email", "role_id", "is_promoted"],
-      where: { is_active: true, id: user_id, role_id: config.CLLR_ROLE_ID },
+      where: { is_active: true, id: user_id, role_id: config.PROFESSIONAL_ROLE_ID },
     });
     if (!userDoc) {
       throw new ApiError(httpStatus.BAD_REQUEST, "User Not Found");
@@ -1717,7 +1718,7 @@ const unpromote = async (body) => {
     // ✅ Validate user
     const userDoc = await User.findOne({
       attributes: ["id", "email", "role_id", "is_promoted"],
-      where: { is_active: true, id: user_id, role_id: config.CLLR_ROLE_ID },
+      where: { is_active: true, id: user_id, role_id: config.PROFESSIONAL_ROLE_ID },
     });
     if (!userDoc) {
       throw new ApiError(httpStatus.BAD_REQUEST, "User Not Found");
@@ -1796,7 +1797,7 @@ const unpromoteAll = async (body) => {
     // Validate user
     const userDoc = await User.findOne({
       attributes: ["id", "email", "role_id", "is_promoted"],
-      where: { is_active: true, id: user_id, role_id: config.CLLR_ROLE_ID },
+      where: { is_active: true, id: user_id, role_id: config.PROFESSIONAL_ROLE_ID },
     });
     if (!userDoc) {
       throw new ApiError(httpStatus.BAD_REQUEST, "User Not Found");
@@ -2047,7 +2048,7 @@ const foundersToogle = async (body) => {
     const { user_id } = body;
     const userDoc = await User.findOne({
       attributes: ["id", "email", "role_id", "is_founder"],
-      where: { is_active: true, id: user_id, role_id: config.CLLR_ROLE_ID },
+      where: { is_active: true, id: user_id, role_id: config.PROFESSIONAL_ROLE_ID },
     });
     if (!userDoc) throw new ApiError(httpStatus.BAD_REQUEST, "User Not Found");
     userDoc.is_founder = !userDoc.is_founder;

@@ -57,7 +57,7 @@ const routes = [
     { path: '/admin/dashboard', route: require('./modules/admin/dashboard.route') },
     { path: '/user/auth/', route: require('./modules/identity/auth.route') },
     { path: '/user/', route: require('./modules/users/user.route') },
-    { path: '/counselor/schedular/', route: require('./modules/bookings/schedular.route') },
+    { path: '/professional/scheduler/', route: require('./modules/bookings/scheduler.route') },
 ];
 
 const router = express.Router();

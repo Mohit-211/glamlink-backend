@@ -78,8 +78,8 @@ const getServicesByUserId = catchAsync(async (req, res) => {
 	return responseWrapper(res, categoryDoc, "");
 });
 
-const getBookingsByCounsellorId = catchAsync(async (req, res) => {
-	const categoryDoc = await adminOperationsService.getBookingsByCounsellorId(req.body);
+const getBookingsByProfessionalId = catchAsync(async (req, res) => {
+	const categoryDoc = await adminOperationsService.getBookingsByProfessionalId(req.body);
 	return responseWrapper(res, categoryDoc, "");
 });
 
@@ -111,7 +111,7 @@ module.exports = {
 	getReviewsGivenByUserId,
 	getReviewsTakenByUserId,
 	getServicesByUserId,
-	getBookingsByCounsellorId,
+	getBookingsByProfessionalId,
 	getBookingsByUserId,
 	getAvailablityByUserId
 };

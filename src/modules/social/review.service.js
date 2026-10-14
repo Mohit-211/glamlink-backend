@@ -18,26 +18,26 @@ const { earnCoin } = require('../users/glamcoin.service');
 
 const createReview = async (reqBody) => {
 	try {
-		const { text, counselor_id, user, level } = reqBody;
+		const { text, professional_id, user, level } = reqBody;
 
-		if (user.role_id === Number(config.CLLR_ROLE_ID)) {
+		if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
 			throw new ApiError(
 				httpStatus.BAD_REQUEST,
 				"You are not allowed to create a review"
 			);
 		}
-		if (!counselor_id || !level) {
+		if (!professional_id || !level) {
 			throw new ApiError(
 				httpStatus.BAD_REQUEST,
-				"Counselor Id and level are required."
+				"Professional Id and level are required."
 			);
 		}
 
-		let counselorDoc = await User.findOne({
+		let professionalDoc = await User.findOne({
 			where: {
-				id: counselor_id,
+				id: professional_id,
 				is_active: true,
-				role_id: config.CLLR_ROLE_ID,
+				role_id: config.PROFESSIONAL_ROLE_ID,
 			},
 			include: [
 				{
@@ -62,12 +62,12 @@ const createReview = async (reqBody) => {
 			],
 		});
 
-		if (!counselorDoc || Object.keys(counselorDoc).length === 0) {
-			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Counselor Id");
+		if (!professionalDoc || Object.keys(professionalDoc).length === 0) {
+			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Professional Id");
 		}
-		let counselorProfileDoc = counselorDoc.user_profile;
+		let professionalProfileDoc = professionalDoc.user_profile;
 		const existingReview = await Review.findOne({
-			where: { user_id: user.id, counselor_id: counselor_id },
+			where: { user_id: user.id, professional_id: professional_id },
 		});
 		if (!["0", "1", "2", "3", "4", "5"].includes(level)) {
 			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Rating level");
@@ -94,19 +94,19 @@ const createReview = async (reqBody) => {
 				existingReview["text"] = text;
 			}
 			reviewDoc = await existingReview.save();
-			counselorProfileDoc.overall_ratings =
-				counselorProfileDoc.overall_ratings +
+			professionalProfileDoc.overall_ratings =
+				professionalProfileDoc.overall_ratings +
 				Number(level) -
 				Number(existingReview.level);
-			await counselorProfileDoc.save();
+			await professionalProfileDoc.save();
 			return reviewDoc;
 		} else {
 			if (text && text !== "" && text !== "undefined") {
 				reviewObj["text"] = text;
-				counselorProfileDoc.no_of_user_reviewed++;
+				professionalProfileDoc.no_of_user_reviewed++;
 			}
-			if (counselor_id && counselor_id !== "" && counselor_id !== "undefined") {
-				reviewObj["counselor_id"] = counselor_id;
+			if (professional_id && professional_id !== "" && professional_id !== "undefined") {
+				reviewObj["professional_id"] = professional_id;
 			}
 			reviewObj["user_id"] = user.id;
 			reviewObj["created_at"] = new Date();
@@ -123,24 +123,24 @@ const createReview = async (reqBody) => {
 				);
 			}
 
-			counselorProfileDoc.no_of_user_rated =
-				counselorProfileDoc.no_of_user_rated + 1;
-			counselorProfileDoc.overall_ratings =
-				counselorProfileDoc.overall_ratings + Number(level);
-			await counselorProfileDoc.save();
+			professionalProfileDoc.no_of_user_rated =
+				professionalProfileDoc.no_of_user_rated + 1;
+			professionalProfileDoc.overall_ratings =
+				professionalProfileDoc.overall_ratings + Number(level);
+			await professionalProfileDoc.save();
 			try {
 				await createNotification({
 					sender_id: user.id,
-					receiver_id: counselor_id,
+					receiver_id: professional_id,
 					type: notificationTypes.addReview,
 				});
 			} catch (error) {
 				console.log("Error Sending Notification for review add: ", error);
 			}
 			try {
-				await earnCoin({ user_id: user.id, action: actionTypes.addReview, target_id: counselor_id.id, is_added: true, is_substracted: false });
+				await earnCoin({ user_id: user.id, action: actionTypes.addReview, target_id: professional_id.id, is_added: true, is_substracted: false });
 			} catch (error) {
-				console.log("Error adding coin for adding review to counsellor: ", error)
+				console.log("Error adding coin for adding review to professional: ", error)
 			}
 			return reviewDoc;
 		}
@@ -184,7 +184,7 @@ const raiseReviewRemoveRequest = async (reqBody) => {
 		const reviewDoc = await Review.findOne({
 			where: {
 				id: review_id,
-				counselor_id: user.id,
+				professional_id: user.id,
 				is_active: true
 			}
 		});
@@ -201,21 +201,21 @@ const raiseReviewRemoveRequest = async (reqBody) => {
 	}
 };
 
-const getAllReviewByCounselorId = async (reqBody, params) => {
+const getAllReviewByProfessionalId = async (reqBody, params) => {
 	try {
 		const { user } = reqBody;
-		const { counselor_id } = params;
+		const { professional_id } = params;
 
 		const where = {
-			counselor_id: counselor_id,
+			professional_id: professional_id,
 			is_active: true,
 		};
 
-		let counselorDocRaw = await User.findOne({
+		let professionalDocRaw = await User.findOne({
 			where: {
-				id: counselor_id,
+				id: professional_id,
 				is_active: true,
-				role_id: config.CLLR_ROLE_ID,
+				role_id: config.PROFESSIONAL_ROLE_ID,
 			},
 			attributes: ["id", "socket_id"],
 			include: [
@@ -240,8 +240,8 @@ const getAllReviewByCounselorId = async (reqBody, params) => {
 				},
 				{
 					model: Review,
-					as: "counselor_reviews",
-					attributes: ["id", "text", "counselor_id", "user_id", "level"],
+					as: "professional_reviews",
+					attributes: ["id", "text", "professional_id", "user_id", "level"],
 					include: [
 						{
 							model: User,
@@ -286,14 +286,14 @@ const getAllReviewByCounselorId = async (reqBody, params) => {
 				},
 			],
 		});
-		if (!counselorDocRaw || Object.keys(counselorDocRaw).length === 0) {
+		if (!professionalDocRaw || Object.keys(professionalDocRaw).length === 0) {
 			return []
 		}
 
 
-		const counselorDoc = counselorDocRaw.toJSON();
+		const professionalDoc = professionalDocRaw.toJSON();
 
-		const updatedReviews = counselorDoc.counselor_reviews.map((review) => {
+		const updatedReviews = professionalDoc.professional_reviews.map((review) => {
 			const is_user_review = review.user_id === user.id;
 
 			const is_liked_by_user = review.like_reviews?.some(
@@ -310,9 +310,9 @@ const getAllReviewByCounselorId = async (reqBody, params) => {
 		const is_user_review = updatedReviews.some((r) => r.is_user_review);
 
 		return {
-			...counselorDoc,
+			...professionalDoc,
 			is_user_review,
-			counselor_reviews: updatedReviews,
+			professional_reviews: updatedReviews,
 		};
 	} catch (error) {
 		throw new ApiError(
@@ -400,7 +400,7 @@ const createCommenetInReview = async (body) => {
 		const reviewDoc = await Review.findByPk(review_id);
 		if (!reviewDoc)
 			throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Invalid Review Id");
-		if (user.id !== reviewDoc.counselor_id) {
+		if (user.id !== reviewDoc.professional_id) {
 			throw new ApiError(
 				httpStatus.BAD_REQUEST,
 				"Only beautician can reply this review."
@@ -444,9 +444,9 @@ const getAllReviews = async (reqBody) => {
 
 
 
-		let counselorDoc = await Review.findAll({
+		let professionalDoc = await Review.findAll({
 			where: {
-				counselor_id: user.id,
+				professional_id: user.id,
 				is_active: true,
 			},
 
@@ -493,7 +493,7 @@ const getAllReviews = async (reqBody) => {
 			],
 		});
 
-		return counselorDoc;
+		return professionalDoc;
 	} catch (error) {
 		throw new ApiError(
 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -506,7 +506,7 @@ module.exports = {
 	createReview,
 	deleteReview,
 	raiseReviewRemoveRequest,
-	getAllReviewByCounselorId,
+	getAllReviewByProfessionalId,
 
 	likeAndDislikeReview,
 	createCommenetInReview,

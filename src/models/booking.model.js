@@ -9,7 +9,8 @@ Booking.init({
         autoIncrement: true,
         primaryKey: true,
     },
-    counselor_id: {
+    professional_id: {
+        field: 'counselor_id', // PENDING-MIGRATION: rename column counselor_id
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
     },
@@ -74,7 +75,8 @@ Booking.init({
         values: [appointmentTypes.COMPLETED, appointmentTypes.ONGOING, appointmentTypes.UPCOMING, appointmentTypes.CANCELED,],
         defaultValue: appointmentTypes.UPCOMING,
     },
-    is_counselor_joined: {
+    is_professional_joined: {
+        field: 'is_counselor_joined', // PENDING-MIGRATION: rename column is_counselor_joined
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
@@ -94,7 +96,8 @@ Booking.init({
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
-    is_counselor_canceled: {
+    is_professional_canceled: {
+        field: 'is_counselor_canceled', // PENDING-MIGRATION: rename column is_counselor_canceled
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },

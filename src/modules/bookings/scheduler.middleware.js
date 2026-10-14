@@ -7,7 +7,7 @@ const ApiError = require('../../core/http/ApiError');
 
 const config = require('../../core/config/config');
 const responseWrapper = require('../../core/http/responseWrapper');
-const { calculateDuration } = require('./schedular.helper');
+const { calculateDuration } = require('./scheduler.helper');
 
 function isValidFullDate(dateString) {
     const regex = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -31,8 +31,8 @@ const validateCreateScheduleBody = catchAsync(async (req, res, next) => {
     try {
         const { user, timezone, slot_duration_in_minuites, start_time, end_time, day, maximum_available_seats } = req.body;
 
-        if (user.role_id !== Number(config.CLLR_ROLE_ID)) {
-            return responseWrapper(res, '', 'Only Counselor can access this route.', httpStatus.BAD_REQUEST);
+        if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID)) {
+            return responseWrapper(res, '', 'Only Professional can access this route.', httpStatus.BAD_REQUEST);
         };
 
 
@@ -224,7 +224,7 @@ const isAvailabilityOwner = catchAsync(async (req, res, next) => {
         let { id } = req.params;
         if (!id) return responseWrapper(res, '', 'Please Provide Availability Id', httpStatus.BAD_REQUEST);
         let { user } = req.body;
-        let availabilityDoc = await Availability.findOne({ where: { id: id, counselor_id: user.id } });
+        let availabilityDoc = await Availability.findOne({ where: { id: id, professional_id: user.id } });
         if (!availabilityDoc) return responseWrapper(res, '', 'Invalid Availabulity Id', httpStatus.BAD_REQUEST);
         req.body.availabilityDoc = availabilityDoc;
         next()
@@ -236,13 +236,13 @@ const isAvailabilityOwner = catchAsync(async (req, res, next) => {
 
 const validateFetchAvailabilityForUser = catchAsync(async (req, res, next) => {
     try {
-        let { counselor_id, user, dates } = req.body;
+        let { professional_id, user, dates } = req.body;
         let { timezone } = req.headers;
-        if (!counselor_id || !dates) {
+        if (!professional_id || !dates) {
             return responseWrapper(
                 res,
                 '',
-                'Please Enter Required Fields : [ counselor_id || dates] in Body',
+                'Please Enter Required Fields : [ professional_id || dates] in Body',
                 httpStatus.BAD_REQUEST
             );
         }
@@ -256,11 +256,11 @@ const validateFetchAvailabilityForUser = catchAsync(async (req, res, next) => {
             );
         }
 
-        const counselorDoc = await User.findOne({
-            where: { id: counselor_id, role_id: config.CLLR_ROLE_ID }
+        const professionalDoc = await User.findOne({
+            where: { id: professional_id, role_id: config.PROFESSIONAL_ROLE_ID }
         });
-        if (!counselorDoc) return responseWrapper(res, '', 'Invalid Counselor Id.', httpStatus.BAD_REQUEST);
-        req.body.counselorDoc = counselorDoc;
+        if (!professionalDoc) return responseWrapper(res, '', 'Invalid Professional Id.', httpStatus.BAD_REQUEST);
+        req.body.professionalDoc = professionalDoc;
 
         let correctDate = [];
         if (dates && dates !== 'undefined') {

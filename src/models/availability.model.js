@@ -8,7 +8,8 @@ Availability.init({
         autoIncrement: true,
         primaryKey: true,
     },
-    counselor_id: {
+    professional_id: {
+        field: 'counselor_id', // PENDING-MIGRATION: rename column counselor_id
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
     },

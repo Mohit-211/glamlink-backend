@@ -6,7 +6,7 @@ const ApiError = require('../../core/http/ApiError');
 
 const config = require('../../core/config/config');
 const responseWrapper = require('../../core/http/responseWrapper');
-const { calculateDuration } = require('./schedular.helper');
+const { calculateDuration } = require('./scheduler.helper');
 const { Op } = require('sequelize');
 
 
@@ -54,11 +54,11 @@ function convertTimeTo12hourFormat(time) {
 const validateCreateApointmentBody = catchAsync(async (req, res, next) => {
 
     try {
-        const { user, counselor_id, start_time, end_time, service_id, date, availability_id } = req.body;
+        const { user, professional_id, start_time, end_time, service_id, date, availability_id } = req.body;
         const { timezone } = req.headers;
 
-        if (!service_id || !start_time || !end_time || !counselor_id || !availability_id) {
-            return responseWrapper(res, '', 'Please Enter Required Fields : [ service_id || start_time || start_time || end_time || counselor_id || availability_id]', httpStatus.BAD_REQUEST);
+        if (!service_id || !start_time || !end_time || !professional_id || !availability_id) {
+            return responseWrapper(res, '', 'Please Enter Required Fields : [ service_id || start_time || start_time || end_time || professional_id || availability_id]', httpStatus.BAD_REQUEST);
         };
 
         if (!timezone) {
@@ -99,7 +99,7 @@ const validateCreateApointmentBody = catchAsync(async (req, res, next) => {
         let availabilityDoc = await Availability.findOne({
             where: {
                 id: availability_id,
-                counselor_id: counselor_id,
+                professional_id: professional_id,
                 start_time: { [Op.lte]: req.body.start_time },
                 end_time: { [Op.gte]: req.body.end_time }
             }

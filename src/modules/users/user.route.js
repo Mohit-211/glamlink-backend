@@ -10,9 +10,9 @@ router.get('/profile/:userId', [userAuthMiddleware.verifyAuthJWTToken], userOpCo
 router.put('/username', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateUsername);
 router.post('/addLinkTreeLink', [userAuthMiddleware.verifyAuthJWTToken], userOpController.addLinkTreeLink);
 router.get('/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllUserList);
-router.get('/list/random-counsellors', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllRandomCounselorList);
+router.get('/list/random-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllRandomProfessionalList);
 router.get('/list/suggestion/follow', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getSuggestionUsersList);
-router.post('/list/nearby-counsellors', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearByBeauticiansList);
+router.post('/list/nearby-professionals', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearByBeauticiansList);
 
 router.post('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateProfile);
 router.post('/notifications', [userAuthMiddleware.verifyAuthJWTToken], userOpController.notificationToogle);

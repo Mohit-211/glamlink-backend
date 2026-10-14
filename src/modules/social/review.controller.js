@@ -24,10 +24,10 @@ const raiseReviewRemoveRequest = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '', httpStatus.OK);
 });
 
-const getAllReviewByCounselorId = catchAsync(async (req, res) => {
+const getAllReviewByProfessionalId = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
-    const params = pick(req.params, ['counselor_id']);
-    const response = await reviewService.getAllReviewByCounselorId(body, params);
+    const params = pick(req.params, ['professional_id']);
+    const response = await reviewService.getAllReviewByProfessionalId(body, params);
     return responseWrapper(res, response, '', httpStatus.OK);
 });
 
@@ -55,7 +55,7 @@ module.exports = {
     createReview,
     deleteReview,
     raiseReviewRemoveRequest,
-    getAllReviewByCounselorId,
+    getAllReviewByProfessionalId,
 
     likeAndDislikeReview,
     createCommenetInReview,

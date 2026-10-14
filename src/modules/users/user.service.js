@@ -92,10 +92,10 @@ const getProfile = async (body) => {
     const { user } = body;
     if (!user)
       throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get Profile.");
-    if (user.role_id === Number(config.CLLR_ROLE_ID)) {
+    if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
       let reviewDoc = await Review.findAll({
-        where: { is_active: true, counselor_id: user.id },
-        attributes: ["id", "text", "counselor_id", "user_id", "level"],
+        where: { is_active: true, professional_id: user.id },
+        attributes: ["id", "text", "professional_id", "user_id", "level"],
         include: [
           {
             model: User,
@@ -174,7 +174,7 @@ const getProfile = async (body) => {
     } else if (user.role_id === Number(config.USR_ROLE_ID)) {
       let reviewDoc = await Review.findAll({
         where: { is_active: true, user_id: user.id },
-        attributes: ["id", "text", "counselor_id", "user_id", "level"],
+        attributes: ["id", "text", "professional_id", "user_id", "level"],
         include: [
           {
             model: User,
@@ -356,7 +356,7 @@ const deactivateAccount = async (reqBody) => {
     // Deactivate cases
     await Case.destroy({
       where: {
-        [Op.or]: [{ user_id: user.id }, { counselor_id: user.id }],
+        [Op.or]: [{ user_id: user.id }, { professional_id: user.id }],
       },
       force: true,
     });
@@ -369,13 +369,13 @@ const deactivateAccount = async (reqBody) => {
       force: true,
     });
 
-    // Deactivate counselor-related data if applicable
+    // Deactivate professional-related data if applicable
     if (
-      user.role_id === Number(config.CLLR_ROLE_ID) ||
+      user.role_id === Number(config.PROFESSIONAL_ROLE_ID) ||
       user.role_id === Number(config.BRND_ROLE_ID)
     ) {
       const availabilityDocs = await Availability.findAll({
-        where: { counselor_id: user.id },
+        where: { professional_id: user.id },
       });
       const serviceDocs = await Service.findAll({
         where: { user_id: user.id },
@@ -544,8 +544,8 @@ const deactivateAccount = async (reqBody) => {
     // Deactivate reviews and update profiles
     const reviewDocs = await Review.findAll({
       where: {
-        [user.role_id === Number(config.CLLR_ROLE_ID)
-          ? "counselor_id"
+        [user.role_id === Number(config.PROFESSIONAL_ROLE_ID)
+          ? "professional_id"
           : "user_id"]: user.id,
       },
     });
@@ -556,9 +556,9 @@ const deactivateAccount = async (reqBody) => {
           const profile = await Profile.findOne({
             where: {
               user_id:
-                user.role_id === Number(config.CLLR_ROLE_ID)
+                user.role_id === Number(config.PROFESSIONAL_ROLE_ID)
                   ? review.user_id
-                  : review.counselor_id,
+                  : review.professional_id,
             },
           });
 
@@ -1411,20 +1411,20 @@ const getProfileById = async (body, params, query, isGuest) => {
     }
 
     // Handle reviews and services
-    if (userDoc.role_id === Number(config.CLLR_ROLE_ID)) {
+    if (userDoc.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
       let isUserReviewed = false;
 
       if (!isGuest) {
         const reviewCheck = await Review.findOne({
-          where: { user_id: user.id, counselor_id: userId, is_active: true },
+          where: { user_id: user.id, professional_id: userId, is_active: true },
         });
         isUserReviewed = !!reviewCheck;
       }
       userDoc.dataValues.is_reviewed = isUserReviewed;
 
       const reviewDoc = await Review.findAll({
-        where: { is_active: true, counselor_id: userDoc.id },
-        attributes: ["id", "text", "counselor_id", "user_id", "level"],
+        where: { is_active: true, professional_id: userDoc.id },
+        attributes: ["id", "text", "professional_id", "user_id", "level"],
         include: [
           {
             model: User,
@@ -1502,7 +1502,7 @@ const getProfileById = async (body, params, query, isGuest) => {
     } else if (userDoc.role_id === Number(config.USR_ROLE_ID)) {
       const reviewDoc = await Review.findAll({
         where: { is_active: true, user_id: userDoc.id },
-        attributes: ["id", "text", "counselor_id", "user_id", "level"],
+        attributes: ["id", "text", "professional_id", "user_id", "level"],
         include: [
           {
             model: User,
@@ -2622,7 +2622,7 @@ const search = async (body, query, params) => {
           },
         ],
         where: {
-          // role_id: config.CLLR_ROLE_ID,
+          // role_id: config.PROFESSIONAL_ROLE_ID,
           id: { [Op.notIn]: blockedUserIds },
           [Op.or]: [
             Sequelize.literal(
@@ -2761,7 +2761,7 @@ const removeUserFromFollowList = async (body, query) => {
   }
 };
 
-const getAllRandomCounselorList = async (body, query, isGuest) => {
+const getAllRandomProfessionalList = async (body, query, isGuest) => {
   try {
     const { user } = body;
     const { sortBy, limit, offset } = query;
@@ -2770,7 +2770,7 @@ const getAllRandomCounselorList = async (body, query, isGuest) => {
     const whereCondition = {
       is_active: true,
       is_promoted: true,
-      role_id: config.CLLR_ROLE_ID,
+      role_id: config.PROFESSIONAL_ROLE_ID,
       status: "ACCEPTED",
     };
 
@@ -3338,7 +3338,7 @@ const getSuggestionUsersList = async (body, query) => {
     const where = {
       is_active: true,
       role_id: {
-        [Op.in]: [Number(config.CLLR_ROLE_ID), Number(config.BRND_ROLE_ID)],
+        [Op.in]: [Number(config.PROFESSIONAL_ROLE_ID), Number(config.BRND_ROLE_ID)],
       },
       ...(user && user.id ? { id: { [Op.ne]: user.id } } : {}), // Skip this filter if guest
     };
@@ -3533,7 +3533,7 @@ const requestForAssociationWithBrand = async (reqBody) => {
     if (!brand_id) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Please provide brand id");
     }
-    if (user.role_id !== Number(config.CLLR_ROLE_ID)) {
+    if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID)) {
       throw new ApiError(
         httpStatus.FORBIDDEN,
         "Only Beautician can access this api",
@@ -4186,7 +4186,7 @@ module.exports = {
   getAllReelByTag,
 
   removeUserFromFollowList,
-  getAllRandomCounselorList,
+  getAllRandomProfessionalList,
 
   searchBeautycianByPlaceApi,
 

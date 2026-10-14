@@ -405,7 +405,8 @@ const getMostBookedService = async () => {
 const getMostBookedProfessional = async () => {
     const topBookedProfessionals = await Booking.findAll({
         attributes: [
-            "counselor_id",
+            "professional_id",
+            // PENDING-MIGRATION: raw column name bookings.counselor_id (also in group below)
             [Sequelize.fn("COUNT", Sequelize.col("counselor_id")), "booking_count"],
         ],
         group: ["counselor_id"],
@@ -413,7 +414,7 @@ const getMostBookedProfessional = async () => {
         include: [
             {
                 model: User,
-                as: "appointment_counselor",
+                as: "appointment_professional",
                 attributes: ["email", "id"],
                 include: [
                     {
@@ -441,7 +442,7 @@ const getAverageBookingsPerProfessional = async () => {
 
 	const totalBookings = await Booking.count({
 		where: {
-			counselor_id: {
+			professional_id: {
 				[Sequelize.Op.ne]: null,
 			},
 		},

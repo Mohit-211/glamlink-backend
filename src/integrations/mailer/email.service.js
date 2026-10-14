@@ -540,7 +540,7 @@ The Glamlink System
 };
 
 const sendAppointmentEmails = async (appointment, timezone) => {
-  const { user_id, counselor_id, date, start_time, end_time } = appointment;
+  const { user_id, professional_id, date, start_time, end_time } = appointment;
 
   // 1️⃣ Try fetching from User table
   let user = await User.findByPk(user_id, {
@@ -568,7 +568,7 @@ const sendAppointmentEmails = async (appointment, timezone) => {
   }
 
   // 3️⃣ Fetch beautician (always from users)
-  const beautician = await User.findByPk(counselor_id, {
+  const beautician = await User.findByPk(professional_id, {
     include: [{ model: Profile, as: "user_profile" }],
   });
 

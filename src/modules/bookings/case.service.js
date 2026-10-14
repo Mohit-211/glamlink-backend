@@ -14,8 +14,8 @@ const getAllCase = async (body) => {
         const { user } = body;
         let where = { is_active: true, status: caseTypes.ACCEPTED };
 
-        if (user.role_id === Number(config.CLLR_ROLE_ID)) {
-            where['counselor_id'] = user.id;
+        if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
+            where['professional_id'] = user.id;
         } else if (user.role_id === Number(config.USR_ROLE_ID)) {
             where['user_id'] = user.id;
         }
@@ -25,7 +25,7 @@ const getAllCase = async (body) => {
             include: [
                 {
                     model: User,
-                    as: user.role_id === Number(config.CLLR_ROLE_ID) ? 'filled_to' : 'filled_by',
+                    as: user.role_id === Number(config.PROFESSIONAL_ROLE_ID) ? 'filled_to' : 'filled_by',
                     attributes: ['id', 'role_id'],
                     include: [
                         {
@@ -65,8 +65,8 @@ const caseDetail = async (body, params, header) => {
         if (!caseId) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Invalid Case Id');
         let where = { is_active: true, status: caseTypes.ACCEPTED, id: caseId };
 
-        if (user.role_id === Number(config.CLLR_ROLE_ID)) {
-            where['counselor_id'] = user.id;
+        if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
+            where['professional_id'] = user.id;
         } else if (user.role_id === Number(config.USR_ROLE_ID)) {
             where['user_id'] = user.id;
         }
@@ -84,7 +84,7 @@ const caseDetail = async (body, params, header) => {
                 },
                 {
                     model: User,
-                    as: user.role_id === Number(config.CLLR_ROLE_ID) ? 'filled_to' : 'filled_by',
+                    as: user.role_id === Number(config.PROFESSIONAL_ROLE_ID) ? 'filled_to' : 'filled_by',
                     attributes: ['id', 'role_id'],
                     include: [
                         {
@@ -105,11 +105,11 @@ const caseDetail = async (body, params, header) => {
                 {
                     model: Appointment,
                     as: 'case_appointments',
-                    attributes: ['id', 'user_id', 'counselor_id', 'slot_id', 'case_id', 'notes', 'slot_duration_in_minuites', 'total_amount', 'is_active', 'is_user_canceled', 'is_counselor_canceled', 'is_term_form_accepted_by_user', 'status', 'is_counselor_joined', 'is_user_joined', 'is_user_canceled', 'is_counselor_canceled', 'is_payment_done', 'is_rescheduled_done', 'is_refund_needed', 'timing_status'],
+                    attributes: ['id', 'user_id', 'professional_id', 'slot_id', 'case_id', 'notes', 'slot_duration_in_minuites', 'total_amount', 'is_active', 'is_user_canceled', 'is_professional_canceled', 'is_term_form_accepted_by_user', 'status', 'is_professional_joined', 'is_user_joined', 'is_user_canceled', 'is_professional_canceled', 'is_payment_done', 'is_rescheduled_done', 'is_refund_needed', 'timing_status'],
                     include: [
                         {
                             model: User,
-                            as: user.role_id === Number(config.CLLR_ROLE_ID) ? 'appointment_counselor' : 'appointment_user',
+                            as: user.role_id === Number(config.PROFESSIONAL_ROLE_ID) ? 'appointment_professional' : 'appointment_user',
                             attributes: ['id', 'role_id'],
                             include: [
                                 {
@@ -162,11 +162,11 @@ const caseDetail = async (body, params, header) => {
 const addAttachmentToCase = async (body, files) => {
     try {
         const { user, case_id } = body;
-        if (user.role_id !== Number(config.CLLR_ROLE_ID)) {
-            throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Only Counselor can access this route.');
+        if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID)) {
+            throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Only Professional can access this route.');
         };
 
-        const caseDoc = await Case.findOne({ where: { id: case_id, is_active: true, counselor_id: user.id } });
+        const caseDoc = await Case.findOne({ where: { id: case_id, is_active: true, professional_id: user.id } });
         if (!caseDoc || Object.keys(caseDoc).length === 0) {
             throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Case Doc Not Found');
         };

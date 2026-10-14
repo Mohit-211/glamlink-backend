@@ -50,7 +50,7 @@ const validateRegisterUserBody = catchAsync(async (req, res, next) => {
         httpStatus.BAD_REQUEST,
       );
 
-    if (role_id === config.CLLR_ROLE_ID || role_id === config.BRND_ROLE_ID) {
+    if (role_id === config.PROFESSIONAL_ROLE_ID || role_id === config.BRND_ROLE_ID) {
       if (!name || !email || !password || !confirm_password) {
         return responseWrapper(
           res,
@@ -200,7 +200,7 @@ const validateSSOUserBody = catchAsync(async (req, res, next) => {
       );
     }
 
-    if (role_id === config.CLLR_ROLE_ID || role_id === config.BRND_ROLE_ID) {
+    if (role_id === config.PROFESSIONAL_ROLE_ID || role_id === config.BRND_ROLE_ID) {
       req.body.profession = profession ? profession : "Esthetician";
     }
 
@@ -529,7 +529,7 @@ const validateForgetPassordToken = catchAsync(async (req, res, next) => {
 const setRoleIdIfNotPresent = catchAsync(async (req, res, next) => {
 
   if (!req.headers.role_id) {
-    req.headers.role_id = config.CLLR_ROLE_ID;
+    req.headers.role_id = config.PROFESSIONAL_ROLE_ID;
   }
 
 
@@ -547,7 +547,7 @@ const validateNewServiceBody = catchAsync(async (req, res, next) => {
       httpStatus.BAD_REQUEST,
     );
   }
-  if (user.role_id !== Number(config.CLLR_ROLE_ID)) {
+  if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID)) {
     return responseWrapper(
       res,
       "",

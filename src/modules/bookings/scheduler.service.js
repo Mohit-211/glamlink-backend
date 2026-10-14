@@ -25,9 +25,9 @@ const createAvailability = async (body) => {
 			end_time_local,
 		} = body;
 		console.log(body, "body");
-		// First Create/find the ruleset for counselor
+		// First Create/find the ruleset for professional
 		let availabilityObject = {
-			counselor_id: user.id,
+			professional_id: user.id,
 			day_name: day,
 			start_time: start_time,
 			end_time: end_time,
@@ -41,7 +41,7 @@ const createAvailability = async (body) => {
 		};
 		const existingSlots = await Availability.findAll({
 			where: {
-				counselor_id: user.id,
+				professional_id: user.id,
 				day_name: day,
 			},
 		});
@@ -57,7 +57,7 @@ const createAvailability = async (body) => {
 			await Availability.findOrCreate({
 				where: {
 					day_name: day,
-					counselor_id: user.id,
+					professional_id: user.id,
 					start_time: start_time,
 					end_time: end_time,
 					duration: slot_duration_in_minuites,
@@ -78,14 +78,14 @@ const createAvailability = async (body) => {
 	}
 };
 
-const getSchedulRuleAndIntervalByCounselorToken = async (body, header) => {
+const getScheduleRuleAndIntervalByProfessionalToken = async (body, header) => {
 	try {
 		const { user } = body;
 
 		const availabilityDoc = await Availability.findAll({
 			attributes: [
 				"id",
-				"counselor_id",
+				"professional_id",
 				"time_zone",
 				"day_name",
 				"start_time",
@@ -95,7 +95,7 @@ const getSchedulRuleAndIntervalByCounselorToken = async (body, header) => {
 				"maximum_available_seats",
 				"duration",
 			],
-			where: { counselor_id: user.id, is_active: true },
+			where: { professional_id: user.id, is_active: true },
 			order: [
 				[
 					sequelize.literal(
@@ -132,7 +132,7 @@ const updateAvailability = async (body) => {
 	try {
 		const existingSlots = await Availability.findAll({
 			where: {
-				counselor_id: user.id,
+				professional_id: user.id,
 				day_name: availabilityDoc.day_name,
 				id: { [Op.ne]: availabilityDoc.id },
 			},
@@ -182,9 +182,9 @@ const deleteAvailability = async (body) => {
 	}
 };
 
-const getAvailabilityByCounselorId = async (body, header, params) => {
+const getAvailabilityByProfessionalId = async (body, header, params) => {
 	try {
-		const { user, dates, counselor_id, counselorDoc } = body;
+		const { user, dates, professional_id, professionalDoc } = body;
 		let { timezone } = header;
 
 		let response = {};
@@ -194,7 +194,7 @@ const getAvailabilityByCounselorId = async (body, header, params) => {
 			});
 
 			let availabilityDocs = await Availability.findAll({
-				where: { day_name: dayOfWeek, counselor_id: counselor_id },
+				where: { day_name: dayOfWeek, professional_id: professional_id },
 				order: [["start_time", "ASC"]],
 			});
 
@@ -218,7 +218,7 @@ const getAvailabilityByCounselorId = async (body, header, params) => {
 				});
 			}
 			let bookingDocs = await Booking.findAll({
-				where: { date: date, counselor_id: counselor_id },
+				where: { date: date, professional_id: professional_id },
 			});
 
 			let finalSlots = updateAvailableSeats(slots, bookingDocs);
@@ -259,11 +259,11 @@ function isOverlapping(startTime, endTime, existingSlots) {
 
 function transformAvailabilityData(data) {
 	const groupedData = data.reduce((acc, slot) => {
-		const { day_name, counselor_id, time_zone } = slot;
+		const { day_name, professional_id, time_zone } = slot;
 
 		if (!acc[day_name]) {
 			acc[day_name] = {
-				counselor_id,
+				professional_id,
 				time_zone,
 				day_name,
 				rule_intervals: [],
@@ -272,7 +272,7 @@ function transformAvailabilityData(data) {
 
 		acc[day_name].rule_intervals.push({
 			id: slot.id,
-			counselor_id: slot.counselor_id,
+			professional_id: slot.professional_id,
 			time_zone: slot.time_zone,
 			day_name: slot.day_name,
 			start_time: slot.start_time,
@@ -415,8 +415,8 @@ function convertTime(time) {
 
 module.exports = {
 	createAvailability,
-	getSchedulRuleAndIntervalByCounselorToken,
-	getAvailabilityByCounselorId,
+	getScheduleRuleAndIntervalByProfessionalToken,
+	getAvailabilityByProfessionalId,
 	deleteAvailability,
 	updateAvailability,
 };

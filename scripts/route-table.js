@@ -16,7 +16,7 @@ const writeTable = process.stdout.write.bind(process.stdout);
 if (!outFile) process.stdout.write = process.stderr.write.bind(process.stderr);
 Object.assign(process.env, {
   APP_NAME: 'x', NODE_ENV: 'production', CENTRAL_MYSQL_HOST: '127.0.0.1', CENTRAL_MYSQL_USER: 'x', CENTRAL_MYSQL_DB: 'x',
-  CENTRAL_MYSQL_PORT: '1', JWT_SECRET: 'abcd', ACCESSDOMAINS: 'http://localhost', STRIPE_SECRET_KEY: 'sk_test_x',
+  CENTRAL_MYSQL_PORT: '1', JWT_SECRET: 'abcd', PROFESSIONAL_ROLE_ID: '7', ACCESSDOMAINS: 'http://localhost', STRIPE_SECRET_KEY: 'sk_test_x',
   STRIPE_PUBLISHABLE_KEY: 'pk_test_x', OPENAI_API_KEY: 'x', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1',
 });
 const fbStub = new Proxy(function () {}, { get: (t, k) => k === '__esModule' ? false : fbStub, apply: () => fbStub });

@@ -184,7 +184,7 @@ const removeUserFromFollowList = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '');
 });
 
-const getAllRandomCounselorList = catchAsync(async (req, res) => {
+const getAllRandomProfessionalList = catchAsync(async (req, res) => {
     const body = pick(req.body, ['name', 'user']);
     const query = pick(req.query, ['sortBy', 'limit', 'page']);
     const params = pick(req.params, []);
@@ -200,7 +200,7 @@ const getAllRandomCounselorList = catchAsync(async (req, res) => {
     };
     let offset = (query['page'] - 1) * query['limit'];
     query['offset'] = offset;
-    const response = await userOpService.getAllRandomCounselorList(body, query, req.isGuest);
+    const response = await userOpService.getAllRandomProfessionalList(body, query, req.isGuest);
     return responseWrapper(res, response, '');
 });
 
@@ -377,7 +377,7 @@ module.exports = {
     getAllReelByTag,
 
     removeUserFromFollowList,
-    getAllRandomCounselorList,
+    getAllRandomProfessionalList,
     searchBeautycianByPlaceApi,
     addImageInsideProfile,
     getAllAlbumImages,

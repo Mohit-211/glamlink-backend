@@ -441,10 +441,10 @@ async function initTableRelation() {
 
   User.hasMany(Review, { foreignKey: "user_id", as: "user_reviews" });
   Review.belongsTo(User, { foreignKey: "user_id", as: "reviewed_by" });
-  Review.belongsTo(User, { foreignKey: "counselor_id", as: "reviewed_to" });
+  Review.belongsTo(User, { foreignKey: "professional_id", as: "reviewed_to" });
 
-  User.hasMany(Review, { foreignKey: "counselor_id", as: "counselor_reviews" });
-  Review.belongsTo(User, { foreignKey: "counselor_id", as: "reviewed_for" });
+  User.hasMany(Review, { foreignKey: "professional_id", as: "professional_reviews" });
+  Review.belongsTo(User, { foreignKey: "professional_id", as: "reviewed_for" });
 
   Review.hasMany(ReviewLike, { foreignKey: "review_id", as: "like_reviews" });
   ReviewLike.belongsTo(Review, { foreignKey: "review_id", as: "review_like" });
@@ -462,8 +462,8 @@ async function initTableRelation() {
   User.hasMany(Case, { foreignKey: "user_id", as: "user_cases" });
   Case.belongsTo(User, { foreignKey: "user_id", as: "filled_by" });
 
-  User.hasMany(Case, { foreignKey: "counselor_id", as: "counselor_cases" });
-  Case.belongsTo(User, { foreignKey: "counselor_id", as: "filled_to" });
+  User.hasMany(Case, { foreignKey: "professional_id", as: "professional_cases" });
+  Case.belongsTo(User, { foreignKey: "professional_id", as: "filled_to" });
 
   Case.hasMany(CaseAttachment, {
     foreignKey: "case_id",
@@ -482,8 +482,8 @@ async function initTableRelation() {
 
   // Scheduling
 
-  User.hasMany(Slot, { foreignKey: "counselor_id", as: "counselor_slots" });
-  Slot.belongsTo(User, { foreignKey: "counselor_id", as: "slot_counselor" });
+  User.hasMany(Slot, { foreignKey: "professional_id", as: "professional_slots" });
+  Slot.belongsTo(User, { foreignKey: "professional_id", as: "slot_professional" });
 
   RuleInterval.hasMany(Slot, {
     foreignKey: "interval_id",
@@ -508,12 +508,12 @@ async function initTableRelation() {
   });
 
   User.hasMany(Booking, {
-    foreignKey: "counselor_id",
-    as: "counselor_appointments",
+    foreignKey: "professional_id",
+    as: "professional_appointments",
   });
   Booking.belongsTo(User, {
-    foreignKey: "counselor_id",
-    as: "appointment_counselor",
+    foreignKey: "professional_id",
+    as: "appointment_professional",
   });
 
   BookingSlot.hasMany(Booking, {
@@ -715,11 +715,11 @@ async function initTableRelation() {
   Notification.belongsTo(User, { foreignKey: "receiver_id", as: "receiver" });
 
   User.hasMany(Availability, {
-    foreignKey: "counselor_id",
+    foreignKey: "professional_id",
     as: "availablity_Availability",
   });
   Availability.belongsTo(User, {
-    foreignKey: "counselor_id",
+    foreignKey: "professional_id",
     as: "user_availablity",
   });
 

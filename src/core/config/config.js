@@ -12,7 +12,7 @@ const fail = (message) => {
 // Empty values (`KEY=`) count as unset.
 const envVars = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== ''));
 
-const REQUIRED = ['APP_NAME', 'NODE_ENV', 'CENTRAL_MYSQL_HOST', 'CENTRAL_MYSQL_USER', 'CENTRAL_MYSQL_DB', 'CENTRAL_MYSQL_PORT', 'JWT_SECRET'];
+const REQUIRED = ['APP_NAME', 'NODE_ENV', 'CENTRAL_MYSQL_HOST', 'CENTRAL_MYSQL_USER', 'CENTRAL_MYSQL_DB', 'CENTRAL_MYSQL_PORT', 'JWT_SECRET', 'PROFESSIONAL_ROLE_ID'];
 const missing = REQUIRED.filter((key) => envVars[key] === undefined);
 if (missing.length) fail(`missing ${missing.join(', ')}`);
 if (!['production', 'development', 'test'].includes(envVars.NODE_ENV)) fail('NODE_ENV must be one of production, development, test');
@@ -77,7 +77,7 @@ module.exports = {
 
     SUP_ADM_ROLE_ID: envVars.SUP_ADM_ROLE_ID,
     USR_ROLE_ID: envVars.USR_ROLE_ID,
-    CLLR_ROLE_ID: envVars.CLLR_ROLE_ID,
+    PROFESSIONAL_ROLE_ID: envVars.PROFESSIONAL_ROLE_ID,
     BRND_ROLE_ID: envVars.BRND_ROLE_ID,
     ADM_DEPT_ID: envVars.ADM_DEPT_ID,
     SUPER_ADMIN_NAME: envVars.SUPER_ADMIN_NAME,

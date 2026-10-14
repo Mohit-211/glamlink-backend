@@ -22,7 +22,7 @@ router.post('/getClipsCommentByUserId',  adminOperationsController.getClipsComme
 router.post('/getReviewsGivenByUserId',adminOperationsController.getReviewsGivenByUserId);
 router.post('/getReviewsTakenByUserId',  adminOperationsController.getReviewsTakenByUserId);
 router.post('/getServicesByUserId',  adminOperationsController.getServicesByUserId);
-router.post('/getBookingsByCounsellorId',  adminOperationsController.getBookingsByCounsellorId);
+router.post('/getBookingsByProfessionalId',  adminOperationsController.getBookingsByProfessionalId);
 router.post('/getBookingsByUserId',  adminOperationsController.getBookingsByUserId);
 router.post('/getAvailablityByUserId',  adminOperationsController.getAvailablityByUserId);
 

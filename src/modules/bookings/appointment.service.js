@@ -57,8 +57,8 @@ const getAllAppointment = async (body, header, query) => {
 			where["status"] = appointmentTypes.CANCELED;
 		}
 
-		if (user.role_id === Number(config.CLLR_ROLE_ID)) {
-			where["counselor_id"] = user.id;
+		if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
+			where["professional_id"] = user.id;
 		} else if (user.role_id === Number(config.USR_ROLE_ID)) {
 			where["user_id"] = user.id;
 		}
@@ -68,7 +68,7 @@ const getAllAppointment = async (body, header, query) => {
 			attributes: [
 				"id",
 				"user_id",
-				"counselor_id",
+				"professional_id",
 				"slot_id",
 				"service_id",
 				"case_id",
@@ -77,13 +77,13 @@ const getAllAppointment = async (body, header, query) => {
 				"total_amount",
 				"is_active",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_term_form_accepted_by_user",
 				"status",
-				"is_counselor_joined",
+				"is_professional_joined",
 				"is_user_joined",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_payment_done",
 				"is_rescheduled_done",
 				"is_refund_needed",
@@ -96,9 +96,9 @@ const getAllAppointment = async (body, header, query) => {
 				{
 					model: User,
 					as:
-						user.role_id === Number(config.CLLR_ROLE_ID)
+						user.role_id === Number(config.PROFESSIONAL_ROLE_ID)
 							? "appointment_user"
-							: "appointment_counselor",
+							: "appointment_professional",
 					attributes: ["id", "role_id"],
 					include: [
 						{
@@ -141,7 +141,7 @@ const getAllAppointment = async (body, header, query) => {
 					as: "appointment_slot",
 					attributes: [
 						"id",
-						"counselor_id",
+						"professional_id",
 						"booking_id",
 						"remaining_seats",
 						"duration",
@@ -263,11 +263,11 @@ const getAllAppointment = async (body, header, query) => {
 			};
 		});
 
-		// PENDING: PAYMENT NOT DONE OR PAYMENT DONE BUT COUNSELLOR NOT ACCEPT
-		// TODAY: PAYMENT DONE AMD COUNSELLOR ACCEPT
-		// UPCOMING: PAYMENT DONE COUNSELOR ACCEPT AND MEETING ON FUTURE TIME
-		// CANCELED: WHICH IS CANCLED BY USER OR COUNSELOR
-		// COMPLETED: PAYMENT DONE AND COUNSELOR ACCEPT AND MEETING DONE
+		// PENDING: PAYMENT NOT DONE OR PAYMENT DONE BUT PROFESSIONAL NOT ACCEPT
+		// TODAY: PAYMENT DONE AMD PROFESSIONAL ACCEPT
+		// UPCOMING: PAYMENT DONE PROFESSIONAL ACCEPT AND MEETING ON FUTURE TIME
+		// CANCELED: WHICH IS CANCLED BY USER OR PROFESSIONAL
+		// COMPLETED: PAYMENT DONE AND PROFESSIONAL ACCEPT AND MEETING DONE
 
 		if (timeStatus === appointmentTypes.PENDING) {
 			return response["pending"];
@@ -295,7 +295,7 @@ const createAppointment = async (body, header) => {
 		const {
 			user,
 			notes,
-			counselor_id,
+			professional_id,
 			start_time,
 			end_time,
 			service_id,
@@ -307,11 +307,11 @@ const createAppointment = async (body, header) => {
 
 		const { timezone } = header;
 
-		const counselorDoc = await User.findOne({
+		const professionalDoc = await User.findOne({
 			where: {
-				id: counselor_id,
+				id: professional_id,
 				is_active: true,
-				role_id: config.CLLR_ROLE_ID,
+				role_id: config.PROFESSIONAL_ROLE_ID,
 			},
 			attributes: ["id"],
 			include: [
@@ -336,22 +336,22 @@ const createAppointment = async (body, header) => {
 				},
 			],
 		});
-		if (!counselorDoc)
-			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Counselor Id.");
+		if (!professionalDoc)
+			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Professional Id.");
 
 		let serviceDoc = await Service.findOne({
-			where: { id: service_id, user_id: counselorDoc.id },
+			where: { id: service_id, user_id: professionalDoc.id },
 		});
 		if (!serviceDoc)
 			throw new ApiError(httpStatus.BAD_REQUEST, "Invalid Service Id.");
 
 		let caseObj = {
-			counselor_id: counselor_id,
+			professional_id: professional_id,
 			user_id: user.id,
 		};
 		const [caseDoc, created] = await Case.findOrCreate({
 			where: {
-				counselor_id: counselor_id,
+				professional_id: professional_id,
 				user_id: user.id,
 				is_active: true,
 				status: caseTypes.ACCEPTED,
@@ -363,9 +363,9 @@ const createAppointment = async (body, header) => {
 
 		// Ensure an entry in Customer table
 		const [customerDoc] = await Customer.findOrCreate({
-			where: { professional_id: counselor_id, user_id: user.id },
+			where: { professional_id: professional_id, user_id: user.id },
 			defaults: {
-				professional_id: counselor_id,
+				professional_id: professional_id,
 				user_id: user.id,
 				source: "Online", // since via app/website
 				status: "customer",
@@ -374,7 +374,7 @@ const createAppointment = async (body, header) => {
 
 		let bookingObj = {
 			start_time: start_time,
-			counselor_id: counselor_id,
+			professional_id: professional_id,
 			date: date,
 			end_time: end_time,
 			case_id: caseDoc.id,
@@ -391,7 +391,7 @@ const createAppointment = async (body, header) => {
 		let bookingSlotDoc = await BookingSlot.findOne({
 			where: {
 				date: date,
-				counselor_id: counselor_id,
+				professional_id: professional_id,
 				start_time: start_time,
 				end_time: end_time,
 			},
@@ -425,7 +425,7 @@ const createAppointment = async (body, header) => {
 					);
 				bookingSlotDoc = await BookingSlot.create({
 					date: date,
-					counselor_id: counselor_id,
+					professional_id: professional_id,
 					start_time: start_time,
 					end_time: end_time,
 					start_time_local: start_time_local,
@@ -450,7 +450,7 @@ const createAppointment = async (body, header) => {
 		try {
 			await createNotification({
 				sender_id: user.id,
-				receiver_id: counselor_id,
+				receiver_id: professional_id,
 				timezone: timezone,
 				type: notificationTypes.appointmentRequest,
 			});
@@ -473,8 +473,8 @@ const cancleAppointment = async (body, param) => {
 		const { user, reason } = body;
 		const { appointmentId } = param;
 		let where = { is_active: true, id: appointmentId };
-		if (user.role_id === Number(config.CLLR_ROLE_ID)) {
-			where["counselor_id"] = user.id;
+		if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
+			where["professional_id"] = user.id;
 		} else if (user.role_id === Number(config.USR_ROLE_ID)) {
 			where["user_id"] = user.id;
 		}
@@ -484,7 +484,7 @@ const cancleAppointment = async (body, param) => {
 			attributes: [
 				"id",
 				"user_id",
-				"counselor_id",
+				"professional_id",
 				"slot_id",
 				"service_id",
 				"case_id",
@@ -493,13 +493,13 @@ const cancleAppointment = async (body, param) => {
 				"total_amount",
 				"is_active",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_term_form_accepted_by_user",
 				"status",
-				"is_counselor_joined",
+				"is_professional_joined",
 				"is_user_joined",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_payment_done",
 				"is_rescheduled_done",
 				"is_refund_needed",
@@ -521,8 +521,8 @@ const cancleAppointment = async (body, param) => {
 		appointmentDoc.status = appointmentTypes.CANCELED;
 		appointmentDoc.is_user_canceled =
 			user.role_id === Number(config.USR_ROLE_ID) ? true : false;
-		appointmentDoc.is_counselor_canceled =
-			user.role_id === Number(config.CLLR_ROLE_ID) ? true : false;
+		appointmentDoc.is_professional_canceled =
+			user.role_id === Number(config.PROFESSIONAL_ROLE_ID) ? true : false;
 		appointmentDoc.cancelation_reason = reason ? reason : null;
 		appointmentDoc.save();
 
@@ -545,9 +545,9 @@ const cancleAppointment = async (body, param) => {
 			await createNotification({
 				sender_id: user.id,
 				receiver_id:
-					user.role_id === Number(config.CLLR_ROLE_ID)
+					user.role_id === Number(config.PROFESSIONAL_ROLE_ID)
 						? appointmentDoc.user_id
-						: appointmentDoc.counselor_id,
+						: appointmentDoc.professional_id,
 				type: notificationTypes.appointmentCanceled,
 			});
 		} catch (error) {
@@ -571,8 +571,8 @@ const appointmentDetail = async (body, header, param) => {
 
 		let where = { is_active: true, id: appointmentId };
 
-		if (user.role_id === Number(config.CLLR_ROLE_ID)) {
-			where["counselor_id"] = user.id;
+		if (user.role_id === Number(config.PROFESSIONAL_ROLE_ID)) {
+			where["professional_id"] = user.id;
 		} else if (user.role_id === Number(config.USR_ROLE_ID)) {
 			where["user_id"] = user.id;
 		}
@@ -582,7 +582,7 @@ const appointmentDetail = async (body, header, param) => {
 			attributes: [
 				"id",
 				"user_id",
-				"counselor_id",
+				"professional_id",
 				"slot_id",
 				"service_id",
 				"case_id",
@@ -591,13 +591,13 @@ const appointmentDetail = async (body, header, param) => {
 				"total_amount",
 				"is_active",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_term_form_accepted_by_user",
 				"status",
-				"is_counselor_joined",
+				"is_professional_joined",
 				"is_user_joined",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_payment_done",
 				"is_rescheduled_done",
 				"is_refund_needed",
@@ -609,9 +609,9 @@ const appointmentDetail = async (body, header, param) => {
 				{
 					model: User,
 					as:
-						user.role_id === Number(config.CLLR_ROLE_ID)
+						user.role_id === Number(config.PROFESSIONAL_ROLE_ID)
 							? "appointment_user"
-							: "appointment_counselor",
+							: "appointment_professional",
 					attributes: ["id", "role_id"],
 					include: [
 						{
@@ -654,7 +654,7 @@ const appointmentDetail = async (body, header, param) => {
 					as: "appointment_slot",
 					attributes: [
 						"id",
-						"counselor_id",
+						"professional_id",
 						"booking_id",
 						"remaining_seats",
 						"duration",
@@ -727,18 +727,18 @@ const acceptAppointment = async (body, header) => {
 		const { user, appointment_id } = body;
 
 		const { timezone } = header;
-		if (user.role_id !== Number(config.CLLR_ROLE_ID))
+		if (user.role_id !== Number(config.PROFESSIONAL_ROLE_ID))
 			throw new ApiError(
 				httpStatus.BAD_REQUEST,
-				"Only Counselor can access this api."
+				"Only Professional can access this api."
 			);
 
 		const appointmentDoc = await Booking.findOne({
-			where: { id: appointment_id, counselor_id: user.id },
+			where: { id: appointment_id, professional_id: user.id },
 			attributes: [
 				"id",
 				"user_id",
-				"counselor_id",
+				"professional_id",
 				"slot_id",
 				"service_id",
 				"case_id",
@@ -747,13 +747,13 @@ const acceptAppointment = async (body, header) => {
 				"total_amount",
 				"is_active",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_term_form_accepted_by_user",
 				"status",
-				"is_counselor_joined",
+				"is_professional_joined",
 				"is_user_joined",
 				"is_user_canceled",
-				"is_counselor_canceled",
+				"is_professional_canceled",
 				"is_payment_done",
 				"is_rescheduled_done",
 				"is_refund_needed",
@@ -801,7 +801,7 @@ const getAllAppointmentForProfessional = async (body) => {
 	try {
 		const { user, type, year, month } = body;
 
-		let whereCondition = { is_active: true, counselor_id: user.id };
+		let whereCondition = { is_active: true, professional_id: user.id };
 
 		if (type === "year" && year) {
 			whereCondition[Sequelize.Op.and] = [
@@ -828,7 +828,7 @@ const getAllAppointmentForProfessional = async (body) => {
 			attributes: [
 				"id",
 				"user_id",
-				"counselor_id",
+				"professional_id",
 				"slot_id",
 				"service_id",
 				"case_id",
@@ -880,7 +880,7 @@ const getAllAppointmentForProfessional = async (body) => {
 					as: "appointment_slot",
 					attributes: [
 						"id",
-						"counselor_id",
+						"professional_id",
 						"date",
 						"start_time",
 						"end_time",
@@ -941,7 +941,7 @@ const createAppointmentForEmployee = async (body, header) => {
 
 		// 3️⃣ Fetch Availability
 		const availabilityDoc = await Availability.findOne({
-			where: { id: availability_id, counselor_id: user.id },
+			where: { id: availability_id, professional_id: user.id },
 		});
 		console.log(availabilityDoc,"availabilityDoc")
 		if (!availabilityDoc)
@@ -950,13 +950,13 @@ const createAppointmentForEmployee = async (body, header) => {
 		// 3️⃣ Ensure Case exists between customer and beautician
 		const [caseDoc] = await Case.findOrCreate({
 			where: {
-				counselor_id: user.id,
+				professional_id: user.id,
 				user_id: employee_id,
 				is_active: true,
 				status: caseTypes.ACCEPTED,
 			},
 			defaults: {
-				counselor_id: user.id,
+				professional_id: user.id,
 				user_id: employee_id,
 			},
 		});
@@ -971,7 +971,7 @@ const createAppointmentForEmployee = async (body, header) => {
 			user_id: employee_id,
 			service_id: serviceDoc.id,
 			duration: availabilityDoc.duration,
-			counselor_id: user.id,
+			professional_id: user.id,
 			total_amount: serviceDoc.price || 0,
 			status:"ACCEPTED"
 		};
@@ -981,7 +981,7 @@ const createAppointmentForEmployee = async (body, header) => {
 		let bookingSlotDoc = await BookingSlot.findOne({
 			where: {
 				date,
-				counselor_id: user.id,
+				professional_id: user.id,
 				start_time,
 				end_time,
 			},
@@ -1005,7 +1005,7 @@ const createAppointmentForEmployee = async (body, header) => {
 				newBookingDoc = await Booking.create(bookingObj);
 				bookingSlotDoc = await BookingSlot.create({
 					date: date,
-					counselor_id: user.id,
+					professional_id: user.id,
 					start_time: start_time,
 					end_time: end_time,
 					start_time_local: availabilityDoc.start_time_local,
