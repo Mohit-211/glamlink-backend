@@ -6,7 +6,6 @@ const { OrderDetails } = require('../../models');
 const orderController = require('./order.controller');
 const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
 
-router.post('/createOrder',[userAuthMiddleware.verifyAuthJWTToken], orderController.createOrder);
 router.get('/getAllUserOrders',[userAuthMiddleware.verifyAuthJWTToken], orderController.getAllUserOrders);
 router.post('/addNewAddress',[userAuthMiddleware.verifyAuthJWTToken], orderController.addNewAddress);
 router.put('/editAddress/:id',[userAuthMiddleware.verifyAuthJWTToken], orderController.editAddress);

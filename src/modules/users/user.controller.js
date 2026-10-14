@@ -25,13 +25,6 @@ const notificationToogle = catchAsync(async (req, res) => {
     return responseWrapper(res, '', message);
 });
 
-const firstAppointmentToogle = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const response = await userOpService.firstAppointmentToogle(body);
-    message = (response.allow_trial === true) ? 'Allow Trial On!' : 'Allow Trial Off!';
-    return responseWrapper(res, '', message);
-});
-
 const updateProfile = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user', 'name', 'mobile', 'language', 'city_id', 'about', 'state_id', 'address', 'latitude', 'longitude', 'profession', 'website_link']);
     const response = await userOpService.updateProfile(body, req.files);
@@ -50,27 +43,8 @@ const getAllUserList = catchAsync(async (req, res) => {
     return responseWrapper(res, response, '');
 });
 
-const getAllCounselorList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const response = await userOpService.getAllCounselorList(body);
-    return responseWrapper(res, response, '');
-});
-
-const getCounselorBySpecialityId = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const param = pick(req.params, ['specialityId']);
-    const response = await userOpService.getCounselorBySpecialityId(body, param);
-    return responseWrapper(res, response, '');
-});
-
 const getAllTimezone = catchAsync(async (req, res) => {
     const response = await userOpService.getAllTimezone();
-    return responseWrapper(res, response, '');
-});
-
-const createFeesChangeRequest = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'user_price_id', 'new_price', 'reason', 'old_duration', 'old_price']);
-    const response = await userOpService.createFeesChangeRequest(body);
     return responseWrapper(res, response, '');
 });
 
@@ -388,13 +362,9 @@ module.exports = {
     deactivateAccount,
     notificationToogle,
     updateProfile,
-    firstAppointmentToogle,
     getProfileById,
     getAllUserList,
-    getAllCounselorList,
-    getCounselorBySpecialityId,
     getAllTimezone,
-    createFeesChangeRequest,
 
     followAndUnfollwUser,
     getAllFollowers,

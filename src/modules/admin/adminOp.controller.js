@@ -36,42 +36,6 @@ const approvedUserProfile = catchAsync(async (req, res) => {
 	return responseWrapper(res, response, "");
 });
 
-const getAllPriceChangeRequest = catchAsync(async (req, res) => {
-	const query = pick(req.query, ["limit", "sortBy", "offset", "page"]);
-	if (!query["limit"]) {
-		query["limit"] = config.defaultLimit;
-	}
-	if (!query["page"]) {
-		query["page"] = 1;
-	}
-	if (!query["sortBy"] || query["sortBy"] === "") {
-		query["sortBy"] = "ASC";
-	}
-	let offset = (query["page"] - 1) * query["limit"];
-	query["offset"] = offset;
-	const response = await adminOpService.getAllPriceChangeRequest(query);
-	return responseWrapper(res, response, "");
-});
-
-const approvedUserPriceChangeRequest = catchAsync(async (req, res) => {
-	const response = await adminOpService.approvedUserPriceChangeRequest(
-		req.body
-	);
-	return responseWrapper(res, response, "Success");
-});
-
-const getAllCounselorApprovalRequest = catchAsync(async (req, res) => {
-	const response = await adminOpService.getAllCounselorApprovalRequest(
-		req.body
-	);
-	return responseWrapper(res, response, "Success");
-});
-
-const rejectUserPriceChangeRequest = catchAsync(async (req, res) => {
-	const response = await adminOpService.rejectUserPriceChangeRequest(req.body);
-	return responseWrapper(res, response, "Success");
-});
-
 const getTotalCounts = catchAsync(async (req, res) => {
 	const response = await adminOpService.getTotalCounts(req.body);
 	return responseWrapper(res, response, "Success");
@@ -156,11 +120,6 @@ const getAllAppointment = catchAsync(async (req, res) => {
 	query["offset"] = offset;
 	const response = await adminOpService.getAllAppointment(body, header, query);
 	return responseWrapper(res, response, "");
-});
-
-const getDefaultPrices = catchAsync(async (req, res) => {
-	const response = await adminOpService.getDefaultPrices();
-	return responseWrapper(res, response, "Success");
 });
 
 const getUserLoginTimings = catchAsync(async (req, res) => {
@@ -405,10 +364,6 @@ module.exports = {
 	getAllAdmin,
 	deleteAdmin,
 	approvedUserProfile,
-	getAllPriceChangeRequest,
-	approvedUserPriceChangeRequest,
-	rejectUserPriceChangeRequest,
-	getAllCounselorApprovalRequest,
 	getTotalCounts,
 	getAllTransaction,
 	getAllTransaction,
@@ -417,7 +372,6 @@ module.exports = {
 	deleteUser,
 	getAllTransactionAdminPanel,
 	getAllAppointment,
-	getDefaultPrices,
 	getUserLoginTimings,
 	clearLoginRecords,
 	getAllPermission,

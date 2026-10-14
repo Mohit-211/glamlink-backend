@@ -13,13 +13,8 @@ const {
   UserAttachment,
   Profile,
   Role,
-  Speciality,
   Timezone,
-  Price,
-  UserFees,
   Review,
-  FeesChangeRequest,
-  Trial,
   State,
   City,
   Follow,
@@ -82,7 +77,6 @@ const ApiError = require("../../core/http/ApiError");
 
 const config = require("../../core/config/config");
 const {
-  appointmentTypes,
   notificationTypes,
   userStatusTypes,
 } = require("../../core/config/types");
@@ -864,20 +858,6 @@ const deactivateAccount = async (reqBody) => {
   }
 };
 
-const firstAppointmentToogle = async (body) => {
-  try {
-    const { user } = body;
-    user.allow_trial = !user.allow_trial;
-    await user.save();
-    return user;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
 const notificationToogle = async (body) => {
   try {
     const { user } = body;
@@ -1223,246 +1203,6 @@ const getAllUserList = async () => {
     if (!userDocs)
       throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get Profile.");
     return userDocs;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const getAllCounselorList = async (body) => {
-  try {
-    const { user } = body;
-    const userDocs = await User.findAll({
-      where: { is_active: true, role_id: config.CLLR_ROLE_ID },
-      attributes: [
-        "id",
-        "user_name",
-        "email",
-        "role_id",
-        "stripe_customer_id",
-        "socket_id",
-        "fcm_token",
-        "status",
-        "notification_status",
-        "allow_trial",
-        "referral_code",
-        "latitude",
-        "longitude",
-      ],
-      include: [
-        {
-          model: Profile,
-          as: "user_profile",
-          attributes: [
-            "id",
-            "name",
-            "dialing_code",
-            "qualification",
-            "language",
-            "mobile",
-            "is_active",
-            "created_at",
-            "about",
-            "overall_ratings",
-            "no_of_user_rated",
-            "no_of_user_reviewed",
-            "address",
-            "profession",
-            "user_coin_balances",
-          ],
-        },
-        {
-          model: UserAttachment,
-          as: "user_attachments",
-          attributes: [
-            "id",
-            "title",
-            "file_type",
-            "file_name",
-            "file_uri",
-            "role_id",
-          ],
-          order: [["id", "desc"]],
-          where: { title: "Profile Image" },
-          limit: 1,
-        },
-        {
-          model: Role,
-          as: "user_role",
-          attributes: ["id", "name", "abbreviation"],
-        },
-        {
-          model: Speciality,
-          through: { attributes: [] },
-          attributes: ["id", "name", "created_at"],
-        },
-        {
-          model: Trial,
-          as: "counselor_trails",
-          attributes: ["id", "user_id", "counselor_id", "status"],
-          where: { user_id: user.id, status: appointmentTypes.ACCEPTED },
-          required: false,
-        },
-        {
-          model: Price,
-          through: { attributes: ["id"] },
-          attributes: ["id", "duration", "price"],
-        },
-      ],
-    });
-    if (!userDocs)
-      throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get Profile.");
-    return userDocs;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const getCounselorBySpecialityId = async (body, param) => {
-  try {
-    const { user } = body;
-    const { specialityId } = param;
-    let where = {};
-    if (specialityId && specialityId !== "all") {
-      where["id"] = specialityId;
-    }
-    if (user.role_id == Number(config.CLLR_ROLE_ID))
-      throw new ApiError(
-        httpStatus.UNAUTHORIZED,
-        "Only Counselor can access this endpoint",
-      );
-
-    let counselorDocs = await User.findAll({
-      where: { is_active: 1, role_id: config.CLLR_ROLE_ID },
-      attributes: [
-        "id",
-        "user_name",
-        "email",
-        "role_id",
-        "stripe_customer_id",
-        "socket_id",
-        "fcm_token",
-        "status",
-        "notification_status",
-        "allow_trial",
-      ],
-      include: [
-        {
-          model: Profile,
-          as: "user_profile",
-          attributes: [
-            "id",
-            "name",
-            "dialing_code",
-            "qualification",
-            "language",
-            "mobile",
-            "is_active",
-            "created_at",
-            "about",
-            "overall_ratings",
-            "no_of_user_rated",
-            "no_of_user_reviewed",
-            "user_coin_balances",
-          ],
-        },
-        {
-          model: UserAttachment,
-          as: "user_attachments",
-          attributes: [
-            "id",
-            "title",
-            "file_type",
-            "file_name",
-            "file_uri",
-            "role_id",
-          ],
-          order: [["id", "desc"]],
-          where: { title: "Profile Image" },
-          limit: 1,
-        },
-        {
-          model: Role,
-          as: "user_role",
-          attributes: ["id", "name", "abbreviation"],
-        },
-        {
-          model: Speciality,
-          through: { attributes: ["id", "speciality_id", "user_id"] },
-          attributes: ["id", "name", "created_at"],
-          where: where,
-          required: specialityId === "all" ? false : true,
-        },
-        {
-          model: Price,
-          through: { attributes: ["id"] },
-          attributes: ["id", "duration", "price"],
-        },
-        {
-          model: Trial,
-          as: "counselor_trails",
-          attributes: ["id", "user_id", "counselor_id", "status"],
-          where: { user_id: user.id, status: appointmentTypes.ACCEPTED },
-          required: false,
-        },
-        {
-          model: Review,
-          as: "counselor_reviews",
-          attributes: ["id", "text", "counselor_id", "user_id", "level"],
-          limit: 2,
-          include: [
-            {
-              model: User,
-              as: "reviewed_by",
-              attributes: ["id", "role_id"],
-              include: [
-                {
-                  model: Profile,
-                  as: "user_profile",
-                  attributes: [
-                    "id",
-                    "name",
-                    "dialing_code",
-                    "qualification",
-                    "language",
-                    "mobile",
-                    "is_active",
-                    "created_at",
-                    "user_coin_balances",
-                  ],
-                },
-                {
-                  model: UserAttachment,
-                  as: "user_attachments",
-                  attributes: [
-                    "id",
-                    "title",
-                    "file_type",
-                    "file_name",
-                    "file_uri",
-                    "role_id",
-                  ],
-                  order: [["id", "desc"]],
-                  where: { title: "Profile Image" },
-                  limit: 1,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    if (!counselorDocs)
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Failed to Get all counselor.",
-      );
-    return counselorDocs;
   } catch (error) {
     throw new ApiError(
       error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -1960,14 +1700,6 @@ function formatDistance(distance) {
   }
 }
 
-function toRadians(degrees) {
-  return degrees * (Math.PI / 180);
-}
-
-function toRadians(degrees) {
-  return degrees * (Math.PI / 180);
-}
-
 const getAllTimezone = async () => {
   try {
     const timezoneDocs = await Timezone.findAll({
@@ -1980,59 +1712,6 @@ const getAllTimezone = async () => {
         "Failed to Get all timezone data.",
       );
     return timezoneDocs;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const createFeesChangeRequest = async (body) => {
-  try {
-    const { user, user_price_id, new_price, reason, old_duration, old_price } =
-      body;
-    if (
-      !user_price_id ||
-      !new_price ||
-      !reason ||
-      !old_duration ||
-      !old_price
-    ) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Please fill required fields : [ user_price_id, new_price, reason, old_price, old_duration ]",
-      );
-    }
-
-    if (user.role_id !== Number(config.CLLR_ROLE_ID))
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Only Counselor can access this endpoint.",
-      );
-    let userPriceDoc = await UserFees.findOne({
-      where: { id: user_price_id, user_id: user.id },
-    });
-    if (!userPriceDoc)
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid User Price Id");
-
-    let feesChangeRequestObj = {
-      user_id: user.id,
-      price_id: userPriceDoc.price_id,
-      reason: reason,
-      new_price: new_price,
-      old_duration: old_duration,
-      old_price: old_price,
-    };
-    let feesChangeRequestDoc =
-      await FeesChangeRequest.create(feesChangeRequestObj);
-    if (!feesChangeRequestDoc)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Faield to raise request for fees change.",
-      );
-
-    return "Fees Change Request Submited.";
   } catch (error) {
     throw new ApiError(
       error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -4531,13 +4210,9 @@ module.exports = {
   deactivateAccount,
   notificationToogle,
   updateProfile,
-  firstAppointmentToogle,
   getProfileById,
   getAllUserList,
-  getAllCounselorList,
-  getCounselorBySpecialityId,
   getAllTimezone,
-  createFeesChangeRequest,
 
   followAndUnfollwUser,
   getAllFollowers,

@@ -10,19 +10,15 @@ router.get('/profile/:userId', [userAuthMiddleware.verifyAuthJWTToken], userOpCo
 router.put('/username', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateUsername);
 router.post('/addLinkTreeLink', [userAuthMiddleware.verifyAuthJWTToken], userOpController.addLinkTreeLink);
 router.get('/list', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllUserList);
-router.get('/list/counsellors', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllCounselorList);
 router.get('/list/random-counsellors', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllRandomCounselorList);
 router.get('/list/suggestion/follow', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getSuggestionUsersList);
 router.post('/list/nearby-counsellors', [userAuthMiddleware.verifyAuthJWTToken], userOpController.nearByBeauticiansList);
-router.get('/list/counsellors/speciality/:specialityId', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getCounselorBySpecialityId);
 
 router.post('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.updateProfile);
 router.post('/notifications', [userAuthMiddleware.verifyAuthJWTToken], userOpController.notificationToogle);
-router.post('/trial', [userAuthMiddleware.verifyAuthJWTToken], userOpController.firstAppointmentToogle);
 router.delete('/deactivate', [userAuthMiddleware.verifyAuthJWTToken], userOpController.deactivateAccount);
 
 router.get('/list/timezones', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getAllTimezone);
-router.post('/fees/change', [userAuthMiddleware.verifyAuthJWTToken], userOpController.createFeesChangeRequest);
 
 
 

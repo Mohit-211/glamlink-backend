@@ -13,9 +13,6 @@ const {
   Role,
   Department,
   User,
-  FeesChangeRequest,
-  UserFees,
-  Price,
   Profile,
   UserAttachment,
   Payment,
@@ -70,7 +67,6 @@ const ApiError = require("../../core/http/ApiError");
 const config = require("../../core/config/config");
 const {
   userStatusTypes,
-  feesChangeRequestTypes,
   appointmentTypes,
   paymentStatusTypes,
 } = require("../../core/config/types");
@@ -236,153 +232,6 @@ const approvedUserProfile = async (reqBody) => {
     }
     await userDoc.save();
     return userDoc;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const getAllCounselorApprovalRequest = async (reqBody) => {
-  try {
-    const { user } = reqBody;
-    let userDocs = await User.findAll({
-      where: { status: userStatusTypes.REVIEWING, is_active: true },
-      attributes: ["id", "email", "status", "is_promoted"],
-      include: [
-        {
-          model: Profile,
-          as: "user_profile",
-          attributes: [
-            "id",
-            "name",
-            "dialing_code",
-            "qualification",
-            "language",
-            "mobile",
-            "is_active",
-            "created_at",
-            "about",
-            "overall_ratings",
-            "no_of_user_rated",
-            "no_of_user_reviewed",
-          ],
-        },
-      ],
-    });
-    if (!userDocs)
-      throw new ApiError(httpStatus.BAD_REQUEST, "Failed to fetch user List");
-    return userDocs;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const getAllPriceChangeRequest = async (query) => {
-  try {
-    let result = "";
-
-    result = await FeesChangeRequest.findAll({
-      attributes: [
-        "id",
-        "user_id",
-        "price_id",
-        "new_price",
-        "old_price",
-        "reason",
-        "status",
-        "old_duration",
-      ],
-      where: { is_active: true, status: feesChangeRequestTypes.PENDING },
-      order: [["id", "DESC"]],
-    });
-    if (!result)
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Failed to Get All Fess Change List.",
-      );
-    return result;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const approvedUserPriceChangeRequest = async (reqBody) => {
-  try {
-    const { user, priceChangeRequestId } = reqBody;
-
-    let userPriceChangeRequestDoc = await FeesChangeRequest.findOne({
-      where: {
-        id: priceChangeRequestId,
-        is_active: true,
-        status: feesChangeRequestTypes.PENDING,
-      },
-    });
-    if (!userPriceChangeRequestDoc)
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Price Change Request Id Invalid",
-      );
-    userPriceChangeRequestDoc.status = feesChangeRequestTypes.ACCEPTED;
-    await userPriceChangeRequestDoc.save();
-
-    let userPriceDoc = await UserFees.findOne({
-      where: { user_id: user.id, price_id: userPriceChangeRequestDoc.price_id },
-    });
-    if (!userPriceDoc)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to fetch user price doc",
-      );
-
-    let [newPriceDoc, created] = await Price.findOrCreate({
-      where: {
-        duration: userPriceChangeRequestDoc.old_duration,
-        price: userPriceChangeRequestDoc.new_price,
-      },
-      defaults: {
-        duration: userPriceChangeRequestDoc.old_duration,
-        price: userPriceChangeRequestDoc.new_price,
-      },
-    });
-    if (!newPriceDoc)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to create new price doc",
-      );
-    userPriceDoc.price_id = newPriceDoc.id;
-    await userPriceDoc.save();
-    return userPriceChangeRequestDoc;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const rejectUserPriceChangeRequest = async (reqBody) => {
-  try {
-    const { user, priceChangeRequestId } = reqBody;
-
-    let userPriceChangeRequestDoc = await FeesChangeRequest.findOne({
-      where: { id: priceChangeRequestId, is_active: true },
-    });
-    if (!userPriceChangeRequestDoc)
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Price Change Request Id Invalid",
-      );
-    userPriceChangeRequestDoc.status = feesChangeRequestTypes.REJECTED;
-    await userPriceChangeRequestDoc.save();
-    return userPriceChangeRequestDoc;
   } catch (error) {
     throw new ApiError(
       error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -1072,23 +921,6 @@ const getAllAppointment = async (body, header, query) => {
     });
     appointmentDocs.rows = appointmentDocsModified;
     return appointmentDocs;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
-
-const getDefaultPrices = async () => {
-  try {
-    let result = await Price.findAll({
-      attributes: ["id", "price", "duration"],
-      limit: 2,
-    });
-    if (!result)
-      throw new ApiError(httpStatus.BAD_REQUEST, "Failed to Get All Prices.");
-    return result;
   } catch (error) {
     throw new ApiError(
       error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -2433,10 +2265,6 @@ module.exports = {
   getAllAdmin,
   deleteAdmin,
   approvedUserProfile,
-  getAllPriceChangeRequest,
-  approvedUserPriceChangeRequest,
-  rejectUserPriceChangeRequest,
-  getAllCounselorApprovalRequest,
   getTotalCounts,
   getAllTransaction,
   getAllUsers,
@@ -2444,7 +2272,6 @@ module.exports = {
   deleteUser,
   getAllTransactionAdminPanel,
   getAllAppointment,
-  getDefaultPrices,
   getUserLoginTimings,
   clearLoginRecords,
   getAllPermission,

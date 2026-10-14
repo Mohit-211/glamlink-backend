@@ -15,7 +15,6 @@ router.get('/list', [adminAuthMiddleware.validateJWTtoken], adminOpController.ge
 router.get('/users/list/:roleId', [adminAuthMiddleware.validateJWTtoken], adminOpController.getAllUsers);
 router.get('/users/getUserById/:id',  adminOpController.getUserById);
 router.post('/users/delete', [adminAuthMiddleware.validateJWTtoken], adminOpController.deleteUser);
-router.get('/appointment/prices', [adminAuthMiddleware.validateJWTtoken], adminOpController.getDefaultPrices);
 router.get('/user/login/timings', [adminAuthMiddleware.validateJWTtoken], adminOpController.getUserLoginTimings);
 router.delete('/user/login/timings/clear', [adminAuthMiddleware.validateJWTtoken], adminOpController.clearLoginRecords);
 
@@ -33,10 +32,6 @@ router.get('/home/appointments/all', [adminAuthMiddleware.validateJWTtoken], adm
 // User Related APIs
 router.post('/user/approved', [adminAuthMiddleware.validateJWTtoken], adminOpController.approvedUserProfile);
 
-router.get('/counselor/fees/change/list', [adminAuthMiddleware.validateJWTtoken], adminOpController.getAllPriceChangeRequest);
-router.post('/counselor/fees/change/approved', [adminAuthMiddleware.validateJWTtoken], adminOpController.approvedUserPriceChangeRequest);
-router.post('/counselor/fees/change/reject', [adminAuthMiddleware.validateJWTtoken], adminOpController.rejectUserPriceChangeRequest);
-router.get('/counselor/pending/list', [adminAuthMiddleware.validateJWTtoken], adminOpController.getAllCounselorApprovalRequest);
 
 //Permission
 router.get('/permissions', [adminAuthMiddleware.validateJWTtoken], adminOpController.getAllPermission);

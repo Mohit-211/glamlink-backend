@@ -6,7 +6,6 @@ const {
   Order,
   ProductAttachment,
   User,
-  Cart,
   UserAddress,
   OrderDetails,
   Profile,
@@ -19,10 +18,6 @@ const {
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 const {
-  sendOrderConfirmationToAdmin,
-  sendOrderConfirmationToUser,
-} = require("../../integrations/mailer/email.service");
-const {
   createShipment,
   createAddressInShippo,
   saveAddressToDatabase,
@@ -30,124 +25,6 @@ const {
 } = require("../../integrations/shippo");
 const axios = require("axios");
 const config = require("../../core/config/config");
-
-function generateOrderId(productName) {
-  const randomNumbers = Math.floor(10000000 + Math.random() * 90000000);
-  return `OID${randomNumbers}`;
-}
-
-const createOrder = async (reqBody) => {
-  const { user, address_id } = reqBody;
-  try {
-    // Fetch items from the cart for the given user
-    const cartItems = await Cart.findAll({
-      where: { user_id: user.id },
-    });
-
-    if (!cartItems || cartItems.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Cart is empty");
-    }
-
-    // Generate a random order ID
-    const orderId = generateOrderId();
-
-    let totalOrderPrice = 0;
-    let totalOrderItems = 0;
-
-    // Store product details alongside cart items to avoid redundant queries
-    const cartDetails = [];
-
-    for (let cartItem of cartItems) {
-      const { product_id, total_items } = cartItem.dataValues;
-
-      // Fetch product details
-      const product = await Product.findByPk(product_id);
-      if (!product) {
-        throw new ApiError(
-          httpStatus.NOT_FOUND,
-          `Product ${product_id} not found`,
-        );
-      }
-
-      if (product.stock <= 0) {
-        throw new ApiError(
-          httpStatus.BAD_REQUEST,
-          `Not enough stock for product ${product_id}`,
-        );
-      }
-
-      const quantityToOrder = Math.min(total_items, product.stock);
-      const orderTotalPrice = product.price * quantityToOrder;
-
-      // Update stock
-      product.stock -= quantityToOrder;
-      await product.save();
-
-      // Aggregate totals
-      totalOrderPrice += orderTotalPrice;
-      totalOrderItems += quantityToOrder;
-
-      // Update cart
-      cartItem.total_items -= quantityToOrder;
-      cartItem.total_price -= orderTotalPrice;
-      await cartItem.save();
-
-      if (cartItem.total_items <= 0) {
-        await cartItem.destroy({ force: true });
-      }
-
-      // Push product and cart data to cartDetails for reuse
-      cartDetails.push({
-        cartItem,
-        product,
-        quantityToOrder,
-        orderTotalPrice,
-      });
-    }
-
-    // Create the order
-    const order = await Order.create({
-      order_id: orderId,
-      address_id,
-      user_id: user.id,
-      order_status: "BOOKED",
-      total_amount: totalOrderPrice,
-      total_items: totalOrderItems,
-    });
-
-    if (!order) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to create order",
-      );
-    }
-
-    // Create order details using cartDetails
-    for (let detail of cartDetails) {
-      const { product, quantityToOrder, orderTotalPrice } = detail;
-
-      await OrderDetails.create({
-        order_id: order.id, // Use the primary key of the Order table
-        user_id: user.id,
-        professional_id: product.user_id,
-        product_id: product.id,
-        total_items: quantityToOrder,
-        total_price: orderTotalPrice,
-      });
-    }
-
-    // Send order confirmation
-    await sendOrderConfirmationToUser(user, orderId);
-    await sendOrderConfirmationToAdmin(user, orderId);
-
-    return order;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ?? httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
-};
 
 const getAllUserOrders = async (body) => {
   try {
@@ -1539,7 +1416,6 @@ const getAddressByBusinessCardIdPublic = async (business_card_id) => {
 };
 
 module.exports = {
-  createOrder,
   getAllUserOrders,
   addNewAddress,
   editAddress,

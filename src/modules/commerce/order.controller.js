@@ -5,16 +5,6 @@ const catchAsync = require("../../core/http/catchAsync");
 const orderService = require("./order.service");
 const responseWrapper = require("../../core/http/responseWrapper");
 
-const createOrder = catchAsync(async (req, res) => {
-  let result = await orderService.createOrder(req.body);
-  return responseWrapper(
-    res,
-    result,
-    "New Order Placed Successfully.",
-    httpStatus.CREATED,
-  );
-});
-
 const getAllUserOrders = catchAsync(async (req, res) => {
   const bookings = await orderService.getAllUserOrders(req.body);
   return responseWrapper(res, bookings, "");
@@ -138,7 +128,6 @@ const getAddressByBusinessCardIdPublic = catchAsync(async (req, res) => {
 });
 
 module.exports = {
-  createOrder,
   getAllUserOrders,
   addNewAddress,
   editAddress,
