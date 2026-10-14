@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { professionsalFormService } = require("../../services");
+const professionsalFormService = require("../../services/Common/professionalForm.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 

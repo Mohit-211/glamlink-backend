@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const {caseController} = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const caseController = require('../../../controllers/Common/case.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.get('/', [userAuthMiddleware.verifyAuthJWTToken], caseController.getAllCase);
 router.get('/:caseId', [userAuthMiddleware.verifyAuthJWTToken], caseController.caseDetail);

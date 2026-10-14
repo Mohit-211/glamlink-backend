@@ -4,7 +4,7 @@ const express = require("express");
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { discoverController } = require("../../../controllers");
+const discoverController = require("../../../controllers/Common/discover.controller");
 
 
 router.post("/:type", requireAdmin, discoverController.createDiscover);

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { numeralController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const numeralController = require('../../../controllers/Common/numeral.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 
 

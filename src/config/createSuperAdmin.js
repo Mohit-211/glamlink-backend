@@ -1,4 +1,4 @@
-const { adminAuthService } = require('../services/Admin');
+const adminAuthService = require('../services/Admin/adminAuth.service');
 const config = require('../config/config');
 
 async function createSuperAdmin(){

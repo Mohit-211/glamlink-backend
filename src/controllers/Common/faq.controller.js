@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../../utils/catchAsync');
-const { faqService } = require('../../services/Common');
+const faqService = require('../../services/Common/faq.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 const createFaq = catchAsync(async (req, res) => {

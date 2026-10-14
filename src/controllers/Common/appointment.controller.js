@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const pick = require('../../utils/pick');
 const catchAsync = require('../../utils/catchAsync');
-const { appointmentService } = require('../../services/Common');
+const appointmentService = require('../../services/Common/appointment.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 const getAllAppointment = catchAsync(async (req, res) => {

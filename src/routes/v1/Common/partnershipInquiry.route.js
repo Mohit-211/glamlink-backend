@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { partnershipInquiryController } = require("../../../controllers/Common");
+const partnershipInquiryController = require("../../../controllers/Common/partnershipInquiry.controller");
 
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');

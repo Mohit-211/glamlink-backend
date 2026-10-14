@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const {roleController} = require('../../../controllers');
+const roleController = require('../../../controllers/Common/role.controller');
 
 router.post('/' , requireAdmin, roleController.createRole);
 router.get('/:id' , roleController.findRoleById);

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { professionController } = require('../../../controllers');
-const {adminAuthMiddleware} = require('../../../middlewares');
+const professionController = require('../../../controllers/Common/profession.controller');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 
 router.post('/',[ adminAuthMiddleware.validateJWTtoken], professionController.createProfession);

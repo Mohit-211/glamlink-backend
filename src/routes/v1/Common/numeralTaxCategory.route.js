@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { numeralTaxController } = require('../../../controllers');
+const numeralTaxController = require('../../../controllers/Common/numeralTaxCategory.controller');
 
 router.post('/createTaxCategory', requireAdmin,  numeralTaxController.createTaxCategory);
 router.get('/getTaxCategoryById/:id', numeralTaxController.getTaxCategoryById);

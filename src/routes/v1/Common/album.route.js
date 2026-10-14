@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { albumController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const albumController = require('../../../controllers/Common/album.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken], albumController.createAlbum);

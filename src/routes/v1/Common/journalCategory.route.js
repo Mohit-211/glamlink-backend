@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const {  journalCategoryController } = require('../../../controllers');
+const journalCategoryController = require('../../../controllers/Common/journalCategory.controller');
 
 
 

@@ -5,7 +5,7 @@ const { requireAdmin } = require('../../../middlewares/access.middleware');
 // Every route in this router is admin-only.
 router.use(requireAdmin);
 
-const {  adminOperationsController } = require('../../../controllers');
+const adminOperationsController = require('../../../controllers/Admin/adminOperations.controller');
 
 router.post('/posts/getLikesByPostId',  adminOperationsController.getLikesByPostId);
 router.post('/posts/getCommentsByPostId',  adminOperationsController.getCommentsByPostId);

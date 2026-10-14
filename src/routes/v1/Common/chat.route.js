@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const {chatController} = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const chatController = require('../../../controllers/Common/chat.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.get('/get-chat/:receiverUserId', [userAuthMiddleware.verifyAuthJWTToken], chatController.getMessages);
 router.post('/send-message', [userAuthMiddleware.verifyAuthJWTToken], chatController.postMessage);

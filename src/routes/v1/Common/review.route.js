@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { reviewController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const reviewController = require('../../../controllers/Common/review.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken], reviewController.createReview);
 router.get('/:counselor_id', [userAuthMiddleware.verifyAuthJWTToken], reviewController.getAllReviewByCounselorId);

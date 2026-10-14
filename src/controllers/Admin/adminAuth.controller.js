@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../../utils/catchAsync');
-const { adminAuthService } = require('../../services');
+const adminAuthService = require('../../services/Admin/adminAuth.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 

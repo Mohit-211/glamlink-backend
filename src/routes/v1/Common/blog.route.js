@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { blogController } = require('../../../controllers');
-const { userAuthMiddleware, adminAuthMiddleware } = require('../../../middlewares');
+const blogController = require('../../../controllers/Common/blog.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 router.post('/', [ adminAuthMiddleware.validateJWTtoken, userAuthMiddleware.validateNewBlogBody ], blogController.createBlog);
 router.get('/', blogController.getAllBlogByToken);

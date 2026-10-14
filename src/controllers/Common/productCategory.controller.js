@@ -4,7 +4,7 @@ const httpStatus = require("http-status");
 const config = require("../../config/config");
 const pick = require("../../utils/pick");
 const catchAsync = require("../../utils/catchAsync");
-const { productCategoryService } = require("../../services/Common");
+const productCategoryService = require("../../services/Common/productCategory.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createProductCategoryHeading = catchAsync(async (req, res) => {

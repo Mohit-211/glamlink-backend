@@ -1,6 +1,6 @@
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { accessCardAnalyticsService } = require("../../services");
+const accessCardAnalyticsService = require("../../services/Common/accessCardAnalytics.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const trackAccessCardEvent = catchAsync(async (req, res) => {

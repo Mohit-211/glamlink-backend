@@ -3,7 +3,7 @@ const router = express.Router();
 const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
 const { BusinessCard } = require('../../../models');
 
-const { accessCardAnalyticsController } = require("../../../controllers");
+const accessCardAnalyticsController = require("../../../controllers/Common/accessCardAnalytics.controller");
 
 router.post("/event", accessCardAnalyticsController.trackAccessCardEvent);
 

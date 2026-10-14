@@ -4,8 +4,8 @@ const { requireOwnerOrAdmin } = require('../../../middlewares/access.middleware'
 const { BannerMedia } = require('../../../models');
 
 
-const { userAuthMiddleware } = require('../../../middlewares');
-const { bannerController } = require('../../../controllers');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const bannerController = require('../../../controllers/Common/bannerMedia.controller');
 
 router.post('/createBanner', [userAuthMiddleware.verifyAuthJWTToken],bannerController.createBanner);
 router.get('/getAllBanner',  bannerController.getAllBanner);

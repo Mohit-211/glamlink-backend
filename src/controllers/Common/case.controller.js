@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 
 const catchAsync = require('../../utils/catchAsync');
-const { caseService } = require('../../services');
+const caseService = require('../../services/Common/case.service');
 const responseWrapper = require('../../config/responseWrapper');
 const pick = require('../../utils/pick');
 

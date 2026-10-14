@@ -8,7 +8,7 @@ const validatePassword = require('../helpers/validatePassword');
 const catchAsync = require('../utils/catchAsync');
 const responseWrapper = require('../config/responseWrapper');
 
-const { roleService } = require('../services');
+const roleService = require('../services/Common/role.service');
 const config = require('../config/config');
 const ApiError = require('../utils/ApiError');
 

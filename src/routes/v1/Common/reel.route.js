@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { reelController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const reelController = require('../../../controllers/Common/reel.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken], reelController.createReel);
 router.get('/', [userAuthMiddleware.verifyAuthJWTToken], reelController.getAllReel);

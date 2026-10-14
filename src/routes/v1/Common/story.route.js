@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { storyController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const storyController = require('../../../controllers/Common/story.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken], storyController.createStory);
 router.get('/all', [userAuthMiddleware.verifyAuthJWTToken], storyController.getAllStoryByUserId);

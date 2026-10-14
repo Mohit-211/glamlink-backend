@@ -3,7 +3,7 @@ const httpStatus = require('http-status');
 const catchAsync = require('../../utils/catchAsync');
 const pick = require('../../utils/pick');
 const responseWrapper = require('../../config/responseWrapper');
-const { chatService } = require('../../services/Common');
+const chatService = require('../../services/Common/chat.service');
 
 
 const getMessages = catchAsync(async (req, res) => {

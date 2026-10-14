@@ -1,6 +1,6 @@
 
 const catchAsync = require('../../utils/catchAsync');
-const { schedularService } = require('../../services');
+const schedularService = require('../../services/Esthetician/schedular.service');
 const pick = require('../../utils/pick');
 const responseWrapper = require('../../config/responseWrapper');
 

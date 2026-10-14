@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { serviceController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const serviceController = require('../../../controllers/Common/service.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('', [userAuthMiddleware.verifyAuthJWTToken, userAuthMiddleware.validateNewServiceBody], serviceController.createService);
 router.get('', [userAuthMiddleware.verifyAuthJWTToken], serviceController.getAllServiceByToken);

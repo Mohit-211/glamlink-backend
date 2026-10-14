@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { productTypeController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const productTypeController = require('../../../controllers/Common/productType.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/createProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.createProductType);
 router.get('/getAllProductType', [userAuthMiddleware.verifyAuthJWTToken], productTypeController.getAllProductType);

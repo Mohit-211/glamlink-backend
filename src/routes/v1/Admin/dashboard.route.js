@@ -5,7 +5,7 @@ const { requireAdmin } = require('../../../middlewares/access.middleware');
 // Every route in this router is admin-only.
 router.use(requireAdmin);
 
-const {  dashboardController } = require('../../../controllers');
+const dashboardController = require('../../../controllers/Admin/dashboard.controller');
 
 
 router.get('/getUserCount',  dashboardController.getUserCount);

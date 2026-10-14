@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {stateController} = require('../../../controllers');
+const stateController = require('../../../controllers/Common/state.controller');
 
 
 router.get('/',stateController.getAllState);

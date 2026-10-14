@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { brandController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const brandController = require('../../../controllers/Common/brand.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/createBrand', [userAuthMiddleware.verifyAuthJWTToken], brandController.createBrand);
 router.get('/getAllBrands', [userAuthMiddleware.verifyAuthJWTToken], brandController.getAllBrands);

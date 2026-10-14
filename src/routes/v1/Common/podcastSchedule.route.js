@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { podcastScheduleController } = require('../../../controllers');
+const podcastScheduleController = require('../../../controllers/Common/podcastSchedule.controller');
 
 
 router.post("/create", requireAdmin, podcastScheduleController.createPodcastSchedule);

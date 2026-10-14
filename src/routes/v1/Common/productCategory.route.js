@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { productCategoryController } = require('../../../controllers');
+const productCategoryController = require('../../../controllers/Common/productCategory.controller');
 
 
 router.post('/createProductCategoryHeading', requireAdmin,productCategoryController.createProductCategoryHeading);

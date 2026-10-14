@@ -3,8 +3,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { stripeOrderPayment } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const stripeOrderPayment = require('../../../controllers/Common/stripeOrderPayment.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.use(userAuthMiddleware.setRoleIdIfNotPresent);
 

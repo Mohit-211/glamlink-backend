@@ -1,5 +1,5 @@
 const catchAsync = require('../../utils/catchAsync');
-const { stripeServices } = require('../../services');
+const stripeServices = require('../../services/Common/stripe.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 

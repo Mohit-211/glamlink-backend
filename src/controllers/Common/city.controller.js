@@ -1,5 +1,5 @@
 const catchAsync = require('../../utils/catchAsync');
-const { cityService } = require('../../services');
+const cityService = require('../../services/Common/city.service');
 const pick = require('../../utils/pick');
 const config = require('../../config/config');
 const responseWrapper = require('../../config/responseWrapper');

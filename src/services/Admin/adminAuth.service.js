@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const { Admin, Department, Role } = require('../../models');
 const ApiError = require('../../utils/ApiError');
 const config = require('../../config/config');
-const { emailService } = require('../Common');
+const emailService = require('../Common/email.service');
 const { otpTypes } = require('../../config/types');
 
 const createAdminUser = async (userBody) => {

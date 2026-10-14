@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { vendorService } = require("../../services");
+const vendorService = require("../../services/Common/vendor.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createVendor = catchAsync(async (req, res) => {

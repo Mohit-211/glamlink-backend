@@ -1,5 +1,5 @@
 const catchAsync = require("../../utils/catchAsync");
-const { adminOperationsService } = require("../../services");
+const adminOperationsService = require("../../services/Admin/adminOperations.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const getLikesByPostId = catchAsync(async (req, res) => {

@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
 const responseWrapper = require("../../config/responseWrapper");
-const { discoverService } = require("../../services/Common");
+const discoverService = require("../../services/Common/discover.service");
 
 const createDiscover = catchAsync(async (req, res) => {
 	const data = await discoverService.createDiscover(

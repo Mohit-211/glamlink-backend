@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { numeralTaxCategoryService } = require("../../services");
+const numeralTaxCategoryService = require("../../services/Common/numeralTaxCategory.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createTaxCategory = catchAsync(async (req, res) => {

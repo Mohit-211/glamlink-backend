@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { schedularController } = require('../../../controllers');
-const { userAuthMiddleware, schedularMiddleware } = require('../../../middlewares');
+const schedularController = require('../../../controllers/Esthetician/schedular.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const schedularMiddleware = require('../../../middlewares/schedulat.middleware');
 
 
 router.post('/availability', [userAuthMiddleware.verifyAuthJWTToken, schedularMiddleware.validateCreateScheduleBody], schedularController.createAvailability);

@@ -2,7 +2,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { bannerService } = require("../../services");
+const bannerService = require("../../services/Common/bannerMedia.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createBanner = catchAsync(async (req, res) => {

@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { wishListService } = require("../../services");
+const wishListService = require("../../services/Common/wishList.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const addToWishlist = catchAsync(async (req, res) => {

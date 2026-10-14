@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { partnershipInquiryService } = require("../../services/Common");
+const partnershipInquiryService = require("../../services/Common/partnershipInquiry.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createPartnershipInquiry = catchAsync(async (req, res) => {

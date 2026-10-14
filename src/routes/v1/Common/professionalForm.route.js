@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { professionsalFormController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const professionsalFormController = require('../../../controllers/Common/professionalForm.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 
 

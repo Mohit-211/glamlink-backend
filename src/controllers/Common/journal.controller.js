@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { journalService } = require("../../services/Common");
+const journalService = require("../../services/Common/journal.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createJournal = catchAsync(async (req, res) => {

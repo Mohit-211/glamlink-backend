@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { appointmentController } = require('../../../controllers');
-const { userAuthMiddleware, apointmentMiddleware } = require('../../../middlewares');
+const appointmentController = require('../../../controllers/Common/appointment.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const apointmentMiddleware = require('../../../middlewares/apointment.middleware');
 
 router.post('/', [userAuthMiddleware.verifyAuthJWTToken, apointmentMiddleware.validateCreateApointmentBody], appointmentController.createAppointment);
 router.get('/', [userAuthMiddleware.verifyAuthJWTToken], appointmentController.getAllAppointment);

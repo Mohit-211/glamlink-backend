@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { numeralService } = require("../../services");
+const numeralService = require("../../services/Common/numeral.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const calculateCheckoutTax = catchAsync(async (req, res) => {

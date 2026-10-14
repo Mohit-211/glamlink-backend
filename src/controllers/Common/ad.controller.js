@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { adService } = require("../../services/Common");
+const adService = require("../../services/Common/ad.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createAd = catchAsync(async (req, res) => {

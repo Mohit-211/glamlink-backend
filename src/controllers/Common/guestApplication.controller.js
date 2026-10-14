@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { guestApplicationService } = require("../../services");
+const guestApplicationService = require("../../services/Common/guestApplication.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createGuestApplication = catchAsync(async (req, res) => {

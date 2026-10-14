@@ -3,8 +3,8 @@ const router = express.Router();
 const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
 const { Product } = require('../../../models');
 
-const { productController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const productController = require('../../../controllers/Common/product.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/createProduct', [userAuthMiddleware.verifyAuthJWTToken],productController.createProduct);
 router.get('/getAllProducts',[userAuthMiddleware.verifyAuthJWTToken],  productController.getAllProducts);

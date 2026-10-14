@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { userAuthController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const userAuthController = require('../../../controllers/User/auth.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.use(userAuthMiddleware.setRoleIdIfNotPresent);
 

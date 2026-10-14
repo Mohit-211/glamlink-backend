@@ -1,5 +1,5 @@
 const express = require('express');
-const { addController } = require('../../../controllers/Common');
+const addController = require('../../../controllers/Common/ad.controller');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { faqController } = require('../../../controllers');
+const faqController = require('../../../controllers/Common/faq.controller');
 
 router.post('/' , requireAdmin, faqController.createFaq);
 router.get('/' , faqController.getAllFaq);

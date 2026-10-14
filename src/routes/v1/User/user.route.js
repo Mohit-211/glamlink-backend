@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { userOpController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const userOpController = require('../../../controllers/User/user.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 
 router.get('/profile', [userAuthMiddleware.verifyAuthJWTToken], userOpController.getProfile);

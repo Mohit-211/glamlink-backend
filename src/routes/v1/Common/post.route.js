@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { postController } = require('../../../controllers');
-const { userAuthMiddleware, postMiddleware } = require('../../../middlewares');
+const postController = require('../../../controllers/Common/post.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const postMiddleware = require('../../../middlewares/post.middleware');
 
 
 router.post('', [userAuthMiddleware.verifyAuthJWTToken], postController.createPost);

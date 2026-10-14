@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const config = require('../../config/config');
 const pick = require('../../utils/pick');
 const catchAsync = require('../../utils/catchAsync');
-const { blogCategoryService } = require('../../services/Common');
+const blogCategoryService = require('../../services/Common/blogCategory.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 

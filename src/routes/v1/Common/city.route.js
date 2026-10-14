@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {cityController} = require('../../../controllers');
+const cityController = require('../../../controllers/Common/city.controller');
 
 
 router.get('/',cityController.getAllCity);

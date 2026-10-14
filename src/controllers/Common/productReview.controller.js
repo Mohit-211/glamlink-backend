@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { productReviewService } = require("../../services");
+const productReviewService = require("../../services/Common/productReview.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const postReviewAndRating = catchAsync(async (req, res) => {

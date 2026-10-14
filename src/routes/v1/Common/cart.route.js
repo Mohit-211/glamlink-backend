@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { cartController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const cartController = require('../../../controllers/Common/cart.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { departmentController } = require('../../../controllers');
+const departmentController = require('../../../controllers/Common/department.controller');
 
 router.post('/', requireAdmin, departmentController.createDepartment);
 router.get('/', departmentController.getAllDeparments);

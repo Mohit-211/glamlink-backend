@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../../utils/catchAsync');
-const { authorService } = require('../../services/Common');
+const authorService = require('../../services/Common/author.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 

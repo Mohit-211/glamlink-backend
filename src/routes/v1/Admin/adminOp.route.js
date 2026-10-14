@@ -5,8 +5,8 @@ const { requireAdmin } = require('../../../middlewares/access.middleware');
 // Every route in this router is admin-only.
 router.use(requireAdmin);
 
-const { adminOpController } = require('../../../controllers');
-const { adminAuthMiddleware } = require('../../../middlewares');
+const adminOpController = require('../../../controllers/Admin/adminOp.controller');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 router.get('/profile', [adminAuthMiddleware.validateJWTtoken], adminOpController.getAdminProfile);
 router.put('/profile/:id', [adminAuthMiddleware.validateJWTtoken], adminOpController.updateAdminProfile);

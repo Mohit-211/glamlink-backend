@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { journalController } = require("../../../controllers");
+const journalController = require("../../../controllers/Common/journal.controller");
 
 // ==========================================
 // Journal

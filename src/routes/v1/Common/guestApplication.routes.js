@@ -1,7 +1,7 @@
 /** @format */
 
 const express = require("express");
-const { guestApplicationController } = require("../../../controllers");
+const guestApplicationController = require("../../../controllers/Common/guestApplication.controller");
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 

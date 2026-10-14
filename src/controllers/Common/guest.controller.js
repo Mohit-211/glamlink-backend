@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { guestService } = require('../../services/Common');
+const guestService = require('../../services/Common/guest.service');
 const responseWrapper = require('../../config/responseWrapper');
 const catchAsync = require('../../utils/catchAsync');
 

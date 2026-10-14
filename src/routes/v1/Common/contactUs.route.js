@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const { contactUsController } = require('../../../controllers');
+const contactUsController = require('../../../controllers/Common/contactUs.controller');
 
 router.post('/', contactUsController.createContactUs);
 router.put('/:id', requireAdmin, contactUsController.updateContactUs);

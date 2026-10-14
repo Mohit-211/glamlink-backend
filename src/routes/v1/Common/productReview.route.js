@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { productReviewController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const productReviewController = require('../../../controllers/Common/productReview.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/postReviewAndRating',[userAuthMiddleware.verifyAuthJWTToken],productReviewController.postReviewAndRating);
 router.put('/updateReviewAndRating',[userAuthMiddleware.verifyAuthJWTToken],productReviewController.updateReviewAndRating);

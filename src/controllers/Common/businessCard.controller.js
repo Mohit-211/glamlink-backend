@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { businessCardService } = require("../../services");
+const businessCardService = require("../../services/Common/businessCard.service");
 const responseWrapper = require("../../config/responseWrapper");
 const pick = require("../../utils/pick");
 

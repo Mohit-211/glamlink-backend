@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { keywordController } = require('../../../controllers');
-const {adminAuthMiddleware} = require('../../../middlewares');
+const keywordController = require('../../../controllers/Common/keyword.controller');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 
 router.post('/',[ adminAuthMiddleware.validateJWTtoken], keywordController.createKeyword);

@@ -1,5 +1,5 @@
 const catchAsync = require('../../utils/catchAsync');
-const { countryService } = require('../../services');
+const countryService = require('../../services/Common/country.service');
 const pick = require('../../utils/pick');
 const config = require('../../config/config');
 const responseWrapper = require('../../config/responseWrapper');

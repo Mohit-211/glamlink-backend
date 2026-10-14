@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const pick = require('../../utils/pick');
 const catchAsync = require('../../utils/catchAsync');
-const { journalCategoryService } = require('../../services/Common');
+const journalCategoryService = require('../../services/Common/journalCategory.service');
 const responseWrapper = require('../../config/responseWrapper');
 
 

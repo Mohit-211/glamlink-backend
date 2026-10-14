@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { guestController } = require('../../../controllers');
+const guestController = require('../../../controllers/Common/guest.controller');
 
 router.post('/continueAsGuest' , guestController.continueAsGuest);
 

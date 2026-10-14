@@ -1,7 +1,7 @@
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
 const responseWrapper = require("../../config/responseWrapper");
-const { podcastScheduleService } = require("../../services/Common");
+const podcastScheduleService = require("../../services/Common/podcastSchedule.service");
 
 const createPodcastSchedule = catchAsync(async (req, res) => {
 	const data = await podcastScheduleService.createPodcastSchedule(req.body);

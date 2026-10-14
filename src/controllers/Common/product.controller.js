@@ -3,7 +3,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { productService } = require("../../services");
+const productService = require("../../services/Common/product.service");
 const pick = require("../../utils/pick");
 const responseWrapper = require("../../config/responseWrapper");
 

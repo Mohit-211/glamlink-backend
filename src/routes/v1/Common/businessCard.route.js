@@ -3,8 +3,8 @@ const router = express.Router();
 const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
 const { BusinessCard } = require('../../../models');
 
-const { userAuthMiddleware } = require('../../../middlewares');
-const { businessCardController } = require('../../../controllers/Common');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
+const businessCardController = require('../../../controllers/Common/businessCard.controller');
 
 router.post('/', businessCardController.createBusinessCard);
 router.post('/select-plan', businessCardController.selectBusinessCardPlan);

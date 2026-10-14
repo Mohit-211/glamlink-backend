@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { dashboardService } = require("../../services");
+const dashboardService = require("../../services/Admin/dashboard.service");
 
 const getUserCount = catchAsync(async (req, res) => {
 	const user = await dashboardService.getUserCount();

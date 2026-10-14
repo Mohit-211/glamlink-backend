@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { categoryController } = require('../../../controllers');
-const {adminAuthMiddleware} = require('../../../middlewares');
+const categoryController = require('../../../controllers/Common/category.controller');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 
 router.post('/',[ adminAuthMiddleware.validateJWTtoken], categoryController.createCategory);

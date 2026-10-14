@@ -3,8 +3,8 @@ const router = express.Router();
 const { requireAdmin, requireOwnerOrAdmin } = require('../../../middlewares/access.middleware');
 const { OrderDetails } = require('../../../models');
 
-const { orderController } = require('../../../controllers');
-const { userAuthMiddleware } = require('../../../middlewares');
+const orderController = require('../../../controllers/Common/order.controller');
+const userAuthMiddleware = require('../../../middlewares/userAuth.middleware');
 
 router.post('/createOrder',[userAuthMiddleware.verifyAuthJWTToken], orderController.createOrder);
 router.get('/getAllUserOrders',[userAuthMiddleware.verifyAuthJWTToken], orderController.getAllUserOrders);

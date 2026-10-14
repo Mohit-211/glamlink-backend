@@ -1,5 +1,5 @@
 const express = require('express');
-const { shippoController } = require('../../../controllers/Common');
+const shippoController = require('../../../controllers/Common/shippo.controller');
 
 const router = express.Router();
 

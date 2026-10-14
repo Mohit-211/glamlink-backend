@@ -1,7 +1,7 @@
 const httpStatus = require("http-status");
 
 const catchAsync = require("../../utils/catchAsync");
-const { cartService } = require("../../services/Common");
+const cartService = require("../../services/Common/cart.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const addItemToCart = catchAsync(async (req, res) => {

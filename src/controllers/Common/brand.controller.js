@@ -2,7 +2,7 @@
 
 const httpStatus = require("http-status");
 const catchAsync = require("../../utils/catchAsync");
-const { brandService } = require("../../services");
+const brandService = require("../../services/Common/brand.service");
 const responseWrapper = require("../../config/responseWrapper");
 
 const createBrand = catchAsync(async (req, res) => {

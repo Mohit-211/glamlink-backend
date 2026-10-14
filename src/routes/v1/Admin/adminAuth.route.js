@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../../middlewares/access.middleware');
 
-const {adminAuthController} = require('../../../controllers');
-const {adminAuthMiddleware} = require('../../../middlewares');
+const adminAuthController = require('../../../controllers/Admin/adminAuth.controller');
+const adminAuthMiddleware = require('../../../middlewares/adminAuth.middleware');
 
 // Only an existing admin can create another admin (Super Admin accounts come from `npm run auth`).
 router.post('/register', requireAdmin, [adminAuthMiddleware.validateCreateAdminBody], adminAuthController.createAdminUser);
