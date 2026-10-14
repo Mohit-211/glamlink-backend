@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const ApiError = require("../../core/http/ApiError");
 const { GuestApplication } = require("../../models");
 const { sendGuestApplicationEmail } = require("../../integrations/mailer/email.service");
@@ -31,7 +30,7 @@ const createGuestApplication = async (reqBody) => {
       instagram_handle,
       email,
       phone,
-      created_at: moment(),
+      created_at: new Date(),
     };
 
     const guestDoc = await GuestApplication.create(guestObj);

@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const { JournalCategory, Journal } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
@@ -10,7 +9,7 @@ const createCategory = async (reqBody) => {
 	try {
 		const categoryObj = {
 			title: reqBody.title,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const categoryDoc = await JournalCategory.create(categoryObj);

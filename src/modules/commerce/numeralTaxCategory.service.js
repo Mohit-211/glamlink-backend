@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const ApiError = require("../../core/http/ApiError");
 const { NumeralTaxCategory } = require("../../models");
 
@@ -17,7 +16,7 @@ const createTaxCategory = async (reqBody) => {
 		const categoryObj = {
 			numeral_tax_category,
 			name: name,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const categoryDoc = await NumeralTaxCategory.create(categoryObj);

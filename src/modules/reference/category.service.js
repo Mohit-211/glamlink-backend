@@ -1,6 +1,5 @@
 
 const httpStatus = require('../../core/http/status');
-const moment = require('moment')
 const { Category, ServiceList } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { literal } = require('sequelize'); 
@@ -12,7 +11,7 @@ const createCategory = async (reqBody) => {
         const categoryObj = {
             title: reqBody.title,
             // description: reqBody.description,
-            created_at : moment()
+            created_at : new Date()
         };
 
         const categoryDoc = await Category.create(categoryObj);

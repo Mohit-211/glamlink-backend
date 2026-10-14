@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 
 const {
 	Availability,
@@ -36,7 +35,7 @@ const createAvailability = async (body) => {
 			duration: slot_duration_in_minuites,
 			maximum_available_seats: maximum_available_seats,
 			is_active: true,
-			created_at: moment(),
+			created_at: new Date(),
 			start_time_local: start_time_local,
 			end_time_local: end_time_local,
 		};

@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const { BlogCategory, BlogCategoryMapping } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
@@ -10,7 +9,7 @@ const createBlogCategory = async (reqBody) => {
 		const blogCategoryObj = {
 			title: reqBody.title,
 			// description: reqBody.description,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const blogCategoryDoc = await BlogCategory.create(blogCategoryObj);

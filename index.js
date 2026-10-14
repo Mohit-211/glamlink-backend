@@ -1,5 +1,5 @@
 const app = require('./app.js');
-const moment = require('moment');
+const { DateTime } = require('./src/core/utils/time');
 const config = require('./src/core/config/config.js');
 const logger = require('./src/core/logger.js');
 process.env.TZ = config.DEFAULT_TIMEZONE;
@@ -11,9 +11,9 @@ let servers = http.createServer(app);
 
 
 // Get the current date and time
-const currentTime = moment();
+const currentTime = DateTime.now();
 let server = servers.listen(config.port,"127.0.0.1", () => {
-    logger.info(`Server is Working Fine😊 & Listening to PORT: ${config.port} | Default Timezone is: ${process.env.TZ} | Current date and time: ${currentTime.format('YYYY-MM-DD HH:mm:ss')}`);
+    logger.info(`Server is Working Fine😊 & Listening to PORT: ${config.port} | Default Timezone is: ${process.env.TZ} | Current date and time: ${currentTime.toFormat('yyyy-MM-dd HH:mm:ss')}`);
 });
 
 

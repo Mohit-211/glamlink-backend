@@ -3,8 +3,7 @@
 const httpStatus = require("../../core/http/status");
 const bcrypt = require("bcryptjs");
 const Sequelize = require("sequelize");
-const momentTz = require("moment-timezone");
-const moment = require("moment");
+const { toDateTime, timeAgo, slotTiming } = require("../../core/utils/time");
 const { literal } = require("sequelize");
 const slugify = require("slugify");
 
@@ -347,10 +346,7 @@ const getAllTransaction = async (reqBody, header) => {
     }
 
     const paymentsWithFormattedDate = paymentsDocs.map((payment) => {
-      const startTimeWithDate = momentTz
-        .tz(payment.updated_at, "YYYY-MM-DD HH:mm:ss", "UTC")
-        .tz(timezone)
-        .format("YYYY-MM-DD HH:mm:ss A");
+      const startTimeWithDate = toDateTime(payment.updated_at).setZone(timezone).toFormat("yyyy-MM-dd HH:mm:ss a");
       return {
         ...payment.toJSON(),
         date: startTimeWithDate,
@@ -744,10 +740,7 @@ const getAllTransactionAdminPanel = async (reqBody, header, query) => {
     }
 
     const paymentsWithFormattedDate = paymentsDocs.rows.map((payment) => {
-      const startTimeWithDate = momentTz
-        .tz(payment.updated_at, "YYYY-MM-DD HH:mm:ss", "UTC")
-        .tz(timezone)
-        .format("YYYY-MM-DD HH:mm:ss A");
+      const startTimeWithDate = toDateTime(payment.updated_at).setZone(timezone).toFormat("yyyy-MM-dd HH:mm:ss a");
       return {
         ...payment.toJSON(),
         date: startTimeWithDate,
@@ -885,31 +878,12 @@ const getAllAppointment = async (body, header, query) => {
       const slotStartTimeLocal = appointment.appointment_slot.start_time;
       const slotDateLocal = appointment.appointment_slot.date;
 
-      const startTimeWithDate = momentTz
-        .tz(
-          `${slotDateLocal} ${slotStartTimeLocal}`,
-          "YYYY-MM-DD HH:mm:ss",
-          appointmentTimezone,
-        )
-        .tz(timezone)
-        .format("DD MMMM hh:mm:ss A");
-      const currentTime = momentTz.tz(new Date(), timezone);
-      const appointmentTime = momentTz
-        .tz(
-          `${slotDateLocal} ${slotStartTimeLocal}`,
-          "YYYY-MM-DD HH:mm:ss",
-          appointmentTimezone,
-        )
-        .tz(timezone);
-
-      // Determine if the appointment is upcoming or completed
-      const isUpcoming = currentTime.isBefore(appointmentTime);
-      const isCompleted = currentTime.isAfter(appointmentTime);
-      const isTodayAndGreater =
-        momentTz()
-          .tz(timezone)
-          .isSame(momentTz(`${appointmentTime}`).tz(timezone), "day") &&
-        currentTime.isSameOrBefore(appointmentTime);
+      const {
+        start_time_with_date: startTimeWithDate,
+        is_upcoming: isUpcoming,
+        is_completed: isCompleted,
+        is_today_and_greater: isTodayAndGreater,
+      } = slotTiming(slotDateLocal, slotStartTimeLocal, appointmentTimezone, timezone);
 
       return {
         ...appointment.dataValues,
@@ -1326,34 +1300,9 @@ const getAllPost = async (body, query, params, headers) => {
     postDoc.forEach((post) => {
       const utcTimestamp = post.getDataValue("created_at");
 
-      const convertedTimestamp = moment
-        .utc(utcTimestamp)
-        .tz(timezone)
-        .format("DD MMM, YYYY hh:mm A");
-      post.setDataValue("post_date", convertedTimestamp);
-
-      const postCreatedTime = moment.utc(utcTimestamp);
-      const currentTime = moment().tz(timezone);
-      const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-      const daysDifference = duration.days();
-      const hoursDifference = duration.hours();
-      const minutesDifference = duration.minutes();
-      const secondsDifference = duration.seconds();
-
-      let formattedTime = "";
-      if (daysDifference >= 5) {
-        formattedTime = `${convertedTimestamp}`;
-      } else if (daysDifference >= 1) {
-        formattedTime = `${daysDifference}d`;
-      } else if (hoursDifference >= 1) {
-        formattedTime = `${hoursDifference}h`;
-      } else if (minutesDifference >= 1) {
-        formattedTime = `${minutesDifference}m`;
-      } else {
-        formattedTime = `${secondsDifference}s`;
-      }
-      post.setDataValue("time_ago", formattedTime);
+      const { date, ago } = timeAgo(utcTimestamp, timezone);
+      post.setDataValue("post_date", date);
+      post.setDataValue("time_ago", ago);
       post.setDataValue("is_liked", false);
       if (post.likes && post.likes.length !== 0)
         post.setDataValue("is_liked", true);
@@ -1692,7 +1641,7 @@ const promotedToogle = async (body) => {
           title: profession.title,
           slug,
           is_active: true,
-          created_at: moment(),
+          created_at: new Date(),
         });
         promotionIds.push(userPromotion.id);
       } else {
@@ -1727,7 +1676,7 @@ const promotedToogle = async (body) => {
             title: keyword.title,
             slug,
             is_active: true,
-            created_at: moment(),
+            created_at: new Date(),
           });
           promotionIds.push(userPromotion.id);
         } else {
@@ -1891,10 +1840,9 @@ const getUserPromotions = async (user_id) => {
     });
 
     const data = promotions.map((promotion) => {
-      const purchaseDate = moment(promotion.created_at);
-      const expiryDate = purchaseDate.clone().add(60, "days");
-      const today = moment();
-      const daysLeft = expiryDate.diff(today, "days");
+      const purchaseDate = toDateTime(promotion.created_at);
+      const expiryDate = purchaseDate.plus({ days: 60 });
+      const daysLeft = Math.trunc(expiryDate.diffNow("days").days);
 
       return {
         id: promotion.id,
@@ -1902,8 +1850,8 @@ const getUserPromotions = async (user_id) => {
         type: promotion.promotion_type,
         title: promotion.title,
         slug: promotion.slug,
-        purchase_date: purchaseDate.format("YYYY-MM-DD HH:MM:SS"),
-        expiry_date: expiryDate.format("YYYY-MM-DD HH:MM:SS"),
+        purchase_date: purchaseDate.toFormat("yyyy-MM-dd HH:mm:ss"),
+        expiry_date: expiryDate.toFormat("yyyy-MM-dd HH:mm:ss"),
         days_left: daysLeft > 0 ? daysLeft : 0,
         amount:
           promotion.promotion_type === "profession"

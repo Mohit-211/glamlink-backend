@@ -4,7 +4,7 @@ const httpStatus = require("../../core/http/status");
 const { otpAttemptKey, recordOtpFailure, resetOtpAttempts } = require("../../core/auth/otpAttempts");
 const bcrypt = require("bcryptjs");
 const randomDigits = require("../../core/utils/randomDigits");
-const moment = require("moment");
+const { DateTime } = require("../../core/utils/time");
 const {
   OTP,
   User,
@@ -614,8 +614,8 @@ const logout = async (reqBody, headers, isGuest) => {
 
 const saveLoginTiming = async (user, token, reqBody, timezone) => {
   try {
-    const loginTimeUTC = moment.utc();
-    const loginTimeLocal = moment.tz(loginTimeUTC, timezone);
+    const loginTimeUTC = new Date();
+    const loginTimeLocal = DateTime.fromJSDate(loginTimeUTC).setZone(timezone);
 
     const timeZoneDoc = await Timezone.findOne({
       where: { time_zone: timezone, is_active: true },
@@ -625,7 +625,7 @@ const saveLoginTiming = async (user, token, reqBody, timezone) => {
       user_id: user.id,
       role_id: user.role_id,
       login_time_utc: loginTimeUTC,
-      login_time_local: loginTimeLocal.format("YYYY-MM-DD hh:mm:ss"),
+      login_time_local: loginTimeLocal.toFormat("yyyy-MM-dd HH:mm:ss"),
       ip_address: reqBody.ip_address,
       token_id: token.access.id,
       time_zone: timeZoneDoc.id,
@@ -643,8 +643,8 @@ const saveLoginTiming = async (user, token, reqBody, timezone) => {
 
 const saveLogoutTiming = async (tokenDoc, timezone) => {
   try {
-    const logoutTimeUTC = moment.utc();
-    const logoutTimeLocal = moment.tz(logoutTimeUTC, timezone);
+    const logoutTimeUTC = new Date();
+    const logoutTimeLocal = DateTime.fromJSDate(logoutTimeUTC).setZone(timezone).toFormat("yyyy-MM-dd HH:mm:ss");
 
     let loginTimingDocDoc = await userLoginTiming.findOne({
       where: { token_id: tokenDoc.id },

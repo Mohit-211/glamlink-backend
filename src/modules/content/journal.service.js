@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const { Op } = require("sequelize");
 const {
   Journal,
@@ -44,7 +43,7 @@ const createJournal = async (reqBody, files) => {
       seo_title: reqBody.seo_title || null,
       meta_description: reqBody.meta_description || null,
       slug: reqBody.slug || null,
-      created_at: moment(),
+      created_at: new Date(),
     };
 
     // ==========================

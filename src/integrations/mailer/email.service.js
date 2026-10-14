@@ -1,7 +1,7 @@
 /** @format */
 
 const nodemailer = require("nodemailer");
-const moment = require("moment");
+const { longDate } = require("../../core/utils/time");
 const config = require("../../core/config/config");
 const logger = require("../../core/logger");
 const {
@@ -148,7 +148,7 @@ const sendOrderConfirmationToSeller = async (
   ).toFixed(2);
   const commission = (orderAmount * 0.1).toFixed(2);
   const payout = (orderAmount - commission).toFixed(2);
-  const orderDate = moment(order.createdAt).format("MMMM Do YYYY");
+  const orderDate = longDate(order.createdAt);
 
   const text = `
 Hi ${seller?.user_profile?.name},
@@ -189,7 +189,7 @@ const sendOrderConfirmationToBuyer = async (
   product,
 ) => {
   const subject = "Thank You for Your Order on Glamlink!";
-  const orderDate = moment(order.createdAt).format("MMMM Do YYYY");
+  const orderDate = longDate(order.createdAt);
   const orderAmount = parseFloat(
     orderDetail.total_price || orderDetail.unit_price,
   ).toFixed(2);
@@ -230,7 +230,7 @@ const sendOrderNotificationToAdmin = async (
   product,
 ) => {
   const subject = `📦 New Order Placed on Glamlink`;
-  const orderDate = moment(order.createdAt).format("MMMM Do YYYY");
+  const orderDate = longDate(order.createdAt);
   const orderAmount = parseFloat(
     orderDetail.total_price || orderDetail.unit_price,
   ).toFixed(2);

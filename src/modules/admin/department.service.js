@@ -1,5 +1,4 @@
 const httpStatus = require('../../core/http/status');
-const moment = require('moment')
 
 const { Department } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
@@ -8,7 +7,7 @@ const createDepartment = async (reqBody) => {
     try {
         const departmentObj = {
             name: reqBody.name, 
-            created_at : moment()
+            created_at : new Date()
         };
         const departmentDoc = await Department.create(departmentObj);
         if (!departmentDoc) {

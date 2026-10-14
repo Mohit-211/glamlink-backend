@@ -2,7 +2,6 @@
 
 const httpStatus = require("../../core/http/status");
 const { Sequelize, Op } = require("sequelize");
-const moment = require("moment-timezone");
 const path = require("path");
 const { IMAGES_DIR } = require("../../core/config/paths");
 const fs = require("fs");

@@ -12,7 +12,6 @@ const {
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 const config = require("../../core/config/config");
-const moment = require("moment");
 const { createNotification } = require("../notifications/notification.service");
 const { notificationTypes, actionTypes } = require("../../core/config/types");
 const { earnCoin } = require('../users/glamcoin.service');
@@ -110,7 +109,7 @@ const createReview = async (reqBody) => {
 				reviewObj["counselor_id"] = counselor_id;
 			}
 			reviewObj["user_id"] = user.id;
-			reviewObj["created_at"] = moment();
+			reviewObj["created_at"] = new Date();
 
 			if (level && level !== "" && level !== "undefined") {
 				reviewObj["level"] = level;

@@ -1,5 +1,4 @@
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const ApiError = require("../../core/http/ApiError");
 const Education = require("../../models/education.model");
 const { Event, Shop, JournalTopic } = require("../../models");
@@ -39,7 +38,7 @@ const createDiscover = async (type, reqBody, files) => {
       short_description: reqBody.short_description,
       category: reqBody.category,
       status: isPublished ? "published" : "draft",
-      created_at: moment(),
+      created_at: new Date(),
     };
 
     if (type === "education") {
@@ -353,7 +352,7 @@ const mapShopCsvRow = async (row) => {
     category: row.merchant_category?.trim() || null,
    status: "published", 
     is_active: true,
-    created_at: moment(),
+    created_at: new Date(),
   };
 };
 

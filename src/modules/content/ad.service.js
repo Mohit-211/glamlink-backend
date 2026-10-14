@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const { Ad } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
@@ -60,7 +59,7 @@ const createAd = async (reqBody, files) => {
       end_date: reqBody.end_date || null,
       status: reqBody.status === "inactive" ? "inactive" : "active",
       sort_order: reqBody.sort_order || 0,
-      created_at: moment(),
+      created_at: new Date(),
     };
 
     // ==========================

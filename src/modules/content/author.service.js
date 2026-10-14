@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const { Author } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
@@ -11,7 +10,7 @@ const createAuthor = async (reqBody, files) => {
 			name: reqBody.name,
 			designation: reqBody.designation,
 			bio: reqBody.bio,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		if (files?.images?.length) {

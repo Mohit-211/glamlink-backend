@@ -1,7 +1,6 @@
 const httpStatus = require('../../core/http/status');
 const { Role } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
-const moment = require('moment')
 
 
 const createRole = async (reqBody) => {
@@ -9,7 +8,7 @@ const createRole = async (reqBody) => {
         const roleObj = {
             name: reqBody.name,
             abbreviation: reqBody.abbreviation,
-            created_at : moment()
+            created_at : new Date()
         };
         const roleDoc = await Role.create(roleObj);
         if (!roleDoc) {

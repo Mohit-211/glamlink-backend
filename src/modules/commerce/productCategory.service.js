@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 const {
 	ProductCategory,
 	ProductCategoryMapping,
@@ -26,7 +25,7 @@ const createProductCategoryHeading = async (reqBody) => {
 
 		const productCategoryObj = {
 			title: reqBody.title,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const productCategoryDoc = await ProductCategoryHeading.create(
@@ -53,7 +52,7 @@ const createProductCategory = async (reqBody) => {
 		const categoryObj = {
 			title: title,
 			category_id: category_id,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const categoryDoc = await ProductCategory.create(categoryObj);

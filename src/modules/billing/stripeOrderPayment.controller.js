@@ -3,7 +3,7 @@
 const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");
 const Stripe = require("stripe");
-const moment = require("moment");
+const { todayDate } = require("../../core/utils/time");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const {
@@ -1075,7 +1075,7 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
 
 const getNewPaymentCount = catchAsync(async (req, res) => {
   try {
-    const today = moment().format("YYYY-MM-DD");
+    const today = todayDate();
     const paymentDoc = await Payment.findAll({
       attributes: ["id"],
       where: {
@@ -1101,7 +1101,7 @@ const getNewPaymentCount = catchAsync(async (req, res) => {
 
 const getNewPaymentTotal = catchAsync(async (req, res) => {
   try {
-    const today = moment().format("YYYY-MM-DD");
+    const today = todayDate();
     const paymentDoc = await Payment.findAll({
       attributes: ["id", "amount"],
       where: {

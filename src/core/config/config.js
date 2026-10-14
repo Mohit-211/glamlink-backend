@@ -27,6 +27,7 @@ const number = (key, fallback) => {
 envVars.PORT = number('PORT', 5000);
 envVars.SMTP_PORT = number('SMTP_PORT');
 envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
+envVars.JWT_ACCESS_EXPIRATION_DAYS = number('JWT_ACCESS_EXPIRATION_DAYS', 7);
 envVars.DEFAULT_TIMEZONE ??= 'UTC';
 
 module.exports = {
@@ -44,7 +45,7 @@ module.exports = {
     },
     jwt: {
         secret: envVars.JWT_SECRET,
-        accessExpirationMinutes: envVars.JWT_ACCESS_EXPIRATION_DAYS,
+        accessExpirationDays: envVars.JWT_ACCESS_EXPIRATION_DAYS,
     },
     email: {
         smtp: {

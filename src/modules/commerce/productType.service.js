@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 
 const ApiError = require("../../core/http/ApiError");
 const { ProductType } = require("../../models");
@@ -12,7 +11,7 @@ const createProductType = async (reqBody) => {
 		const brandObj = {
 			name: reqBody.name,
 			user_id: user.id,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const brandDoc = await ProductType.create(brandObj);

@@ -1,6 +1,6 @@
 const httpStatus = require('../../core/http/status');
 const { Sequelize, Op } = require('sequelize');
-const moment = require('moment-timezone');
+const { timeAgo } = require('../../core/utils/time');
 
 
 const { Follow, User, Story, Wall_Story, Wall, Profile, UserAttachment } = require('../../models');
@@ -112,31 +112,9 @@ const getAllStoryByUserId = async (body, query, params, headers) => {
     storyDoc.forEach((post) => {
         const utcTimestamp = post.getDataValue('created_at');
 
-        const convertedTimestamp = moment.utc(utcTimestamp).tz(timezone).format('DD MMM, YYYY hh:mm A');
-        post.setDataValue('post_date', convertedTimestamp);
-
-        const postCreatedTime = moment.utc(utcTimestamp);
-        const currentTime = moment().tz(timezone);
-        const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-        const daysDifference = duration.days();
-        const hoursDifference = duration.hours();
-        const minutesDifference = duration.minutes();
-        const secondsDifference = duration.seconds();
-
-        let formattedTime = '';
-        if (daysDifference >= 5) {
-            formattedTime = `${convertedTimestamp}`;
-        } else if (daysDifference >= 1) {
-            formattedTime = `${daysDifference}d`;
-        } else if (hoursDifference >= 1) {
-            formattedTime = `${hoursDifference}h`;
-        } else if (minutesDifference >= 1) {
-            formattedTime = `${minutesDifference}m`;
-        } else {
-            formattedTime = `${secondsDifference}s`;
-        };
-        post.setDataValue('time_ago', formattedTime);
+        const { date, ago } = timeAgo(utcTimestamp, timezone);
+        post.setDataValue('post_date', date);
+        post.setDataValue('time_ago', ago);
     });
 
     return storyDoc;

@@ -2,7 +2,7 @@
 
 const httpStatus = require("../../core/http/status");
 const { Sequelize } = require("sequelize");
-const moment = require("moment-timezone");
+const { timeAgo } = require("../../core/utils/time");
 
 const {
 	Post,
@@ -223,34 +223,9 @@ const getAllPostByUserId = async (body, query, params, headers) => {
 		postDoc.forEach((post) => {
 			const utcTimestamp = post.getDataValue("created_at");
 
-			const convertedTimestamp = moment
-				.utc(utcTimestamp)
-				.tz(timezone)
-				.format("DD MMM, YYYY hh:mm A");
-			post.setDataValue("post_date", convertedTimestamp);
-
-			const postCreatedTime = moment.utc(utcTimestamp);
-			const currentTime = moment().tz(timezone);
-			const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-			const daysDifference = duration.days();
-			const hoursDifference = duration.hours();
-			const minutesDifference = duration.minutes();
-			const secondsDifference = duration.seconds();
-
-			let formattedTime = "";
-			if (daysDifference >= 5) {
-				formattedTime = `${convertedTimestamp}`;
-			} else if (daysDifference >= 1) {
-				formattedTime = `${daysDifference}d`;
-			} else if (hoursDifference >= 1) {
-				formattedTime = `${hoursDifference}h`;
-			} else if (minutesDifference >= 1) {
-				formattedTime = `${minutesDifference}m`;
-			} else {
-				formattedTime = `${secondsDifference}s`;
-			}
-			post.setDataValue("time_ago", formattedTime);
+			const { date, ago } = timeAgo(utcTimestamp, timezone);
+			post.setDataValue("post_date", date);
+			post.setDataValue("time_ago", ago);
 			post.setDataValue("is_liked", false);
 			post.setDataValue("is_saved", false);
 			if (post.likes && post.likes.length !== 0)
@@ -506,34 +481,9 @@ const getAllOtherUserPostByUserId = async (body, query, params, headers) => {
 		postDoc.forEach((post) => {
 			const utcTimestamp = post.getDataValue("created_at");
 
-			const convertedTimestamp = moment
-				.utc(utcTimestamp)
-				.tz(timezone)
-				.format("DD MMM, YYYY hh:mm A");
-			post.setDataValue("post_date", convertedTimestamp);
-
-			const postCreatedTime = moment.utc(utcTimestamp);
-			const currentTime = moment().tz(timezone);
-			const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-			const daysDifference = duration.days();
-			const hoursDifference = duration.hours();
-			const minutesDifference = duration.minutes();
-			const secondsDifference = duration.seconds();
-
-			let formattedTime = "";
-			if (daysDifference >= 5) {
-				formattedTime = `${convertedTimestamp}`;
-			} else if (daysDifference >= 1) {
-				formattedTime = `${daysDifference}d`;
-			} else if (hoursDifference >= 1) {
-				formattedTime = `${hoursDifference}h`;
-			} else if (minutesDifference >= 1) {
-				formattedTime = `${minutesDifference}m`;
-			} else {
-				formattedTime = `${secondsDifference}s`;
-			}
-			post.setDataValue("time_ago", formattedTime);
+			const { date, ago } = timeAgo(utcTimestamp, timezone);
+			post.setDataValue("post_date", date);
+			post.setDataValue("time_ago", ago);
 			post.setDataValue("is_liked", false);
 			post.setDataValue("is_saved", false);
 			if (post.likes && post.likes.length !== 0)
@@ -713,24 +663,8 @@ const postDetailsById = async (params, header, body) => {
 
 		// ====== Format Time and Date ======
 		const utcTimestamp = postDoc.getDataValue("created_at");
-		const convertedTimestamp = moment.utc(utcTimestamp).tz(timezone).format('DD MMM, YYYY hh:mm A');
-
-
-		const postCreatedTime = moment.utc(utcTimestamp);
-		const currentTime = moment().tz(timezone);
-		const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-		let formattedTime = "";
-		if (duration.asDays() >= 5) formattedTime = `${convertedTimestamp}`;
-		else if (duration.asDays() >= 1)
-			formattedTime = `${Math.floor(duration.asDays())}d`;
-		else if (duration.asHours() >= 1)
-			formattedTime = `${Math.floor(duration.asHours())}h`;
-		else if (duration.asMinutes() >= 1)
-			formattedTime = `${Math.floor(duration.asMinutes())}m`;
-		else formattedTime = `${Math.floor(duration.asSeconds())}s`;
-
-		postDoc.setDataValue("time_ago", formattedTime);
+		const { ago } = timeAgo(utcTimestamp, timezone);
+		postDoc.setDataValue("time_ago", ago);
 
 		// ====== Add Like/Save Flags ======
 		postDoc.setDataValue("is_liked", !!(postDoc.likes && postDoc.likes.length));
@@ -1236,34 +1170,9 @@ const getAllSavedPost = async (body, header) => {
 		postDoc.forEach((post) => {
 			const utcTimestamp = post.getDataValue("created_at");
 
-			const convertedTimestamp = moment
-				.utc(utcTimestamp)
-				.tz(timezone)
-				.format("DD MMM, YYYY hh:mm A");
-			post.setDataValue("post_date", convertedTimestamp);
-
-			const postCreatedTime = moment.utc(utcTimestamp);
-			const currentTime = moment().tz(timezone);
-			const duration = moment.duration(currentTime.diff(postCreatedTime));
-
-			const daysDifference = duration.days();
-			const hoursDifference = duration.hours();
-			const minutesDifference = duration.minutes();
-			const secondsDifference = duration.seconds();
-
-			let formattedTime = "";
-			if (daysDifference >= 5) {
-				formattedTime = `${convertedTimestamp}`;
-			} else if (daysDifference >= 1) {
-				formattedTime = `${daysDifference}d`;
-			} else if (hoursDifference >= 1) {
-				formattedTime = `${hoursDifference}h`;
-			} else if (minutesDifference >= 1) {
-				formattedTime = `${minutesDifference}m`;
-			} else {
-				formattedTime = `${secondsDifference}s`;
-			}
-			post.setDataValue("time_ago", formattedTime);
+			const { date, ago } = timeAgo(utcTimestamp, timezone);
+			post.setDataValue("post_date", date);
+			post.setDataValue("time_ago", ago);
 			post.setDataValue("is_liked", false);
 			if (post.likes && post.likes.length !== 0)
 				post.setDataValue("is_liked", true);

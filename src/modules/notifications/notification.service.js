@@ -1,5 +1,4 @@
 const httpStatus = require('../../core/http/status');
-const moment = require('moment');
 const { Notification, UserToken, User, UserAttachment, Profile } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { notificationTypes, notificationMediumTypes, notificationTypesArr } = require('../../core/config/types');
@@ -126,8 +125,6 @@ const createNotification = async (reqBody) => {
         };
         if (timezone) {
             notificationObj['time_zone'] = timezone;
-            // Convert event_time to the specified timezone
-            notificationObj['event_time'] = moment(notificationObj.event_time).tz(timezone).format();
         }
         let notificationDoc = await Notification.create(notificationObj);
 
@@ -195,7 +192,7 @@ const createNotification = async (reqBody) => {
         }
 
         notificationDoc.is_send = true;
-        notificationDoc.sending_time = moment();
+        notificationDoc.sending_time = new Date();
         await notificationDoc.save();
 
     } catch (error) {

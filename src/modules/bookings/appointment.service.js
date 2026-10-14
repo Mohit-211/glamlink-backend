@@ -1,8 +1,7 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
-const momentTz = require("moment-timezone");
+const { slotTiming } = require("../../core/utils/time");
 
 const {
 	User,
@@ -196,31 +195,12 @@ const getAllAppointment = async (body, header, query) => {
 			const slotStartTimeLocal = appointment.appointment_slot.start_time;
 			const slotDateLocal = appointment.appointment_slot.date;
 
-			const startTimeWithDate = momentTz
-				.tz(
-					`${slotDateLocal} ${slotStartTimeLocal}`,
-					"YYYY-MM-DD HH:mm:ss",
-					appointmentTimezone
-				)
-				.tz(timezone)
-				.format("DD MMMM hh:mm:ss A");
-			const currentTime = moment.tz(new Date(), timezone);
-			const appointmentTime = moment
-				.tz(
-					`${slotDateLocal} ${slotStartTimeLocal}`,
-					"YYYY-MM-DD HH:mm:ss",
-					appointmentTimezone
-				)
-				.tz(timezone);
-
-			// Determine if the appointment is upcoming or completed
-			const isUpcoming = currentTime.isBefore(appointmentTime);
-			const isCompleted = currentTime.isAfter(appointmentTime);
-			const isTodayAndGreater =
-				moment()
-					.tz(timezone)
-					.isSame(moment(`${appointmentTime}`).tz(timezone), "day") &&
-				currentTime.isSameOrBefore(appointmentTime);
+			const {
+				start_time_with_date: startTimeWithDate,
+				is_upcoming: isUpcoming,
+				is_completed: isCompleted,
+				is_today_and_greater: isTodayAndGreater,
+			} = slotTiming(slotDateLocal, slotStartTimeLocal, appointmentTimezone, timezone);
 
 			if (appointment.status === appointmentTypes.CANCELED) {
 				response["canceled"].push({
@@ -723,31 +703,12 @@ const appointmentDetail = async (body, header, param) => {
 			appointmentDoc.appointment_slot.slot_start_time_local;
 		const slotDateLocal = appointmentDoc.appointment_slot.slot_date_local;
 
-		const startTimeWithDate = momentTz
-			.tz(
-				`${slotDateLocal} ${slotStartTimeLocal}`,
-				"YYYY-MM-DD HH:mm:ss",
-				appointmentTimezone
-			)
-			.tz(timezone)
-			.format("DD MMMM hh:mm:ss A");
-		const currentTime = moment.tz(new Date(), timezone);
-		const appointmentDocTime = moment
-			.tz(
-				`${slotDateLocal} ${slotStartTimeLocal}`,
-				"YYYY-MM-DD HH:mm:ss",
-				appointmentTimezone
-			)
-			.tz(timezone);
-
-		// Determine if the appointmentDoc is upcoming or completed
-		const isUpcoming = currentTime.isBefore(appointmentDocTime);
-		const isCompleted = currentTime.isAfter(appointmentDocTime);
-		const isTodayAndGreater =
-			moment()
-				.tz(timezone)
-				.isSame(moment(`${appointmentDocTime}`).tz(timezone), "day") &&
-			currentTime.isSameOrBefore(appointmentDocTime);
+		const {
+			start_time_with_date: startTimeWithDate,
+			is_upcoming: isUpcoming,
+			is_completed: isCompleted,
+			is_today_and_greater: isTodayAndGreater,
+		} = slotTiming(slotDateLocal, slotStartTimeLocal, appointmentTimezone, timezone);
 
 		return {
 			...appointmentDoc.dataValues,

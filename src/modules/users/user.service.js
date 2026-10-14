@@ -5,7 +5,7 @@ const path = require("path");
 const { IMAGES_DIR } = require("../../core/config/paths");
 const fs = require("fs");
 const { Sequelize, Op } = require("sequelize");
-const moment = require("moment");
+const { timeAgo } = require("../../core/utils/time");
 const httpClient = require("../../core/http/httpClient");
 
 const {
@@ -2333,34 +2333,9 @@ const getUserWall = async (body, headers, query, params) => {
     wallDoc.forEach((story) => {
       const utcTimestamp = story.getDataValue("created_at");
 
-      const convertedTimestamp = moment
-        .utc(utcTimestamp)
-        .tz(timezone)
-        .format("DD MMM, YYYY hh:mm A");
-      story.setDataValue("story_date", convertedTimestamp);
-
-      const storyCreatedTime = moment.utc(utcTimestamp);
-      const currentTime = moment().tz(timezone);
-      const duration = moment.duration(currentTime.diff(storyCreatedTime));
-
-      const daysDifference = duration.days();
-      const hoursDifference = duration.hours();
-      const minutesDifference = duration.minutes();
-      const secondsDifference = duration.seconds();
-
-      let formattedTime = "";
-      if (daysDifference >= 5) {
-        formattedTime = `${convertedTimestamp}`;
-      } else if (daysDifference >= 1) {
-        formattedTime = `${daysDifference}d`;
-      } else if (hoursDifference >= 1) {
-        formattedTime = `${hoursDifference}h`;
-      } else if (minutesDifference >= 1) {
-        formattedTime = `${minutesDifference}m`;
-      } else {
-        formattedTime = `${secondsDifference}s`;
-      }
-      story.setDataValue("time_ago", formattedTime);
+      const { date, ago } = timeAgo(utcTimestamp, timezone);
+      story.setDataValue("story_date", date);
+      story.setDataValue("time_ago", ago);
       result[`${story.user_id}`].push(story);
     });
     return result;

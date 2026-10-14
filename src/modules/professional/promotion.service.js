@@ -1,7 +1,7 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
+const { toDateTime } = require("../../core/utils/time");
 const Stripe = require("stripe");
 const {
 	Profession,
@@ -53,7 +53,7 @@ const createUserPromotion = async (reqBody, res) => {
 				title: profession.title,
 				slug,
 				is_active: false,
-				created_at: moment(),
+				created_at: new Date(),
 			});
 
 			promotionIds.push(userPromotion.id);
@@ -77,7 +77,7 @@ const createUserPromotion = async (reqBody, res) => {
 				title: keyword.title,
 				slug,
 				is_active: false,
-				created_at: moment(),
+				created_at: new Date(),
 			});
 
 			promotionIds.push(userPromotion.id);
@@ -100,7 +100,7 @@ const createUserPromotion = async (reqBody, res) => {
 			description: "Promotion for Profession and Keywords",
 			amount: totalAmount,
 			payment_status: "PENDING",
-			created_at: moment(),
+			created_at: new Date(),
 		});
 
 		// 🔹 Create Stripe Payment Intent
@@ -189,18 +189,17 @@ const getUserPromotionsStatus = async (reqBody) => {
 		});
 
 		const data = promotions.map((promotion) => {
-			const purchaseDate = moment(promotion.created_at);
-			const expiryDate = purchaseDate.clone().add(60, "days");
-			const today = moment();
-			const daysLeft = expiryDate.diff(today, "days");
+			const purchaseDate = toDateTime(promotion.created_at);
+			const expiryDate = purchaseDate.plus({ days: 60 });
+			const daysLeft = Math.trunc(expiryDate.diffNow("days").days);
 
 			return {
 				id: promotion.id,
 				type: promotion.promotion_type,
 				title: promotion.title,
 				slug: promotion.slug,
-				purchase_date: purchaseDate.format("YYYY-MM-DD HH:MM:SS"),
-				expiry_date: expiryDate.format("YYYY-MM-DD HH:MM:SS"),
+				purchase_date: purchaseDate.toFormat("yyyy-MM-dd HH:mm:ss"),
+				expiry_date: expiryDate.toFormat("yyyy-MM-dd HH:mm:ss"),
 				days_left: daysLeft > 0 ? daysLeft : 0,
 				amount:
 					promotion.promotion_type === "profession"

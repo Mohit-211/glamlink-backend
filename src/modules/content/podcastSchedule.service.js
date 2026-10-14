@@ -1,6 +1,6 @@
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
+const { todayDate } = require("../../core/utils/time");
 const {  PodcastSchedule, JournalTopic } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
@@ -11,7 +11,7 @@ const createPodcastSchedule = async (reqBody) => {
 			name: reqBody.name,
 			short_description: reqBody.short_description,
 			schedule_date: reqBody.schedule_date,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const scheduleDoc = await PodcastSchedule.create(scheduleObj);
@@ -34,7 +34,7 @@ const createPodcastSchedule = async (reqBody) => {
 
 const getPodcastSchedules = async () => {
 	try {
-		const today = moment().format("YYYY-MM-DD");
+		const today = todayDate();
 
 		const schedules = await PodcastSchedule.findAll({
 			where: {
@@ -140,7 +140,7 @@ const updatePodcastSchedule = async (id, reqBody) => {
 				reqBody.schedule_date ||
 				scheduleDoc.schedule_date,
 
-			updated_at: moment(),
+			updated_at: new Date(),
 		});
 
 		return scheduleDoc;

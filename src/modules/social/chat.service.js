@@ -1,6 +1,6 @@
 const { getDatabase, ServerValue } = require("firebase-admin/database");
 const httpStatus = require("../../core/http/status");
-const moment = require('moment');
+const { DateTime, toDateTime } = require("../../core/utils/time");
 
 const ApiError = require('../../core/http/ApiError');
 const { User, Profile, UserAttachment, Notification } = require("../../models");
@@ -103,10 +103,10 @@ const postMessage = async (body, header) => {
             let convertionDoc = snapshot.val();
             if (convertionDoc) {
                 unseenCountForReceiver = convertionDoc.unseenCount ? convertionDoc.unseenCount + 1 : 1;
-                lastMessageTime = moment().toISOString();
+                lastMessageTime = new Date().toISOString();
             } else {
                 unseenCountForReceiver = 1;
-                lastMessageTime = moment().toISOString();
+                lastMessageTime = new Date().toISOString();
             }
         }).catch((errorObject) => {
             throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, errorObject.name);
@@ -223,15 +223,15 @@ const getChatUserList = async (body, header) => {
 };
 
 const convertLastMessageTime = (lastMessageTime, timezone) => {
-    const now = moment().tz(timezone);
-    const messageTime = moment(lastMessageTime).tz(timezone);
+    const now = DateTime.now().setZone(timezone);
+    const messageTime = toDateTime(lastMessageTime).setZone(timezone);
 
-    if (messageTime.isSame(now, 'day')) {
-        return `Today at ${messageTime.format('h:mm A')}`;
-    } else if (messageTime.isSame(now.clone().subtract(1, 'day'), 'day')) {
-        return `Yesterday at ${messageTime.format('h:mm A')}`;
+    if (messageTime.hasSame(now, 'day')) {
+        return `Today at ${messageTime.toFormat('h:mm a')}`;
+    } else if (messageTime.hasSame(now.minus({ days: 1 }), 'day')) {
+        return `Yesterday at ${messageTime.toFormat('h:mm a')}`;
     } else {
-        return messageTime.format('MMM D, YYYY h:mm A');
+        return messageTime.toFormat('MMM d, yyyy h:mm a');
     }
 };
 

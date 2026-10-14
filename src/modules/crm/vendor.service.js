@@ -1,7 +1,6 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const moment = require("moment");
 
 const ApiError = require("../../core/http/ApiError");
 const { Vendor } = require("../../models");
@@ -16,7 +15,7 @@ const createVendor = async (reqBody) => {
 			address: reqBody.address,
 			gst: reqBody.gst,
 			user_id: user.id,
-			created_at: moment(),
+			created_at: new Date(),
 		};
 
 		const brandDoc = await Vendor.create(brandObj);

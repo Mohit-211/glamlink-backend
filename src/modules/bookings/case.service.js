@@ -1,11 +1,10 @@
 const httpStatus = require('../../core/http/status');
-const momentTz = require('moment-timezone');
+const { slotTiming } = require('../../core/utils/time');
 const Sequelize = require('sequelize');
 
 const { User, Case, Appointment, CaseAttachment, Slot, UserAttachment, Profile } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const config = require('../../core/config/config');
-const moment = require('moment');
 const { caseTypes } = require('../../core/config/types');
 
 
@@ -147,13 +146,7 @@ const caseDetail = async (body, params, header) => {
             const slotStartTimeLocal = appointment.appointment_slot.slot_start_time_local;
             const slotDateLocal = appointment.appointment_slot.slot_date_local;
 
-            const startTimeWithDate = momentTz.tz(`${slotDateLocal} ${slotStartTimeLocal}`, 'YYYY-MM-DD HH:mm:ss', appointmentTimezone).tz(timezone).format('DD MMMM hh:mm:ss A');
-            const currentTime = moment.tz(new Date(), timezone);
-            const appointmentTime = moment.tz(`${slotDateLocal} ${slotStartTimeLocal}`, 'YYYY-MM-DD HH:mm:ss', appointmentTimezone).tz(timezone);
-
-            // Determine if the appointment is upcoming or completed
-            const isUpcoming = currentTime.isBefore(appointmentTime);
-            const isCompleted = currentTime.isAfter(appointmentTime);
+            const { start_time_with_date: startTimeWithDate, is_upcoming: isUpcoming, is_completed: isCompleted } = slotTiming(slotDateLocal, slotStartTimeLocal, appointmentTimezone, timezone);
 
             return { ...appointment.dataValues, start_time_with_date: startTimeWithDate, is_upcoming: isUpcoming, is_completed: isCompleted };
         });
