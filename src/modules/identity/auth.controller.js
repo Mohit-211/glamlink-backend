@@ -6,6 +6,31 @@ const httpClient = require('../../core/http/httpClient');
 const logger = require('../../core/logger');
 const authService = require('./auth.service');
 const { logRegisterAttempt } = require('./registerLogger');
+const config = require('../../core/config/config');
+
+// The website keeps its refresh token in an httpOnly cookie on the API's host (api.glamlink.net, same site
+// as glamlink.net), out of reach of page scripts; the app receives it in the response body.
+const REFRESH_COOKIE = 'glamlink_refresh';
+const cookieOptions = () => ({
+    httpOnly: true,
+    secure: config.env === 'production',
+    sameSite: 'lax',
+    path: '/api/v1/user/auth',
+});
+const readCookie = (req, name) => {
+    for (const part of (req.headers.cookie || '').split(';')) {
+        const [key, ...value] = part.trim().split('=');
+        if (key === name) return decodeURIComponent(value.join('='));
+    }
+    return null;
+};
+// Website: the refresh token goes into the cookie and out of the body.
+const deliver = (res, result, client) => {
+    if (client !== 'website' || !result.refresh_token) return result;
+    const { refresh_token, ...rest } = result;
+    res.cookie(REFRESH_COOKIE, refresh_token, { ...cookieOptions(), expires: new Date(result.refresh_token_expires_at) });
+    return rest;
+};
 
 // Which client is calling: the website signs in professionals only.
 const contextOf = (req) => {
@@ -52,8 +77,9 @@ const register = catchAsync(async (req, res) => {
 });
 
 const verifyEmail = catchAsync(async (req, res) => {
-    const result = await authService.verifyEmail(req.body.token, contextOf(req));
-    return responseWrapper(res, result, 'Your email is verified.');
+    const context = contextOf(req);
+    const result = await authService.verifyEmail(req.body.token, context);
+    return responseWrapper(res, deliver(res, result, context.client), 'Your email is verified.');
 });
 
 const resendVerification = catchAsync(async (req, res) => {
@@ -62,22 +88,26 @@ const resendVerification = catchAsync(async (req, res) => {
 });
 
 const login = catchAsync(async (req, res) => {
-    const result = await authService.login(req.body, contextOf(req));
-    return responseWrapper(res, result, 'Signed in.');
+    const context = contextOf(req);
+    const result = await authService.login(req.body, context);
+    return responseWrapper(res, deliver(res, result, context.client), 'Signed in.');
 });
 
 const refresh = catchAsync(async (req, res) => {
-    const tokens = await authService.refresh(req.body.refresh_token);
-    return responseWrapper(res, tokens, 'Session refreshed.');
+    const fromCookie = !req.body.refresh_token;
+    const tokens = await authService.refresh(req.body.refresh_token || readCookie(req, REFRESH_COOKIE));
+    return responseWrapper(res, deliver(res, tokens, fromCookie ? 'website' : 'app'), 'Session refreshed.');
 });
 
 const logout = catchAsync(async (req, res) => {
     await authService.logout(req.session, contextOf(req));
+    res.clearCookie(REFRESH_COOKIE, cookieOptions());
     return responseWrapper(res, {}, 'Signed out.');
 });
 
 const logoutEverywhere = catchAsync(async (req, res) => {
     await authService.logoutEverywhere(req.user);
+    res.clearCookie(REFRESH_COOKIE, cookieOptions());
     return responseWrapper(res, {}, 'Signed out on every device.');
 });
 

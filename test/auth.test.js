@@ -19,7 +19,7 @@ const register = (email, extra = {}) =>
 
 const verifiedSignIn = async (email, extra) => {
     await register(email, extra);
-    const res = await post('/verify-email', { token: linkToken(email), client: extra?.client || 'website' });
+    const res = await post('/verify-email', { token: linkToken(email), client: extra?.client || 'app' });
     assert.equal(res.status, 200);
     return res.body.data;
 };
@@ -64,7 +64,8 @@ describe('registration and verification', () => {
         assert.equal(res.status, 200);
         assert.equal(res.body.data.user.email, email);
         assert.equal(res.body.data.user.email_verified, true);
-        assert.ok(res.body.data.access_token && res.body.data.refresh_token);
+        assert.ok(res.body.data.access_token);
+        assert.match(res.headers.get('set-cookie'), /^glamlink_refresh=/, 'the website gets its refresh token as a cookie');
         const again = await post('/verify-email', { token, client: 'website' });
         assert.equal(again.status, 400);
         assert.equal(again.body.code, 'INVALID_LINK');
@@ -136,6 +137,35 @@ describe('sessions', () => {
         assert.equal(replay.status, 401);
         const legit = await post('/refresh', { refresh_token: first.body.data.refresh_token });
         assert.equal(legit.status, 401, 'the whole session is gone');
+    });
+
+    test('the website gets its refresh token as an httpOnly cookie, not in the body', async () => {
+        const email = unique('cookie');
+        await verifiedSignIn(email);
+        const res = await post('/login', { email, password: PASSWORD, client: 'website' });
+        assert.equal(res.status, 200);
+        assert.equal(res.body.data.refresh_token, undefined);
+        const cookie = res.headers.get('set-cookie');
+        assert.match(cookie, /^glamlink_refresh=[^;]+;/);
+        assert.match(cookie, /HttpOnly/);
+        assert.match(cookie, /Path=\/api\/v1\/user\/auth/);
+        assert.match(cookie, /SameSite=Lax/);
+        const value = cookie.split(';')[0];
+        const refreshed = await app.request('POST', '/api/v1/user/auth/refresh', { body: {}, headers: { Cookie: value } });
+        assert.equal(refreshed.status, 200);
+        assert.ok(refreshed.body.data.access_token);
+        assert.equal(refreshed.body.data.refresh_token, undefined);
+        assert.notEqual(refreshed.headers.get('set-cookie').split(';')[0], value, 'the cookie rotates');
+        const out = await post('/logout', {}, refreshed.body.data.access_token);
+        assert.match(out.headers.get('set-cookie'), /glamlink_refresh=;/);
+    });
+
+    test('the app gets its refresh token in the body', async () => {
+        const email = unique('appbody');
+        await verifiedSignIn(email);
+        const res = await post('/login', { email, password: PASSWORD, client: 'app' });
+        assert.ok(res.body.data.refresh_token);
+        assert.equal(res.headers.get('set-cookie'), null);
     });
 
     test('the website signs in professionals only; the app signs in users', async () => {
