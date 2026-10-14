@@ -15,6 +15,8 @@
     "dev": "cross-env NODE_ENV=development nodemon --ext js,mjs,json,yaml index.js",
     "auth": "cross-env NODE_ENV=development node src/modules/admin/createSuperAdmin.js",
     "migrate": "cross-env NODE_ENV=development node src/core/db/migrateTable.js",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "check:routes": "node scripts/route-table.js",
     "check:contract": "node scripts/contract-check.js compare"
   },
@@ -59,6 +61,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "oxlint": "^1.88.0"
   }
 }

@@ -73,7 +73,7 @@ ServiceLocation.init(
 );
 
 ServiceLocation.beforeUpdate(async (serviceLocation) => {
-  userAddress.updated_at = new Date()
+  serviceLocation.updated_at = new Date()
     .toISOString()
     .replace(/T/, " ")
     .replace(/\..+/g, "");

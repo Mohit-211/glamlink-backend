@@ -86,7 +86,6 @@ const getAllStoryByUserId = async (body, query, params, headers) => {
 
     const { user } = body;
     const { sortBy, limit, offset } = query;
-    const { } = params;
     const { timezone } = headers;
 
     const storyDoc = await Story.findAll(

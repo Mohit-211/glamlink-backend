@@ -116,7 +116,6 @@ const getAllBlogByToken = async (body, query, params) => {
 	try {
 		const { user } = body;
 		const { sortBy, limit, offset } = query;
-		const {} = params;
 
 		const blogDoc = await Blog.findAndCountAll({
 			attributes: [
@@ -167,7 +166,6 @@ const getAllBlogByToken = async (body, query, params) => {
 
 const blogDetailById = async (body, params) => {
 	try {
-		const {} = body;
 		const { blog_id } = params;
 
 		if (!blog_id)

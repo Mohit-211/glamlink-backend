@@ -3372,7 +3372,6 @@ const getAllProfiles = async () => {
           "subscription_started_at",
           "subscription_renewal_at",
         ],
-        required: false,
       },
       {
         model: BusinessLocation,

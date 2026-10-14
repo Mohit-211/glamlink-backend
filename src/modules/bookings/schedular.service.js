@@ -111,7 +111,6 @@ const getSchedulRuleAndIntervalByCounselorToken = async (body, header) => {
 				"Failed to fetch Availability"
 			);
 		return transformAvailabilityData(availabilityDoc);
-		return availabilityDoc;
 	} catch (error) {
 		throw new ApiError(
 			error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
@@ -213,10 +212,10 @@ const getAvailabilityByCounselorId = async (body, header, params) => {
 					availability.duration
 				);
 				slotDivisions.map((elm) => {
-					(elm.available_seats = availability.maximum_available_seats),
-						(elm.date = date),
-						(elm.availability_id = availability.id),
-						slots.push(elm);
+					elm.available_seats = availability.maximum_available_seats;
+					elm.date = date;
+					elm.availability_id = availability.id;
+					slots.push(elm);
 				});
 			}
 			let bookingDocs = await Booking.findAll({

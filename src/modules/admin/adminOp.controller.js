@@ -330,7 +330,7 @@ const deleteServiceList = catchAsync(async (req, res) => {
 const foundersToogle = catchAsync(async (req, res) => {
 	const body = pick(req.body, ["user", "user_id"]);
 	const response = await adminOpService.foundersToogle(body);
-	message =
+	const message =
 		response.is_promoted === true
 			? "User is promoted now!"
 			: "User is not promoted";
@@ -365,7 +365,6 @@ module.exports = {
 	deleteAdmin,
 	approvedUserProfile,
 	getTotalCounts,
-	getAllTransaction,
 	getAllTransaction,
 	getAllUsers,
 	getUserById,

@@ -114,7 +114,6 @@ const getAllServiceByToken = async (body, query, params) => {
 	try {
 		const { user } = body;
 		const { sortBy, limit, offset } = query;
-		const {} = params;
 
 		const serviceDoc = await Service.findAll({
 			attributes: [
@@ -244,7 +243,6 @@ const getAllServiceNameByUserId = async (id) => {
 
 const serviceDetailById = async (body, params) => {
 	try {
-		const {} = body;
 		const { service_id } = params;
 
 		const serviceDoc = await Service.findAll({
@@ -369,7 +367,6 @@ const updateService = async (body, files) => {
 				await ServiceAttachment.create(serviceAttachmentObj);
 			}
 		}
-		("");
 		if (
 			files &&
 			Object.keys(files).length !== 0 &&

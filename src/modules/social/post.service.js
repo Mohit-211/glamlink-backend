@@ -177,7 +177,6 @@ const getAllPostByUserId = async (body, query, params, headers) => {
 	try {
 		const { user } = body;
 		const { sortBy, limit, offset } = query;
-		const {} = params;
 		const { timezone } = headers;
 
 		const postDoc = await Post.findAll({

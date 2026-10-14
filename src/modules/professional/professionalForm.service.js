@@ -2,6 +2,7 @@
 
 const httpStatus = require("http-status");
 const ApiError = require("../../core/http/ApiError");
+const { questionTypes } = require("../../core/config/types");
 const {
 	ProfessionalFormQuestion,
 	ProfessionalFormAnswer,

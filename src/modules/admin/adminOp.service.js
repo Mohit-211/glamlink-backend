@@ -1252,7 +1252,6 @@ const getAllPost = async (body, query, params, headers) => {
   try {
     const { user } = body;
     const { sortBy, limit, offset } = query;
-    const {} = params;
     const { timezone } = headers;
 
     const postDoc = await Post.findAll({
@@ -1453,7 +1452,6 @@ const getAllReel = async (body, query, params, headers) => {
   try {
     const { user } = body;
     const { sortBy, limit, offset } = query;
-    const {} = params;
     const { timezone } = headers;
 
     const reelDoc = await Reel.findAll({
@@ -1530,7 +1528,6 @@ const getAllService = async (body, query, params, headers) => {
   try {
     const { user } = body;
     const { sortBy, limit, offset } = query;
-    const {} = params;
     const { timezone } = headers;
 
     const serviceDoc = await Service.findAndCountAll({
@@ -1636,7 +1633,7 @@ const deleteServiceById = async (body, params) => {
       );
     await serviceDoc.destroy();
     const profileDoc = await Profile.findOne({
-      where: { user_id: postDoc.user_id, is_active: true },
+      where: { user_id: serviceDoc.user_id, is_active: true },
     });
     profileDoc.no_of_service_provided =
       profileDoc.no_of_service_provided > 0

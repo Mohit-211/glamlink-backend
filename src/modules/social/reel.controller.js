@@ -105,5 +105,4 @@ module.exports = {
     getReelDetails,
     getAllMyReel,
     deleteCommentFromReel,
-    deleteReel,
 };

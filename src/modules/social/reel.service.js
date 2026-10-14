@@ -322,20 +322,20 @@ const updateReel = async (body, id, files) => {
         if (files && Object.keys(files).length !== 0 && files.videos && files.videos.length !== 0) {
             for (let i = 0; i < files.videos.length; i++) {
                 let currVideo = files.videos[i];
-                reelDoc.file_type = 'Video',
-                    reelDoc.file_name = currVideo.filename,
-                    reelDoc.file_uri = '/videos',
-                    reelDoc.file_size = currVideo.size
+                reelDoc.file_type = 'Video';
+                reelDoc.file_name = currVideo.filename;
+                reelDoc.file_uri = '/videos';
+                reelDoc.file_size = currVideo.size;
                 break;
             }
         }
         if (files && Object.keys(files).length !== 0 && files.images && files.images.length !== 0) {
             for (let i = 0; i < files.images.length; i++) {
                 let currImage = files.images[i];
-                reelDoc['thumbnail_file_type'] = 'Image',
-                    reelDoc['thumbnail_file_name'] = currImage.filename,
-                    reelDoc['thumbnail_file_uri'] = '/images',
-                    reelDoc['thumbnail_file_size'] = currImage.size
+                reelDoc['thumbnail_file_type'] = 'Image';
+                reelDoc['thumbnail_file_name'] = currImage.filename;
+                reelDoc['thumbnail_file_uri'] = '/images';
+                reelDoc['thumbnail_file_size'] = currImage.size;
                 break;
             }
         }

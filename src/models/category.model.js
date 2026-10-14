@@ -51,7 +51,6 @@ Category.init(
         deletedAt: 'deleted_at',
     }
 );
-JSON
 Category.beforeValidate((category) => {
     if (category.title) {
         category.slug = slugify(category.title, { lower: true });

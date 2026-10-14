@@ -19,6 +19,7 @@ const {
   City,
   Follow,
   Post,
+  Post_Tag,
   Feed,
   PostLike,
   PostAttachment,
@@ -2116,9 +2117,6 @@ const getUserFeed = async (body, headers, query, params, isGuest) => {
     }
 
     // 🔹 Only show public posts for guests
-    if (isGuest) {
-      is_active: true;
-    }
 
     let feedDoc = await Post.findAll({
       where: whereCondition,
@@ -2169,10 +2167,8 @@ const getUserWall = async (body, headers, query, params) => {
   const { user } = body;
   const { timezone } = headers;
   const { sortBy, limit, offset } = query;
-  const {} = params;
   try {
     let wallDoc = await Story.findAll({
-      where: { is_active: true },
       where: {
         // user_id: user.id,
         is_active: true,
@@ -4179,21 +4175,11 @@ const getGoogleLocationDetails = async (body, params) => {
   try {
     const { placeId } = params;
     if (!placeId) {
-      return responseWrapper(
-        res,
-        "",
-        "Please provide Place Id",
-        httpStatus.BAD_REQUEST,
-      );
+      throw new ApiError(httpStatus.BAD_REQUEST, "Please provide Place Id");
     }
     const result = await fetchDetails(placeId);
     if (!result) {
-      return responseWrapper(
-        res,
-        "",
-        "Failed to fetch google location Details.",
-        httpStatus.BAD_REQUEST,
-      );
+      throw new ApiError(httpStatus.BAD_REQUEST, "Failed to fetch google location Details.");
     }
 
     return result;

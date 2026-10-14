@@ -1,6 +1,7 @@
 /** @format */
 
 const nodemailer = require("nodemailer");
+const moment = require("moment");
 const config = require("../../core/config/config");
 const logger = require("../../core/logger");
 const {

@@ -44,8 +44,6 @@ function getKeys(payment_method) {
 				secret_key = process.env.STRIPE_SECRET_KEY_UK;
 				break;
 			default:
-				publishable_key = publishable_key;
-				secret_key = secret_key;
 		}
 
 		return { secret_key, publishable_key };

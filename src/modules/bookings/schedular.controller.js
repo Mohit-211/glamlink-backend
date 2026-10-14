@@ -6,7 +6,7 @@ const responseWrapper = require('../../core/http/responseWrapper');
 
 const createAvailability = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user', 'timezone', 'slot_duration_in_minuites', 'start_time', 'end_time', 'day', 'maximum_available_seats', 'start_time_local', 'end_time_local',]);
-    const response = await schedularService.createAvailability(body);''
+    const response = await schedularService.createAvailability(body);
     return responseWrapper(res, response, '');
 });
 
