@@ -1,7 +1,7 @@
 const app = require('./app.js');
 const moment = require('moment');
-const config = require('./src/config/config.js');
-const logger = require('./src/config/logger.js');
+const config = require('./src/core/config/config.js');
+const logger = require('./src/core/logger.js');
 process.env.TZ = config.DEFAULT_TIMEZONE;
 
 

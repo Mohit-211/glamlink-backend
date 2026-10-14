@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { availabilityRuleTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { availabilityRuleTypes } = require('../core/config/types');
 
 
 class ScheduleRule extends Model { }

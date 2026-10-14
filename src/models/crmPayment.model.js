@@ -1,12 +1,12 @@
 /** @format */
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
+const sequelize = require("../core/db/central.db");
 const {
 	paymentStatusTypes,
 	paymentModeTypes,
 	currancyTypes,
-} = require("../config/types");
+} = require("../core/config/types");
 
 class CRMPayment extends Model {}
 CRMPayment.init(

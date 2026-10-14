@@ -1,7 +1,7 @@
 /** @format */
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
+const sequelize = require("../core/db/central.db");
 const slugify = require("slugify");
 
 class UserPromotion extends Model {}

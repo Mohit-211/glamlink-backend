@@ -1,9 +1,9 @@
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
+const sequelize = require("../core/db/central.db");
 const {
 	notificationTypes,
 	notificationMediumTypes,
-} = require("../config/types");
+} = require("../core/config/types");
 
 class Notification extends Model { }
 Notification.init(

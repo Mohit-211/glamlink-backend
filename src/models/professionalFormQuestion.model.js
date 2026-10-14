@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
-const { questionTypes } = require("../config/types");
+const sequelize = require("../core/db/central.db");
+const { questionTypes } = require("../core/config/types");
 
 class ProfessionalFormQuestion extends Model {}
 ProfessionalFormQuestion.init(

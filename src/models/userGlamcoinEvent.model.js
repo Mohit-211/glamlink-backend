@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { actionTypesArr } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { actionTypesArr } = require('../core/config/types');
 
 class UserGlamCoinEvent extends Model { }
 UserGlamCoinEvent.init({

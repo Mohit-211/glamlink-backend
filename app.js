@@ -9,23 +9,23 @@ const path = require('path');
 const app = express();
 app.set("trust proxy", 1);
 
-const config = require('./src/config/config.js');
-const routes = require('./src/routes/v1');
-const morgan = require('./src/config/morgan.js');
-const { authLimiter } = require('./src/middlewares/rateLimiter.js');
-const corsConfigs = require('./src/config/corsConfigs.js');
-const credentials = require('./src/middlewares/credentials.js');
+const config = require('./src/core/config/config.js');
+const routes = require('./src/routes');
+const morgan = require('./src/core/http/morgan.js');
+const { authLimiter } = require('./src/core/http/rateLimiter.js');
+const corsConfigs = require('./src/core/http/corsConfigs.js');
+const credentials = require('./src/core/http/credentials.js');
 
-const ApiError = require('./src/utils/ApiError.js');
-const errorHandler = require('./src/utils/errorHandler.js');
+const ApiError = require('./src/core/http/ApiError.js');
+const errorHandler = require('./src/core/http/errorHandler.js');
 require('./src/models');
-require('./src/config/firebaseConfig.js');
-const { PUBLIC_DIR } = require('./src/config/paths');
+require('./src/integrations/firebase.js');
+const { PUBLIC_DIR } = require('./src/core/config/paths');
 
 
-const handleFileUploads = require('./src/config/multer.js');
-const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/controllers/Common/crmPayment.controller.js');
-const { updateUserPromotions } = require('./src/services/Common/promotion.service.js');
+const handleFileUploads = require('./src/core/http/uploads.js');
+const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/modules/crm/crmPayment.controller.js');
+const { updateUserPromotions } = require('./src/modules/professional/promotion.service.js');
 
 
 

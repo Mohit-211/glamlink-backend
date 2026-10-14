@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { appointmentTypes, callTypes, rolesTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { appointmentTypes, callTypes, rolesTypes } = require('../core/config/types');
 
 class Booking extends Model { }
 Booking.init({

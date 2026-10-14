@@ -1,8 +1,8 @@
 /** @format */
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
-const { paymentStatusTypes } = require("../config/types");
+const sequelize = require("../core/db/central.db");
+const { paymentStatusTypes } = require("../core/config/types");
 
 
 class ProfessionalPayout extends Model {}

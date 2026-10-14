@@ -1,7 +1,7 @@
 /** @format */
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
+const sequelize = require("../core/db/central.db");
 
 class ProfessionalFormAnswer extends Model {}
 ProfessionalFormAnswer.init(

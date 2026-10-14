@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { tokenTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { tokenTypes } = require('../core/config/types');
 
 class UserToken extends Model { }
 UserToken.init({

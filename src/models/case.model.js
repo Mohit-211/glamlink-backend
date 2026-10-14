@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { caseTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { caseTypes } = require('../core/config/types');
 
 
 class Case extends Model { };

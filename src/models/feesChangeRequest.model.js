@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { feesChangeRequestTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { feesChangeRequestTypes } = require('../core/config/types');
 
 class FeesChangeRequest extends Model { }
 FeesChangeRequest.init({

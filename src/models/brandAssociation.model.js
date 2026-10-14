@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { userStatusTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { userStatusTypes } = require('../core/config/types');
 
 class BrandAssociation extends Model { };
 BrandAssociation.init(

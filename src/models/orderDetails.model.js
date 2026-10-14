@@ -1,8 +1,8 @@
 /** @format */
 
 const { Sequelize, DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/central.db");
-const { orderTypes } = require("../config/types");
+const sequelize = require("../core/db/central.db");
+const { orderTypes } = require("../core/config/types");
 
 class OrderDetails extends Model {}
 

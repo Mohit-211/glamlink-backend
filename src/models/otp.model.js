@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model, ENUM } = require('sequelize');
-const sequelize = require('../config/central.db');
-const { otpTypes } = require('../config/types');
+const sequelize = require('../core/db/central.db');
+const { otpTypes } = require('../core/config/types');
 
 class OTP extends Model { }
 OTP.init({
