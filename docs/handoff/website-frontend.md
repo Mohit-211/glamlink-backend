@@ -7,6 +7,36 @@ The backend and the website ship together in one cutover. After it, every signed
 again (old tokens stop working). Everything below is what the website must change to work with the new
 backend; anything not mentioned answers as before.
 
+**Status:** the website is frozen until the backend is ready; this note collects everything to do then. The new
+backend runs at `https://api.glamlink.net` (all routes under `/api/v1`), replacing `https://node.glamlink.net`.
+
+## Checklist before the switch
+
+Found by reviewing the website code (`glamlink_web`, Oct 16) against the new backend. Details in the sections below.
+
+- [ ] `NEXT_PUBLIC_API_URL=https://api.glamlink.net/api/v1`, then rebuild (the value is fixed at build time).
+- [ ] New sign-in (section 2): access token in memory, refresh cookie, `credentials: 'include'`, `client: "website"`.
+      Detect an ended session by `code: "SESSION_EXPIRED"`, not by the old messages (`jwt expired`, `Token Not Found`).
+      The direct `fetch` calls (card create/update, featured-link reorder, guest application) need the same handling.
+- [ ] Pages `/verify-email` and `/reset-password` (section 3); remove `/verify-otp` and the OTP steps of
+      forgot-password; logout is `POST`; change password moved to `/user/auth/change-password`.
+- [ ] Drop the `role_id` header everywhere (sign-in, card create/update).
+- [ ] `user/nearby/map/beautician/list` is now `user/nearby/map/professional/list` (section 5).
+- [ ] The `/directory` featured carousel calls `businessCard/getAllBusinessCards`, which is admin-only: use the public
+      `businessCard/getAllProfiles` (accepted cards only).
+- [ ] Ad tracking posts to the relative `/api/ads/track` (the website itself, always 404); it will point at the API
+      once the backend adds the endpoint (see the changelog).
+- [ ] Logged-out card purchase: send the `card_token` (see the changelog, Phase 2a).
+
+## Changelog
+
+Newest first. Each entry says what changed in the API and what the website must (or can) do.
+
+| Date | Change | Website |
+| --- | --- | --- |
+| Oct 16 | Internal restructure (code grouped by product). No API change | Nothing |
+| Oct 14–15 | Identity, sign-in and route changes in the sections below | See the checklist |
+
 ## 1. What to change, in short
 
 1. **Sign-in**: new login response, a 15-minute access token, a refresh token in an httpOnly cookie, a

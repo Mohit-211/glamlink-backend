@@ -7,6 +7,37 @@ The backend and its clients ship together in one cutover. Admin sign-in itself i
 is which endpoints exist, some field names, and the account model behind the user screens. Anything not
 mentioned answers as before.
 
+**Status:** the admin panel (the local TS/Vite refactor) is frozen until the backend is ready; this note collects
+everything to do then. The new backend runs at `https://api.glamlink.net` (all routes under `/api/v1`), replacing
+`https://node.glamlink.net`.
+
+## Checklist before the switch
+
+Found by reviewing the admin panel code (Oct 16) against the new backend. Details in the sections below.
+
+- [ ] One API client that sends the admin token on **every** call. Today 124 of 204 calls send none (41 of them
+      change data), and every admin endpoint now refuses a missing token. `x-access-token` and
+      `Authorization: Bearer` both work.
+- [ ] Build URLs without a double slash: 26 calls produce `/api/v1//journal/...`, which the API answers with 404.
+- [ ] `VITE_API_BASE_URL=https://api.glamlink.net/api/v1/`, `VITE_IMAGE_BASE_URL=https://api.glamlink.net/images/`,
+      `VITE_VIDEO_BASE_URL=https://api.glamlink.net/videos/` (files are served at the root, not under `/api/v1`).
+- [ ] Three paths: `admin/getAllReferralByBeauticianId/:id` is `admin/getAllReferralByProfessionalId/:id`;
+      `admin/getBookingsByCounsellorId` is `admin/getBookingsByProfessionalId`; deleting an admin is
+      `DELETE admin/deleteAdmin` (the panel calls `admin/auth/deleteAdmin`, which does not exist).
+- [ ] Request bodies: `getReviewsTakenByUserId` and `getAvailablityByUserId` send `professional_id`, not `counselor_id`.
+- [ ] "Add admin" must send `password` and `department_id`; the backend requires both.
+- [ ] When an admin call answers 401, end the session and go to sign-in (the panel currently looks for the messages
+      `jwt expired` / `invalid token`, which the API no longer sends).
+
+## Changelog
+
+Newest first. Each entry says what changed in the API and what the admin panel must (or can) do.
+
+| Date | Change | Admin panel |
+| --- | --- | --- |
+| Oct 16 | Internal restructure (code grouped by product). No API change | Nothing |
+| Oct 14–15 | Removed and renamed endpoints, account model changes in the sections below | See the checklist |
+
 ## 1. What to change, in short
 
 1. Delete the screens for removed features: counsellor fees and approvals, prices, keywords management,
