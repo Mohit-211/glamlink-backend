@@ -4,7 +4,8 @@ Newest first. Each phase lists its commits; branches chain from `main` (old code
 
 ## Phase 2a: security (current, branch `phase5/security`)
 
-In progress. Items and their status: plan.md (Phase 2a) and audit.md.
+In progress. Items and their status: plan.md (Phase 2a) and audit.md. Contract baseline after these fixes:
+`C:/Users/mohit/mysql/snapshots/phase5-security-baseline.json`.
 
 | Item | Status |
 | --- | --- |
@@ -15,7 +16,8 @@ In progress. Items and their status: plan.md (Phase 2a) and audit.md.
 | 6. Google key | Done: read from `GOOGLE_API_KEY`; still to do by Mohit: rotate the key, set it in the server `.env` |
 | 7. Stripe webhook idempotency | Done: each event is claimed in `stripe_events` after its signature is verified; a repeat delivery answers 200 `duplicate: true` without processing; a delivery that does not succeed releases its claim so Stripe's retry is processed. Migration `20261016-0100-stripe-events`. Tests: `test/stripeWebhook.test.js` |
 | 8. CORS | Done: no `Access-Control-Allow-Origin: *` on every response; only the origins in `ACCESSDOMAINS` get CORS headers; another origin is refused with 403 `ORIGIN_NOT_ALLOWED` before the request runs (was a 500). Tests: `test/cors.test.js` |
-| 9. `PUT /ads/sort-order` | Done: registered before `PUT /ads/:id`, which used to catch it |
+| 9. `PUT /ads/sort-order` | Done: registered before `PUT /ads/:id`, which used to catch it (`edea8ca`, with item 8) |
+| 5. Card bio | Waiting: needs the `sanitize-html` package (Mohit's OK). Both frontends edit the bio with a rich-text editor and the website renders it as HTML, so it must be cleaned with an allow-list, not stripped |
 
 ## Phase 1: restructure into products (Oct 16, branch `phase4/structure`)
 
