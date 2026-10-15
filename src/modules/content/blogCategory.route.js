@@ -3,10 +3,10 @@ const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const blogCategoryController = require('./blogCategory.controller');
-const adminAuthMiddleware = require('../../core/auth/adminAuth.middleware');
+const { validateJWTtoken } = require('../../core/auth/adminToken.middleware');
 
 
-router.post('/',[ adminAuthMiddleware.validateJWTtoken], blogCategoryController.createBlogCategory);
+router.post('/',[ validateJWTtoken], blogCategoryController.createBlogCategory);
 router.get('/', blogCategoryController.getAllBlogCategories);
 router.get('/getBlogCategoryName', blogCategoryController.getBlogCategoryName);
 router.get('/:id', blogCategoryController.findBlogCategoryById);

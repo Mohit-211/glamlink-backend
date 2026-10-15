@@ -1,361 +1,68 @@
-const httpStatus = require('../../core/http/status');
-
 const catchAsync = require('../../core/http/catchAsync');
-const userOpService = require('./user.service');
+const userService = require('./user.service');
 const pick = require('../../core/utils/pick');
 const responseWrapper = require('../../core/http/responseWrapper');
-const config = require('../../core/config/config');
-
 
 const getProfile = catchAsync(async (req, res) => {
-    const response = await userOpService.getProfile(req.body);
+    const response = await userService.getProfile(req.body);
     return responseWrapper(res, response, '');
 });
 
-
 const deactivateAccount = catchAsync(async (req, res) => {
-    const response = await userOpService.deactivateAccount(req.body);
+    const response = await userService.deactivateAccount(req.body);
     return responseWrapper(res, response, 'Account Successfully Deactivated.');
 });
 
 const notificationToggle = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
-    const response = await userOpService.notificationToggle(body);
+    const response = await userService.notificationToggle(body);
     const message = (response.notification_status === true) ? 'Notification turned On!' : 'Notification turned Off!';
     return responseWrapper(res, '', message);
 });
 
 const updateProfile = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user', 'name', 'mobile', 'language', 'city_id', 'about', 'state_id', 'address', 'latitude', 'longitude', 'profession', 'website_link']);
-    const response = await userOpService.updateProfile(body, req.files);
+    const response = await userService.updateProfile(body, req.files);
     return responseWrapper(res, response, 'Profile Updated Successfully.');
 });
 
 const getProfileById = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
     const query = pick(req.query, ['latitude', 'longitude']);
-    const response = await userOpService.getProfileById(body, req.params, query, req.isGuest);
-    return responseWrapper(res, response, '');
-});
-
-const getAllUserList = catchAsync(async (req, res) => {
-    const response = await userOpService.getAllUserList();
+    const response = await userService.getProfileById(body, req.params, query, req.isGuest);
     return responseWrapper(res, response, '');
 });
 
 const getAllTimezone = catchAsync(async (req, res) => {
-    const response = await userOpService.getAllTimezone();
-    return responseWrapper(res, response, '');
-});
-
-const followAndUnfollwUser = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['follower_id', 'followee_id', 'user']);
-    const response = await userOpService.followAndUnfollwUser(body);
-    return responseWrapper(res, '', response, httpStatus.CREATED);
-});
-
-const getAllFollowers = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const query = pick(req.query, ['user_id']);
-    const response = await userOpService.getAllFollowers(body, query);
-    return responseWrapper(res, response, '');
-});
-
-const getAllFollowees = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const query = pick(req.query, ['user_id']);
-    const response = await userOpService.getAllFollowees(body, query);
-    return responseWrapper(res, response, '');
-});
-
-const getUserFeed = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const headers = pick(req.headers, ['timezone']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-    const isGuest = req.isGuest || false;
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    if (!headers['timezone'] || headers['timezone'] === '') {
-        headers['timezone'] = config.DEFAULT_TIMEZONE;
-    };
-    const response = await userOpService.getUserFeed(body, headers, query, params, isGuest);
-    return responseWrapper(res, response, '');
-});
-
-const getUserWall = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const headers = pick(req.headers, ['timezone']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    if (!headers['timezone'] || headers['timezone'] === '') {
-        headers['timezone'] = config.DEFAULT_TIMEZONE;
-    };
-    const response = await userOpService.getUserWall(body, headers, query, params);
-    return responseWrapper(res, response, '');
-});
-
-const getAllPostByTag = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['name', 'user']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.getAllPostByTag(body, query, params);
-    return responseWrapper(res, response, '');
-});
-
-const getAllReelByTag = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['name', 'user']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.getAllReelByTag(body, query, params);
-    return responseWrapper(res, response, '');
-});
-
-const search = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['name', 'user', 'type']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'DESC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.search(body, query, params);
-    return responseWrapper(res, response, '');
-});
-
-const removeUserFromFollowList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const query = pick(req.query, ['user_id']);
-    const response = await userOpService.removeUserFromFollowList(body, query);
-    return responseWrapper(res, response, '');
-});
-
-const getAllRandomProfessionalList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['name', 'user']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.getAllRandomProfessionalList(body, query, req.isGuest);
-    return responseWrapper(res, response, '');
-});
-
-const getSuggestionUsersList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page', 'longitude', 'latitude', 'profession', 'distance']);
-    const params = pick(req.params, []);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.getSuggestionUsersList(body, query);
-    return responseWrapper(res, response, '');
-});
-
-const searchProfessionalByPlaceApi = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const query = pick(req.query, ['sortBy', 'limit', 'page', 'item', 'place', 'nextPageToken']);
-
-    if (!query['limit']) {
-        query['limit'] = config.defaultLimit
-    };
-    if (!query['page']) {
-        query['page'] = 1
-    };
-    if (!query['sortBy'] || query['sortBy'] === '') {
-        query['sortBy'] = 'ASC'
-    };
-    let offset = (query['page'] - 1) * query['limit'];
-    query['offset'] = offset;
-    const response = await userOpService.searchProfessionalByPlaceApi(body, query);
-    return responseWrapper(res, response, '');
-});
-
-const addImageInsideProfile = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'removeImageIds', 'album_id', 'caption']);
-    const response = await userOpService.addImageInsideProfile(body, req.files);
-    return responseWrapper(res, '', 'Attachment Uploaded Successfully.');
-});
-
-const getAllAlbumImages = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const params = pick(req.params, ['album_id']);
-
-    const response = await userOpService.getAllAlbumImages(body, params);
-    return responseWrapper(res, response, 'Album Fetched Successfully.');
-});
-
-const reportUser = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'user_id', 'reason']);
-    const response = await userOpService.reportUser(body);
-    return responseWrapper(res, '', response);
-});
-
-const blockUser = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'user_id', 'reason']);
-    const response = await userOpService.blockUser(body);
-    return responseWrapper(res, '', response);
-});
-
-const getBlockList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user']);
-    const response = await userOpService.getBlockList(body);
-    return responseWrapper(res, response, '');
-});
-
-const nearbyProfessionalsList = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['user', 'longitude', 'latitude']);
-    const response = await userOpService.nearbyProfessionalsList(body);
+    const response = await userService.getAllTimezone();
     return responseWrapper(res, response, '');
 });
 
 const updateUsername = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user_name', 'user']);
-    let response = await userOpService.updateUsername(body);
+    let response = await userService.updateUsername(body);
     return responseWrapper(res, response, 'Username updated successfully.');
 });
 
 const addLinkTreeLink = catchAsync(async (req, res) => {
-    let response = await userOpService.addLinkTreeLink(req.body);
+    let response = await userService.addLinkTreeLink(req.body);
     return responseWrapper(res, response, 'Username updated successfully.');
 });
 
-
-const startFreeTrial = catchAsync(async (req, res) => {
-    let response = await userOpService.startFreeTrial(req.body);
-    return responseWrapper(res, response, 'Free Trial started successfully.');
-});
-
-
-const requestForPromotion = catchAsync(async (req, res) => {
-    let response = await userOpService.requestForPromotion(req.body);
-    return responseWrapper(res, response, '');
-});
-
-const requestForAssociationWithBrand = catchAsync(async (req, res) => {
-    let msg = await userOpService.requestForAssociationWithBrand(req.body);
-    return responseWrapper(res, '', msg);
-});
-
-const getAllAssociationRequest = catchAsync(async (req, res) => {
-    let response = await userOpService.getAllAssociationRequest(req.body);
-    return responseWrapper(res, response);
-});
-
-const answerAssociationRequest = catchAsync(async (req, res) => {
-    let message = await userOpService.answerAssociationRequest(req.body);
-    return responseWrapper(res, '', message);
-});
-
-
-const getAllAssociationProviders = catchAsync(async (req, res) => {
-    let response = await userOpService.getAllAssociationProviders(req.body);
-    return responseWrapper(res, response, '');
-});
-
-
-const deleteAssociation = catchAsync(async (req, res) => {
-    let response = await userOpService.deleteAssociation(req.body);
-    return responseWrapper(res, response, 'Assiciation request deleted Successfully.');
-});
-
-const getUserRewardList = catchAsync(async (req, res) => {
-    let response = await userOpService.getUserRewardList(req.body);
-    return responseWrapper(res, response, '');
-});
-
 const updateExternalBooking = catchAsync(async (req, res) => {
-    let response = await userOpService.updateExternalBooking(req.body);
+    let response = await userService.updateExternalBooking(req.body);
     return responseWrapper(res, response, 'External booking preference updated successfully.');
 });
 
-const analyzeSkin = catchAsync(async (req, res) => {
-    let response = await userOpService.analyzeSkin(req.body, req.files);
-    return responseWrapper(res, response, 'Face analysis completed successfully.');
-});
-
 const getMapProfessionalList = catchAsync(async (req, res) => {
-    let response = await userOpService.getMapProfessionalList(req.body, req.query);
+    let response = await userService.getMapProfessionalList(req.body, req.query);
     return responseWrapper(res, response, 'List fetch successfully.');
 });
 
 const getGoogleLocationDetails = catchAsync(async (req, res) => {
-    let response = await userOpService.getGoogleLocationDetails(req.body, req.params);
+    let response = await userService.getGoogleLocationDetails(req.body, req.params);
     return responseWrapper(res, response);
 });
-
 
 module.exports = {
     getProfile,
@@ -363,44 +70,10 @@ module.exports = {
     notificationToggle,
     updateProfile,
     getProfileById,
-    getAllUserList,
     getAllTimezone,
-
-    followAndUnfollwUser,
-    getAllFollowers,
-    getAllFollowees,
-    getUserFeed,
-    getUserWall,
-
-    search,
-    getAllPostByTag,
-    getAllReelByTag,
-
-    removeUserFromFollowList,
-    getAllRandomProfessionalList,
-    searchProfessionalByPlaceApi,
-    addImageInsideProfile,
-    getAllAlbumImages,
-    reportUser,
-    blockUser,
-    getBlockList,
-    nearbyProfessionalsList,
     updateUsername,
     addLinkTreeLink,
-    getSuggestionUsersList,
-
-    startFreeTrial,
-    requestForPromotion,
-
-    requestForAssociationWithBrand,
-    getAllAssociationRequest,
-    answerAssociationRequest,
-    getAllAssociationProviders,
-    deleteAssociation,
-    getUserRewardList,
     updateExternalBooking,
-    analyzeSkin,
     getMapProfessionalList,
-
     getGoogleLocationDetails,
 };

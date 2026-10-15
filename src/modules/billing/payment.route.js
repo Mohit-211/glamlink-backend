@@ -3,21 +3,14 @@ const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
-const stripeOrderPayment = require('./stripeOrderPayment.controller');
-const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
+const paymentController = require('./payment.controller');
+const { optionalAuth } = require('../../core/auth/authenticate');
 
-
-router.get('/stripe/stripe-key', [optionalAuth], stripeOrderPayment.geStripeKeys);
-router.post('/stripe/create-payment-intent', [authenticate], stripeOrderPayment.createPaymentIntent);
-router.post('/stripe/charge-intent/webhooks', stripeOrderPayment.handleChargeAndIntentWebhook);
-router.get('/count', requireAdmin, stripeOrderPayment.getNewPaymentCount);
-router.get('/sum', requireAdmin, stripeOrderPayment.getNewPaymentTotal);
-
+router.get('/stripe/stripe-key', [optionalAuth], paymentController.geStripeKeys);
+router.post('/stripe/charge-intent/webhooks', paymentController.handleChargeAndIntentWebhook);
+router.get('/count', requireAdmin, paymentController.getNewPaymentCount);
+router.get('/sum', requireAdmin, paymentController.getNewPaymentTotal);
 
 // CRM premium purchase is disabled while the CRM is defunct (the client chose the price).
-
-
-
-
 
 module.exports = router;

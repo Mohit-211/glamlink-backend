@@ -1,17 +1,12 @@
 const httpStatus = require('../http/status');
-const jwt = require('jsonwebtoken');
-
-
-const { Admin, Role, Department, Category, User, State, City } = require('../../models');
+const { Admin, Role, Department, User, State, City } = require('../../models');
 const validateEmail = require('../utils/validateEmail');
 const validatePassword = require('../utils/validatePassword');
 const catchAsync = require('../http/catchAsync');
 const responseWrapper = require('../http/responseWrapper');
-
 const roleService = require('../../modules/admin/role.service');
 const config = require('../config/config');
 const ApiError = require('../http/ApiError');
-
 
 const validateCreateAdminBody = catchAsync(async (req, res, next) => {
     try {
@@ -44,7 +39,6 @@ const validateCreateAdminBody = catchAsync(async (req, res, next) => {
     }
 });
 
-
 const validateLoginAdminBody = catchAsync(async (req, res, next) => {
     try {
         const { email, password } = req.body;
@@ -57,25 +51,6 @@ const validateLoginAdminBody = catchAsync(async (req, res, next) => {
             return responseWrapper(res, '', 'Invalid Email', httpStatus.BAD_REQUEST);
         };
         next()
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-    }
-});
-
-
-const validateJWTtoken = catchAsync(async (req, res, next) => {
-    try {
-        const token = req.header('x-access-token');
-        if (!token) {
-            return responseWrapper(res, '', 'Access denied: No token provided', httpStatus.BAD_REQUEST);
-        };
-        req.user = jwt.verify(token, Buffer.from(config?.jwt?.secret, 'hex'), {
-            algorithm: 'HS256',
-        });
-        if (req?.user?.is_backlisted) return responseWrapper(res, '', 'Invalid Token', httpStatus.UNAUTHORIZED);
-        req.body['user'] = req.user;
-        next();
 
     } catch (error) {
         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
@@ -99,7 +74,6 @@ const validateResetPasswordBody = catchAsync(async (req, res, next) => {
         throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
     }
 });
-
 
 const validateCreateUserBody = catchAsync(async (req, res, next) => {
     try {
@@ -142,25 +116,9 @@ const validateCreateUserBody = catchAsync(async (req, res, next) => {
     }
 });
 
-const validateNewServiceListBody = catchAsync(async (req, res, next) => {
-
-    const { title, category_id, user } = req.body;
-
-    if (!title || !category_id) {
-        return responseWrapper(res, '', 'Please Enter Required Fields : [ title || category_id ]', httpStatus.BAD_REQUEST);
-    };
-
-    const categoryDoc = await Category.findOne({ where: { id: category_id, is_active: true } });
-    if (!categoryDoc) return responseWrapper(res, '', 'Invalid Category Id', httpStatus.BAD_REQUEST);
-
-    next()
-});
-
 module.exports = {
     validateCreateAdminBody,
     validateLoginAdminBody,
-    validateJWTtoken,
     validateResetPasswordBody,
     validateCreateUserBody,
-    validateNewServiceListBody,
 };

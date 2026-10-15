@@ -4,9 +4,9 @@ const { requireAdmin } = require('../../core/auth/access.middleware');
 
 const serviceController = require('./service.controller');
 const { authenticate, optionalAuth } = require('../../core/auth/authenticate');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
+const serviceValidation = require('../../core/auth/service.validation');
 
-router.post('', [authenticate, userAuthMiddleware.validateNewServiceBody], serviceController.createService);
+router.post('', [authenticate, serviceValidation.validateNewServiceBody], serviceController.createService);
 router.get('', [authenticate], serviceController.getAllServiceByToken);
 router.get('/user/:id', [optionalAuth], serviceController.getAllServiceByUserId);
 router.get('/getAllServiceNameByUserId/:id', serviceController.getAllServiceNameByUserId);

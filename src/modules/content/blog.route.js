@@ -2,14 +2,14 @@ const express = require('express');
 const router = express.Router();
 
 const blogController = require('./blog.controller');
-const userAuthMiddleware = require('../../core/auth/userAuth.middleware');
-const adminAuthMiddleware = require('../../core/auth/adminAuth.middleware');
+const blogValidation = require('../../core/auth/blog.validation');
+const { validateJWTtoken } = require('../../core/auth/adminToken.middleware');
 
-router.post('/', [ adminAuthMiddleware.validateJWTtoken, userAuthMiddleware.validateNewBlogBody ], blogController.createBlog);
+router.post('/', [ validateJWTtoken, blogValidation.validateNewBlogBody ], blogController.createBlog);
 router.get('/', blogController.getAllBlogByToken);
 router.get('/:blog_id', blogController.blogDetailById);
-router.put('/update/:id', [ adminAuthMiddleware.validateJWTtoken ], blogController.updateBlog);
-router.post('/delete', [ adminAuthMiddleware.validateJWTtoken ], blogController.deleteBlog);
+router.put('/update/:id', [ validateJWTtoken ], blogController.updateBlog);
+router.post('/delete', [ validateJWTtoken ], blogController.deleteBlog);
 
 
 module.exports = router;

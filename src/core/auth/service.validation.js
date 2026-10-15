@@ -37,22 +37,6 @@ const validateNewServiceBody = catchAsync(async (req, res, next) => {
   next();
 });
 
-const validateNewBlogBody = catchAsync(async (req, res, next) => {
-  const { title, description } = req.body;
-
-  if (!title || !description) {
-    return responseWrapper(
-      res,
-      "",
-      "Please Enter Required Fields : [ title || description]",
-      httpStatus.BAD_REQUEST,
-    );
-  }
-
-  next();
-});
-
 module.exports = {
-  validateNewServiceBody,
-  validateNewBlogBody,
+    validateNewServiceBody,
 };
