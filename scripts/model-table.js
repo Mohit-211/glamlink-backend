@@ -19,7 +19,7 @@ Object.assign(process.env, {
 process.on('unhandledRejection', () => {});
 
 // Wherever the models are loaded from, they all register on the one connection.
-const entry = ['src/core/db/models.js', 'src/models/index.js'].map((p) => path.join(root, p)).find((p) => fs.existsSync(p));
+const entry = ['src/models.js', 'src/models/index.js'].map((p) => path.join(root, p)).find((p) => fs.existsSync(p));
 require(entry);
 const sequelize = require(path.join(root, 'src/core/db/central.db'));
 

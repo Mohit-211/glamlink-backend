@@ -1,6 +1,6 @@
 const httpStatus = require("../../core/http/status");
 const ApiError = require("../../core/http/ApiError");
-const Education = require("../../models/education.model");
+const Education = require("./models/education.model");
 const { Event, Shop, JournalTopic } = require("../../models");
 const sharp = require("sharp");
 const { parse } = require("csv-parse/sync");
