@@ -14,7 +14,7 @@ const {
   BusinessHour,
   BusinessCardCategory,
   Directory,
-  DirectoryCategories,
+  DirectoryCategory,
   Payment,
   AccessOrder,
 } = require("../../models");
@@ -3839,7 +3839,7 @@ const createDirectory = async (body, files) => {
           category_id: catId,
         }));
 
-        await DirectoryCategories.bulkCreate(mappings);
+        await DirectoryCategory.bulkCreate(mappings);
       }
     }
 
@@ -3877,7 +3877,7 @@ const updateDirectory = async (id, body, files) => {
       category_ids = JSON.parse(category_ids);
     }
 
-    await DirectoryCategories.destroy({
+    await DirectoryCategory.destroy({
       where: { directory_id: id },
       force: true,
     });
@@ -3887,7 +3887,7 @@ const updateDirectory = async (id, body, files) => {
       category_id: catId,
     }));
 
-    await DirectoryCategories.bulkCreate(mappings);
+    await DirectoryCategory.bulkCreate(mappings);
   }
 
   return directory;
@@ -3938,7 +3938,7 @@ const getAllDirectories = async () => {
 
       include: [
         {
-          model: DirectoryCategories,
+          model: DirectoryCategory,
           as: "directory_categories",
           attributes: ["category_id"],
 
@@ -3991,7 +3991,7 @@ const getAllDirectories = async () => {
 };
 
 const getProfilesByDirectory = async (directory_id) => {
-  const directoryCategories = await DirectoryCategories.findAll({
+  const directoryCategories = await DirectoryCategory.findAll({
     where: { directory_id },
   });
 

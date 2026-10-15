@@ -11,7 +11,7 @@ const validateEmail = require('../../core/utils/validateEmail');
 const validatePassword = require('../../core/utils/validatePassword');
 const { DateTime } = require('../../core/utils/time');
 const { createSession, refreshSession, revokeSession, revokeUserSessions } = require('../../core/auth/sessions');
-const { User, Profile, userLoginTiming, Timezone } = require('../../models');
+const { User, Profile, UserLoginTiming, Timezone } = require('../../models');
 const { sendVerifyEmailLink, sendResetPasswordLink, sendOTPMails } = require('../../integrations/mailer/email.service');
 const { issueEmailToken, consumeEmailToken } = require('./emailToken.service');
 const { normalizeEmail, hashPassword, createAccount, attachGuestBusinessCards, accountView } = require('./account.service');
@@ -32,7 +32,7 @@ const recordLogin = async (user, session, timezone) => {
     try {
         const at = new Date();
         const zone = timezone ? await Timezone.findOne({ where: { time_zone: timezone, is_active: true } }) : null;
-        await userLoginTiming.create({
+        await UserLoginTiming.create({
             user_id: user.id,
             role_id: user.role_id,
             session_id: session.id,
@@ -48,7 +48,7 @@ const recordLogin = async (user, session, timezone) => {
 const recordLogout = async (session, timezone) => {
     try {
         const at = new Date();
-        await userLoginTiming.update(
+        await UserLoginTiming.update(
             { logout_time_utc: at, logout_time_local: DateTime.fromJSDate(at).setZone(timezone || 'UTC').toFormat('yyyy-MM-dd HH:mm:ss') },
             { where: { session_id: session.id } },
         );

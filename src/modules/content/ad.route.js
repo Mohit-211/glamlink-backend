@@ -1,15 +1,15 @@
 const express = require('express');
-const addController = require('./ad.controller');
+const adController = require('./ad.controller');
 const router = express.Router();
 const { requireAdmin } = require('../../core/auth/access.middleware');
 
 
-router.post('/', requireAdmin, addController.createAd);
-router.get('/', addController.getAllAds);
-router.get('/findAdById/:id', addController.findAdById);
-router.put('/:id', requireAdmin, addController.updateAd);
-router.post('/delete', requireAdmin, addController.deleteAd);
-router.put('/status/:id', requireAdmin, addController.updateAdStatus);
-router.put('/sort-order', requireAdmin, addController.updateAdSortOrder);
+router.post('/', requireAdmin, adController.createAd);
+router.get('/', adController.getAllAds);
+router.get('/findAdById/:id', adController.findAdById);
+router.put('/:id', requireAdmin, adController.updateAd);
+router.post('/delete', requireAdmin, adController.deleteAd);
+router.put('/status/:id', requireAdmin, adController.updateAdStatus);
+router.put('/sort-order', requireAdmin, adController.updateAdSortOrder);
 
 module.exports = router;

@@ -8,7 +8,7 @@ const {
 	Post,
 	Follow,
 	Feed,
-	Feed_Post,
+	FeedPost,
 	PostAttachment,
 	PostLike,
 	PostComment,
@@ -18,7 +18,7 @@ const {
 	PostFavorite,
 	PostReport,
 	Tag,
-	Post_Tag,
+	PostTag,
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 const { createNotification } = require("../notifications/notification.service");
@@ -113,7 +113,7 @@ const createPost = async (body, files) => {
 				}
 
 				// Associate the hashtag with the post
-				await Post_Tag.create({
+				await PostTag.create({
 					post_id: postDoc.id,
 					tag_id: hashtag.id,
 				});
@@ -144,7 +144,7 @@ const createPost = async (body, files) => {
 			});
 
 			if (!isFeedCreated) continue;
-			await Feed_Post.findOrCreate({
+			await FeedPost.findOrCreate({
 				where: {
 					feed_id: isFeedCreated[0].id,
 					post_id: postDoc.id,
@@ -248,7 +248,7 @@ const deletePostById = async (body, params) => {
 		const { user, postDoc } = body;
 
 		// Fetch the associated hashtags for the post
-		const postTags = await Post_Tag.findAll({
+		const postTags = await PostTag.findAll({
 			where: { post_id: postDoc.id },
 			include: [
 				{
@@ -271,7 +271,7 @@ const deletePostById = async (body, params) => {
 		}
 
 		await Promise.all([
-			Feed_Post.destroy({
+			FeedPost.destroy({
 				where: { post_id: postDoc.id },
 				force: true,
 			}),
@@ -375,7 +375,7 @@ const editPost = async (body, params, files) => {
 			const hashtags = extractHashtags(content);
 
 			// Fetch the associated hashtags for the post
-			const postTags = await Post_Tag.findAll({
+			const postTags = await PostTag.findAll({
 				where: { post_id: postDoc.id },
 				include: [
 					{
@@ -413,7 +413,7 @@ const editPost = async (body, params, files) => {
 				}
 
 				// Associate the hashtag with the post
-				await Post_Tag.create({
+				await PostTag.create({
 					post_id: postDoc.id,
 					tag_id: hashtag.id,
 				});

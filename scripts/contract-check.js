@@ -33,8 +33,8 @@ Module._load = function (request) {
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
 
-// Fields that legitimately differ between runs.
-const VOLATILE = new Set(['time_ago', 'expires', 'token']);
+// Fields that legitimately differ between runs (date_range: the analytics window ends today).
+const VOLATILE = new Set(['time_ago', 'expires', 'token', 'date_range']);
 const normalize = (v) => {
     if (Array.isArray(v)) return v.map(normalize);
     if (v && typeof v === 'object') {
@@ -150,6 +150,8 @@ const diffPaths = (a, b, p = '', out = new Set()) => {
         console.log(`recorded ${Object.keys(results).length} endpoints to ${snapshotFile}${bad.length ? `; ${bad.length} return 5xx: ${bad.map(([k]) => k).join(', ')}` : ''}`);
     } else {
         const expected = JSON.parse(fs.readFileSync(snapshotFile, 'utf8'));
+        // Older snapshots were recorded before a field became volatile.
+        for (const r of Object.values(expected)) r.body = normalize(r.body);
         const diffs = [];
         for (const key of new Set([...Object.keys(expected), ...Object.keys(results)])) {
             if (JSON.stringify(expected[key]) !== JSON.stringify(results[key])) diffs.push(key);

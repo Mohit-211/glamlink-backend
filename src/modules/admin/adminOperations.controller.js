@@ -12,8 +12,8 @@ const getCommentsByPostId = catchAsync(async (req, res) => {
 	return responseWrapper(res, categoryDoc, "");
 });
 
-const getLikessByReelId = catchAsync(async (req, res) => {
-	const categoryDoc = await adminOperationsService.getLikessByReelId(req.body);
+const getLikesByReelId = catchAsync(async (req, res) => {
+	const categoryDoc = await adminOperationsService.getLikesByReelId(req.body);
 	return responseWrapper(res, categoryDoc, "");
 });
 
@@ -88,8 +88,8 @@ const getBookingsByUserId = catchAsync(async (req, res) => {
 	return responseWrapper(res, categoryDoc, "");
 });
 
-const getAvailablityByUserId = catchAsync(async (req, res) => {
-	const categoryDoc = await adminOperationsService.getAvailablityByUserId(req.body);
+const getAvailabilityByUserId = catchAsync(async (req, res) => {
+	const categoryDoc = await adminOperationsService.getAvailabilityByUserId(req.body);
 	return responseWrapper(res, categoryDoc, "");
 });
 
@@ -98,7 +98,7 @@ const getAvailablityByUserId = catchAsync(async (req, res) => {
 module.exports = {
 	getLikesByPostId,
 	getCommentsByPostId,
-	getLikessByReelId,
+	getLikesByReelId,
 	getCommentsByReelId,
 	getFollowersByUserId,
 	getFollowByUserId,
@@ -113,5 +113,5 @@ module.exports = {
 	getServicesByUserId,
 	getBookingsByProfessionalId,
 	getBookingsByUserId,
-	getAvailablityByUserId
+	getAvailabilityByUserId
 };

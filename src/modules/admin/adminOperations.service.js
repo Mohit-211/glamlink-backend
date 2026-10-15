@@ -80,7 +80,7 @@ const getCommentsByPostId = async (reqBody) => {
 	}
 };
 
-const getLikessByReelId = async (reqBody) => {
+const getLikesByReelId = async (reqBody) => {
 	try {
 		const { reel_id } = reqBody;
 		const userDoc = await ReelLike.findAll({
@@ -766,7 +766,7 @@ const getBookingsByUserId = async (reqBody) => {
 	}
 };
 
-const getAvailablityByUserId = async (reqBody) => {
+const getAvailabilityByUserId = async (reqBody) => {
 	try {
 		const { professional_id } = reqBody;
 		const userDoc = await Availability.findAll({
@@ -799,7 +799,7 @@ const getAvailablityByUserId = async (reqBody) => {
 module.exports = {
 	getLikesByPostId,
 	getCommentsByPostId,
-	getLikessByReelId,
+	getLikesByReelId,
 	getCommentsByReelId,
 	getFollowersByUserId,
 	getFollowByUserId,
@@ -814,5 +814,5 @@ module.exports = {
 	getServicesByUserId,
 	getBookingsByProfessionalId,
 	getBookingsByUserId,
-	getAvailablityByUserId,
+	getAvailabilityByUserId,
 };

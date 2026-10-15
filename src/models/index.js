@@ -9,7 +9,7 @@ const Profession = require("./profession.model");
 const Tag = require("./tag.model");
 
 const Role = require("./role.model");
-const Department = require("./departmenat.model");
+const Department = require("./department.model");
 
 const Admin = require("./admin.model");
 const User = require("./user.model");
@@ -19,7 +19,7 @@ const AuthSession = require("./authSession.model");
 const EmailToken = require("./emailToken.model");
 const UserIdentity = require("./userIdentity.model");
 const UserAttachment = require("./userAttachment.model");
-const userLoginTiming = require("./user_login_timings.model");
+const UserLoginTiming = require("./userLoginTiming.model");
 
 const ContactUs = require("./contactUs.model");
 const Faq = require("./faq.model");
@@ -39,28 +39,28 @@ const Appointment = require("./appointment.model");
 const Availability = require("./availability.model");
 const Notification = require("./notification.model");
 const Booking = require("./booking.model");
-const BookingSlot = require("./bookingSlots.model");
+const BookingSlot = require("./bookingSlot.model");
 
 const Feed = require("./feed.model");
 const Post = require("./post.model");
-const Feed_Post = require("./feed_post.model");
+const FeedPost = require("./feedPost.model");
 const PostAttachment = require("./postAttachment.model");
 const PostFavorite = require("./postFavorite.model");
 const PostLike = require("./postLike.model");
 const PostComment = require("./postComment.model");
-const Post_Tag = require("./post_tag.model");
+const PostTag = require("./postTag.model");
 
-const Follow = require("./follower.model");
+const Follow = require("./follow.model");
 
 const Reel = require("./reel.model");
-const Reel_Tag = require("./reel_tag.model");
+const ReelTag = require("./reelTag.model");
 
 const ServiceList = require("./serviceList.model");
 const Service = require("./service.model");
 const ServiceAttachment = require("./serviceAttachment.model");
 
 const Permission = require("./permission.model");
-const PermissionUser = require("./userPermission.model");
+const PermissionUser = require("./permissionUser.model");
 
 
 const Album = require("./album.model");
@@ -82,7 +82,7 @@ const UserBlock = require("./userBlock.model");
 const UserReport = require("./userReport.model");
 const Story = require("./story.model");
 const Wall = require("./wall.model");
-const Wall_Story = require("./wall_story.model");
+const WallStory = require("./wallStory.model");
 
 // E-commerce models here
 
@@ -107,7 +107,7 @@ const ProductTypeMapping = require("./productTypeMapping.model");
 const CRMPayment = require("./crmPayment.model");
 const ProfessionalFormQuestion = require("./professionalFormQuestion.model");
 const ProfessionalFormAnswer = require("./professionalFormAnswer.model");
-const NumeralTaxCategory = require("./numeralTaxCtaegory.model");
+const NumeralTaxCategory = require("./numeralTaxCategory.model");
 const ProfessionalPayout = require("./professionalPayout.model");
 const BannerMedia = require("./bannerMedia.model");
 const UserPromotion = require("./userPromotion.model");
@@ -115,7 +115,7 @@ const PromotionPayment = require("./promotionPayment.model");
 
 const BrandAssociation = require("./brandAssociation.model");
 
-const GlamCoinRule = require("./rewardRule.model");
+const GlamCoinRule = require("./glamCoinRule.model");
 const UserGlamCoinEvent = require("./userGlamcoinEvent.model");
 
 const FaceAnalysis = require("./faceAnalysis.model");
@@ -131,30 +131,30 @@ const BusinessGalleryMedia = require("./businessGalleryMedia.model");
 
 const JournalCategory = require("./journalCategory.model");
 const Journal = require("./journal.model");
-const Eduction = require("./education.model");
+const Education = require("./education.model");
 const Shop = require("./shop.model");
 const Event = require("./event.model");
-const Author = require("./authors.model");
-const Directory = require("./directories.model");
-const DirectoryCategories = require("./directoryCategory.model");
+const Author = require("./author.model");
+const Directory = require("./directory.model");
+const DirectoryCategory = require("./directoryCategory.model");
 
 const GuestApplication = require("./guestApplication.model");
 const PodcastSchedule = require("./podcastSchedule.model");
 const JournalDownload = require("./journalDownload.model");
 const JournalShop = require("./journalShop.model");
 const AccessOrder = require("./accessOrder.model");
-const AccessCardAnalytics = require("./AccessCardAnalytics.model");
+const AccessCardAnalytics = require("./accessCardAnalytics.model");
 
-const Ad = require("./Ad.model");
-const JournalFaqMapping = require("./JournalFaqMapping");
-const JournalTopicMapping = require("./JournalTopicMapping");
-const JournalFaq = require("./JournalFaq");
-const JournalTopic = require("./JournalTopic");
-const JournalTopicPodcastMapping = require("./JournalTopicPodcastMapping");
-const JournalTopicProductMapping = require("./JournalTopicProductMapping");
-const JournalTopicProfessionalMapping = require("./JournalTopicProfessionalMapping");
-const JournalTopicParagraphMapping = require("./JournalTopicParagraphMapping");
-const PartnershipInquiry = require("./PartnershipInquiry.model");
+const Ad = require("./ad.model");
+const JournalFaqMapping = require("./journalFaqMapping.model");
+const JournalTopicMapping = require("./journalTopicMapping.model");
+const JournalFaq = require("./journalFaq.model");
+const JournalTopic = require("./journalTopic.model");
+const JournalTopicPodcastMapping = require("./journalTopicPodcastMapping.model");
+const JournalTopicProductMapping = require("./journalTopicProductMapping.model");
+const JournalTopicProfessionalMapping = require("./journalTopicProfessionalMapping.model");
+const JournalTopicParagraphMapping = require("./journalTopicParagraphMapping.model");
+const PartnershipInquiry = require("./partnershipInquiry.model");
 
 module.exports = {
   Country,
@@ -177,7 +177,7 @@ module.exports = {
   EmailToken,
   UserIdentity,
   UserAttachment,
-  userLoginTiming,
+  UserLoginTiming,
 
   ContactUs,
   Faq,
@@ -200,7 +200,7 @@ module.exports = {
 
   Feed,
   Post,
-  Feed_Post,
+  FeedPost,
   PostAttachment,
   PostFavorite,
   PostLike,
@@ -218,7 +218,7 @@ module.exports = {
   AlbumAttachment,
   AlbumAttachmentComment,
   AlbumAttachmentLike,
-  Reel_Tag,
+  ReelTag,
 
   ServiceList,
   Service,
@@ -237,9 +237,9 @@ module.exports = {
 
   Story,
   Wall,
-  Wall_Story,
+  WallStory,
   Tag,
-  Post_Tag,
+  PostTag,
 
   ProductCategory,
   ProductCategoryHeading,
@@ -297,12 +297,12 @@ module.exports = {
   JournalTopicProductMapping,
   JournalTopicProfessionalMapping,
   JournalTopicParagraphMapping,
-  Eduction,
+  Education,
   Shop,
   Event,
   Author,
   Directory,
-  DirectoryCategories,
+  DirectoryCategory,
   GuestApplication,
 
   PodcastSchedule,
@@ -384,8 +384,8 @@ async function initTableRelation() {
     sourceKey: "user_id",
   });
 
-  userLoginTiming.belongsTo(User, { foreignKey: "user_id", as: "login_user" });
-  userLoginTiming.belongsTo(Timezone, {
+  UserLoginTiming.belongsTo(User, { foreignKey: "user_id", as: "login_user" });
+  UserLoginTiming.belongsTo(Timezone, {
     foreignKey: "time_zone",
     as: "login_user_timezone",
   });
@@ -537,8 +537,8 @@ async function initTableRelation() {
   Follow.belongsTo(User, { foreignKey: "followee_id", as: "followee_user" });
 
   // Post feed according to follower
-  Post.belongsToMany(Feed, { through: Feed_Post, foreignKey: "post_id" });
-  Feed.belongsToMany(Post, { through: Feed_Post, foreignKey: "feed_id" });
+  Post.belongsToMany(Feed, { through: FeedPost, foreignKey: "post_id" });
+  Feed.belongsToMany(Post, { through: FeedPost, foreignKey: "feed_id" });
 
   Post.hasMany(PostFavorite, { foreignKey: "post_id", as: "favourite_posts" });
 
@@ -548,9 +548,9 @@ async function initTableRelation() {
   User.hasOne(Feed, { foreignKey: "user_id", as: "feed" });
   Feed.belongsTo(User, { foreignKey: "user_id", as: "feed_user" });
 
-  Post_Tag.belongsTo(Tag, { foreignKey: "tag_id", as: "tag" });
-  Post.belongsToMany(Tag, { through: Post_Tag, foreignKey: "post_id" });
-  Tag.belongsToMany(Post, { through: Post_Tag, foreignKey: "tag_id" });
+  PostTag.belongsTo(Tag, { foreignKey: "tag_id", as: "tag" });
+  Post.belongsToMany(Tag, { through: PostTag, foreignKey: "post_id" });
+  Tag.belongsToMany(Post, { through: PostTag, foreignKey: "tag_id" });
 
   Post.hasMany(PostAttachment, { foreignKey: "post_id", as: "attachements" });
   PostAttachment.belongsTo(Post, {
@@ -667,15 +667,15 @@ async function initTableRelation() {
   User.hasMany(Story, { foreignKey: "user_id", as: "story" });
   Story.belongsTo(User, { foreignKey: "user_id", as: "created_by" });
 
-  Story.belongsToMany(Wall, { through: Wall_Story, foreignKey: "story_id" });
-  Wall.belongsToMany(Story, { through: Wall_Story, foreignKey: "wall_id" });
+  Story.belongsToMany(Wall, { through: WallStory, foreignKey: "story_id" });
+  Wall.belongsToMany(Story, { through: WallStory, foreignKey: "wall_id" });
 
   // Reels
 
   User.hasMany(Reel, { foreignKey: "user_id", as: "user_reels" });
   Reel.belongsTo(User, { foreignKey: "user_id", as: "reel_user" });
 
-  Reel_Tag.belongsTo(Tag, { foreignKey: "tag_id", as: "tag" });
+  ReelTag.belongsTo(Tag, { foreignKey: "tag_id", as: "tag" });
 
   ReelLike.belongsTo(User, { foreignKey: "user_id", as: "reel_liked_by" });
   Reel.hasMany(ReelLike, { foreignKey: "reel_id", as: "reel_likes" });
@@ -1026,15 +1026,15 @@ async function initTableRelation() {
     foreignKey: "business_card_id",
   });
 
-  Directory.hasMany(DirectoryCategories, {
+  Directory.hasMany(DirectoryCategory, {
     foreignKey: "directory_id",
     as: "directory_categories",
   });
-  DirectoryCategories.belongsTo(Directory, {
+  DirectoryCategory.belongsTo(Directory, {
     foreignKey: "directory_id",
   });
 
-  DirectoryCategories.belongsTo(BusinessCardCategory, {
+  DirectoryCategory.belongsTo(BusinessCardCategory, {
     foreignKey: "category_id",
     as: "category",
   });

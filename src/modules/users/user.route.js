@@ -15,7 +15,7 @@ router.get('/list/suggestion/follow', [authenticate], userOpController.getSugges
 router.post('/list/nearby-professionals', [optionalAuth], userOpController.nearbyProfessionalsList);
 
 router.post('/profile', [authenticate], userOpController.updateProfile);
-router.post('/notifications', [authenticate], userOpController.notificationToogle);
+router.post('/notifications', [authenticate], userOpController.notificationToggle);
 router.delete('/deactivate', [authenticate], userOpController.deactivateAccount);
 
 router.get('/list/timezones', [optionalAuth], userOpController.getAllTimezone);

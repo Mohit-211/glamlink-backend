@@ -1,9 +1,9 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../core/db/central.db');
 
-class userLoginTiming extends Model { }
+class UserLoginTiming extends Model { }
 
-userLoginTiming.init({
+UserLoginTiming.init({
     id: {
         type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
@@ -91,6 +91,7 @@ userLoginTiming.init({
     }
 }, {
     sequelize,
+    modelName: 'userLoginTiming',
     tableName: 'user_login_timings',
     timestamps: true,
     underscored: true,
@@ -101,14 +102,14 @@ userLoginTiming.init({
 });
 
 
-userLoginTiming.beforeUpdate(async (userLoginTiming) => {
-    userLoginTiming.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+UserLoginTiming.beforeUpdate(async (UserLoginTiming) => {
+    UserLoginTiming.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
 });
 
-userLoginTiming.beforeDestroy(async (userLoginTiming) => {
-    userLoginTiming.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-    userLoginTiming.is_active = false;
+UserLoginTiming.beforeDestroy(async (UserLoginTiming) => {
+    UserLoginTiming.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+    UserLoginTiming.is_active = false;
 });
 
 
-module.exports = userLoginTiming;
+module.exports = UserLoginTiming;

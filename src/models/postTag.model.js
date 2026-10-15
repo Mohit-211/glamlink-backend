@@ -1,18 +1,18 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../core/db/central.db');
 
-class Reel_Tag extends Model { }
-Reel_Tag.init({
+class PostTag extends Model { }
+PostTag.init({
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
-    reel_id: {
+    post_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
         references: {
-            model: 'reels',
+            model: 'posts',
             key: 'id',
         },
     },
@@ -43,7 +43,8 @@ Reel_Tag.init({
     }
 }, {
     sequelize,
-    tableName: 'reel_tags',
+    modelName: 'Post_Tag',
+    tableName: 'post_tags',
     timestamps: true,
     underscored: true,
     paranoid: true,
@@ -52,13 +53,13 @@ Reel_Tag.init({
     deletedAt: 'deleted_at'
 });
 
-Reel_Tag.beforeUpdate(async (Reel_Tag) => {
-    Reel_Tag.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+PostTag.beforeUpdate(async (PostTag) => {
+    PostTag.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
 });
 
-Reel_Tag.beforeDestroy(async (Reel_Tag) => {
-    Reel_Tag.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-    Reel_Tag.is_active = false;
+PostTag.beforeDestroy(async (PostTag) => {
+    PostTag.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+    PostTag.is_active = false;
 });
 
-module.exports = Reel_Tag;
+module.exports = PostTag;

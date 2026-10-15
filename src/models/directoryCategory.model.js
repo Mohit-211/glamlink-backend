@@ -3,8 +3,8 @@
 const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = require("../core/db/central.db");
 
-class DirectoryCategories extends Model {}
-DirectoryCategories.init(
+class DirectoryCategory extends Model {}
+DirectoryCategory.init(
 	{
 		id: {
 			type: DataTypes.INTEGER,
@@ -39,6 +39,7 @@ DirectoryCategories.init(
 	},
 	{
 		sequelize,
+		modelName: 'DirectoryCategories',
 		tableName: "directory_categories",
 		timestamps: true,
 		underscored: true,
@@ -49,13 +50,13 @@ DirectoryCategories.init(
 	},
 );
 
-DirectoryCategories.beforeUpdate(async (directoryCategory) => {
+DirectoryCategory.beforeUpdate(async (directoryCategory) => {
 	directoryCategory.updated_at = new Date()
 		.toISOString()
 		.replace(/T/, " ")
 		.replace(/\..+/g, "");
 });
-DirectoryCategories.beforeDestroy(async (directoryCategory) => {
+DirectoryCategory.beforeDestroy(async (directoryCategory) => {
 	directoryCategory.deleted_at = new Date()
 		.toISOString()
 		.replace(/T/, " ")
@@ -63,4 +64,4 @@ DirectoryCategories.beforeDestroy(async (directoryCategory) => {
 	directoryCategory.is_active = false;
 });
 
-module.exports = DirectoryCategories;
+module.exports = DirectoryCategory;

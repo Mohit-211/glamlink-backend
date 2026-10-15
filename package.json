@@ -21,6 +21,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "check:routes": "node scripts/route-table.js",
+    "check:models": "node scripts/model-table.js",
     "check:contract": "node scripts/contract-check.js compare",
     "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""
   },

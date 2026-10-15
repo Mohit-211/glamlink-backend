@@ -273,8 +273,8 @@ const deleteServiceById = catchAsync(async (req, res) => {
 	);
 });
 
-const promotedToogle = catchAsync(async (req, res) => {
-	const response = await adminOpService.promotedToogle(req.body);
+const promotedToggle = catchAsync(async (req, res) => {
+	const response = await adminOpService.promotedToggle(req.body);
 	return responseWrapper(res, response, "", httpStatus.OK);
 });
 
@@ -327,9 +327,9 @@ const deleteServiceList = catchAsync(async (req, res) => {
 	return responseWrapper(res, "", "Service List Deleted.", httpStatus.OK);
 });
 
-const foundersToogle = catchAsync(async (req, res) => {
+const foundersToggle = catchAsync(async (req, res) => {
 	const body = pick(req.body, ["user", "user_id"]);
-	const response = await adminOpService.foundersToogle(body);
+	const response = await adminOpService.foundersToggle(body);
 	const message =
 		response.is_promoted === true
 			? "User is promoted now!"
@@ -382,14 +382,14 @@ module.exports = {
 	deleteReelById,
 	getAllService,
 	deleteServiceById,
-	promotedToogle,
+	promotedToggle,
     getAllPromotionRequest,
 
 	createServiceList,
 	updateServiceList,
 	deleteServiceList,
 	createServiceListUsingCSV,
-	foundersToogle,
+	foundersToggle,
 	unpromote,
 	unpromoteAll,
 	getUserPromotions,

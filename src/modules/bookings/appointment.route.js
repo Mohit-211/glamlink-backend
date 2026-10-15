@@ -3,9 +3,9 @@ const router = express.Router();
 
 const appointmentController = require('./appointment.controller');
 const { authenticate } = require('../../core/auth/authenticate');
-const apointmentMiddleware = require('./appointment.middleware');
+const appointmentMiddleware = require('./appointment.middleware');
 
-router.post('/', [authenticate, apointmentMiddleware.validateCreateApointmentBody], appointmentController.createAppointment);
+router.post('/', [authenticate, appointmentMiddleware.validateCreateAppointmentBody], appointmentController.createAppointment);
 router.get('/', [authenticate], appointmentController.getAllAppointment);
 router.get('/:appointmentId', [authenticate], appointmentController.appointmentDetail);
 

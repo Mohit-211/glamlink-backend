@@ -10,8 +10,8 @@ router.get('/getAllUserOrders',[authenticate], orderController.getAllUserOrders)
 router.post('/addNewAddress',[authenticate], orderController.addNewAddress);
 router.put('/editAddress/:id',[authenticate], orderController.editAddress);
 router.get('/getAllUserAddress',[authenticate], orderController.getAllUserAddress);
-router.get('/getAllBuinessAddress',[authenticate], orderController.getAllBuinessAddress);
-router.get('/getBuinessAddressById/:id',orderController.getBuinessAddressById);
+router.get('/getAllBuinessAddress',[authenticate], orderController.getAllBusinessAddress);
+router.get('/getBuinessAddressById/:id',orderController.getBusinessAddressById);
 router.post('/deleteAddress/:id',[authenticate], orderController.deleteAddress);
 router.post('/getAllProfessionalOrders', [authenticate],orderController.getAllProfessionalOrders);
 router.get('/checkAddressProvided',[authenticate],  orderController.checkAddressProvided);

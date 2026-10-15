@@ -18,9 +18,9 @@ const deactivateAccount = catchAsync(async (req, res) => {
     return responseWrapper(res, response, 'Account Successfully Deactivated.');
 });
 
-const notificationToogle = catchAsync(async (req, res) => {
+const notificationToggle = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
-    const response = await userOpService.notificationToogle(body);
+    const response = await userOpService.notificationToggle(body);
     const message = (response.notification_status === true) ? 'Notification turned On!' : 'Notification turned Off!';
     return responseWrapper(res, '', message);
 });
@@ -360,7 +360,7 @@ const getGoogleLocationDetails = catchAsync(async (req, res) => {
 module.exports = {
     getProfile,
     deactivateAccount,
-    notificationToogle,
+    notificationToggle,
     updateProfile,
     getProfileById,
     getAllUserList,

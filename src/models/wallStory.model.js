@@ -1,25 +1,25 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../core/db/central.db');
 
-class Feed_Post extends Model { }
-Feed_Post.init({
+class WallStory extends Model { }
+WallStory.init({
     id: {
         type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
     },
-    post_id: {
+    story_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         unique : false,
         references: {
-            model: 'posts',
+            model: 'stories',
             key: 'id',
         },
     },
-    feed_id: {
+    wall_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         references: {
-            model: 'feeds',
+            model: 'walls',
             key: 'id',
         },
     },
@@ -33,8 +33,7 @@ Feed_Post.init({
     },
     updated_at: {
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        onUpdate: Sequelize.literal('CURRENT_TIMESTAMP'),
+        allowNull: true,
     },
     deleted_at: {
         type: DataTypes.DATE,
@@ -42,7 +41,8 @@ Feed_Post.init({
     }
 }, {
     sequelize,
-    tableName: 'feed_posts',
+    modelName: 'Wall_Story',
+    tableName: 'wall_stories',
     timestamps: true,
     underscored: true,
     paranoid: true,
@@ -51,13 +51,13 @@ Feed_Post.init({
     'deletedAt': 'deleted_at'
 });
 
-Feed_Post.beforeUpdate(async (Feed_Post) => {
-    Feed_Post.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+WallStory.beforeUpdate(async (WallStory) => {
+    WallStory.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
 });
 
-Feed_Post.beforeDestroy(async (Feed_Post) => {
-    Feed_Post.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-    Feed_Post.is_active = false;
+WallStory.beforeDestroy(async (WallStory) => {
+    WallStory.deleted_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+    WallStory.is_active = false;
 });
 
-module.exports = Feed_Post;
+module.exports = WallStory;

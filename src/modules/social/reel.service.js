@@ -1,7 +1,7 @@
 const httpStatus = require('../../core/http/status');
 const { Sequelize } = require('sequelize')
 
-const { Reel, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, Reel_Tag } = require('../../models');
+const { Reel, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, ReelTag } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { notificationTypes, actionTypes } = require('../../core/config/types');
 const { createNotification } = require('../notifications/notification.service');
@@ -73,7 +73,7 @@ const createReel = async (reqBody, files) => {
                 }
 
                 // Associate the hashtag with the post
-                await Reel_Tag.create({
+                await ReelTag.create({
                     reel_id: reelDoc.id,
                     tag_id: hashtag.id
                 });
@@ -344,7 +344,7 @@ const updateReel = async (body, id, files) => {
             const hashtags = extractHashtags(description);
 
             // Fetch the associated hashtags for the reel
-            const reelTags = await Reel_Tag.findAll({
+            const reelTags = await ReelTag.findAll({
                 where: { reel_id: reelDoc.id },
                 include: [{
                     model: Tag,
@@ -380,7 +380,7 @@ const updateReel = async (body, id, files) => {
                 }
 
                 // Associate the hashtag with the post
-                await Reel_Tag.create({
+                await ReelTag.create({
                     reel_id: reelDoc.id,
                     tag_id: hashtag.id
                 });
@@ -405,7 +405,7 @@ const deleteReel = async (body, id) => {
         if (!reelDoc) throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid Id');
 
         
-        const reelTags = await Reel_Tag.findAll({
+        const reelTags = await ReelTag.findAll({
             where: { reel_id: reelDoc.id },
             include: [{
                 model: Tag,

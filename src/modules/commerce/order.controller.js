@@ -35,13 +35,13 @@ const getAllUserAddress = catchAsync(async (req, res) => {
   return responseWrapper(res, bookings, "");
 });
 
-const getAllBuinessAddress = catchAsync(async (req, res) => {
-  const bookings = await orderService.getAllBuinessAddress(req.body);
+const getAllBusinessAddress = catchAsync(async (req, res) => {
+  const bookings = await orderService.getAllBusinessAddress(req.body);
   return responseWrapper(res, bookings, "");
 });
 
-const getBuinessAddressById = catchAsync(async (req, res) => {
-  const bookings = await orderService.getBuinessAddressById(req.params.id);
+const getBusinessAddressById = catchAsync(async (req, res) => {
+  const bookings = await orderService.getBusinessAddressById(req.params.id);
   return responseWrapper(res, bookings, "");
 });
 
@@ -133,8 +133,8 @@ module.exports = {
   editAddress,
   getAllUserAddress,
   deleteAddress,
-  getAllBuinessAddress,
-  getBuinessAddressById,
+  getAllBusinessAddress,
+  getBusinessAddressById,
   checkAddressProvided,
   getAllOrders,
   getAllProfessionalOrders,

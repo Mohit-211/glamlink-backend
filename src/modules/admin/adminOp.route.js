@@ -18,7 +18,7 @@ router.post('/users/delete', [adminAuthMiddleware.validateJWTtoken], adminOpCont
 router.get('/user/login/timings', [adminAuthMiddleware.validateJWTtoken], adminOpController.getUserLoginTimings);
 router.delete('/user/login/timings/clear', [adminAuthMiddleware.validateJWTtoken], adminOpController.clearLoginRecords);
 
-router.post('/user/promoted', [adminAuthMiddleware.validateJWTtoken], adminOpController.promotedToogle);
+router.post('/user/promoted', [adminAuthMiddleware.validateJWTtoken], adminOpController.promotedToggle);
 router.post('/user/unpromoted', adminOpController.unpromote);
 router.post('/user/unpromotedAll', adminOpController.unpromoteAll);
 router.get('/user/getUserPromotions/:id', adminOpController.getUserPromotions);
@@ -55,7 +55,7 @@ router.post('/deleteServiceList', adminOpController.deleteServiceList);
 
 router.post('/create-service-list', adminOpController.createServiceListUsingCSV);
 
-router.post('/foundersToogle', [adminAuthMiddleware.validateJWTtoken], adminOpController.foundersToogle);
+router.post('/foundersToogle', [adminAuthMiddleware.validateJWTtoken], adminOpController.foundersToggle);
 router.get('/getAllReferral', adminOpController.getAllReferral);
 router.get('/getAllReferralByProfessionalId/:id', adminOpController.getAllReferralByProfessionalId);
 

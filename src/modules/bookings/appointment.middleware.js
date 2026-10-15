@@ -51,7 +51,7 @@ function convertTimeTo12hourFormat(time) {
     return `${hours12}:${String(minutes).padStart(2, '0')} ${ampm}`;
 }
 
-const validateCreateApointmentBody = catchAsync(async (req, res, next) => {
+const validateCreateAppointmentBody = catchAsync(async (req, res, next) => {
 
     try {
         const { user, professional_id, start_time, end_time, service_id, date, availability_id } = req.body;
@@ -200,5 +200,5 @@ function convertTime(time) {
 
 
 module.exports = {
-    validateCreateApointmentBody,
+    validateCreateAppointmentBody,
 };

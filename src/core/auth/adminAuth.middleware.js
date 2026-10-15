@@ -82,7 +82,7 @@ const validateJWTtoken = catchAsync(async (req, res, next) => {
     }
 });
 
-const validateResetPassordBody = catchAsync(async (req, res, next) => {
+const validateResetPasswordBody = catchAsync(async (req, res, next) => {
     try {
         const { old_password, new_password, confirm_password } = req.body;
 
@@ -160,7 +160,7 @@ module.exports = {
     validateCreateAdminBody,
     validateLoginAdminBody,
     validateJWTtoken,
-    validateResetPassordBody,
+    validateResetPasswordBody,
     validateCreateUserBody,
     validateNewServiceListBody,
 };

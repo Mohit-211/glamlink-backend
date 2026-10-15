@@ -357,7 +357,7 @@ const getAllUserAddress = async (reqBody) => {
   }
 };
 
-const getAllBuinessAddress = async (reqBody) => {
+const getAllBusinessAddress = async (reqBody) => {
   try {
     const { user } = reqBody;
 
@@ -425,7 +425,7 @@ const getAllBuinessAddress = async (reqBody) => {
   }
 };
 
-const getBuinessAddressById = async (id) => {
+const getBusinessAddressById = async (id) => {
   try {
     const orderDoc = await UserAddress.findOne({
       where: { id: id },
@@ -1419,8 +1419,8 @@ module.exports = {
   addNewAddress,
   editAddress,
   getAllUserAddress,
-  getAllBuinessAddress,
-  getBuinessAddressById,
+  getAllBusinessAddress,
+  getBusinessAddressById,
   deleteAddress,
   checkAddressProvided,
   getAllProfessionalOrders,

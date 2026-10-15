@@ -20,7 +20,7 @@ const {
   City,
   Follow,
   Post,
-  Post_Tag,
+  PostTag,
   Feed,
   PostLike,
   PostAttachment,
@@ -32,12 +32,12 @@ const {
   UserBlock,
   Story,
   Wall,
-  Feed_Post,
+  FeedPost,
   Album,
   AlbumAttachment,
   Reel,
   UserToken,
-  userLoginTiming,
+  UserLoginTiming,
   ReelLike,
   ReelComment,
   BookingSlot,
@@ -46,7 +46,7 @@ const {
   Availability,
   PostReport,
   Tag,
-  Reel_Tag,
+  ReelTag,
   AlbumAttachmentLike,
   UserAddress,
   Country,
@@ -675,19 +675,19 @@ const deactivateAccount = async (reqBody) => {
       const postIdsArr = postDocs.map((post) => post.id);
 
       // Find and delete post tags, then update tag counts
-      const postTagDocs = await Post_Tag.findAll({
+      const postTagDocs = await PostTag.findAll({
         where: { post_id: { [Op.in]: postIdsArr } },
       });
       const postTagIds = postTagDocs.map((tag) => tag.tag_id);
       await Promise.all([
-        Post_Tag.destroy({
+        PostTag.destroy({
           where: { post_id: { [Op.in]: postIdsArr } },
           force: true,
         }),
         decrementTagCount(postTagIds),
       ]);
       await Promise.all([
-        Feed_Post.destroy({
+        FeedPost.destroy({
           where: { post_id: { [Op.in]: postIdsArr } },
           force: true,
         }),
@@ -769,12 +769,12 @@ const deactivateAccount = async (reqBody) => {
       const reelIds = reelDocs.map((reel) => reel.id);
 
       // Find and delete reel tags, then update tag counts
-      const reelTagDocs = await Reel_Tag.findAll({
+      const reelTagDocs = await ReelTag.findAll({
         where: { reel_id: { [Op.in]: reelIds } },
       });
       const reelTagIds = reelTagDocs.map((tag) => tag.tag_id);
       await Promise.all([
-        Reel_Tag.destroy({
+        ReelTag.destroy({
           where: { reel_id: { [Op.in]: reelIds } },
           force: true,
         }),
@@ -804,7 +804,7 @@ const deactivateAccount = async (reqBody) => {
 
     if (feedDoc) {
       await Promise.all([
-        Feed_Post.destroy({
+        FeedPost.destroy({
           where: { feed_id: feedDoc.id },
           force: true,
         }),
@@ -827,7 +827,7 @@ const deactivateAccount = async (reqBody) => {
     await Promise.all([
       UserToken.destroy(commonDestroyOptions),
       revokeUserSessions(user.id, "account_deleted"),
-      userLoginTiming.destroy(commonDestroyOptions),
+      UserLoginTiming.destroy(commonDestroyOptions),
       UserAttachment.destroy(commonDestroyOptions),
       UserBlock.destroy({
         where: {
@@ -861,7 +861,7 @@ const deactivateAccount = async (reqBody) => {
   }
 };
 
-const notificationToogle = async (body) => {
+const notificationToggle = async (body) => {
   try {
     const { user } = body;
     user.notification_status = !user.notification_status;
@@ -1793,7 +1793,7 @@ const followAndUnfollwUser = async (body) => {
         let currPostId = postIds[i]["id"];
 
         if (!feedDoc) continue;
-        await Feed_Post.findOrCreate({
+        await FeedPost.findOrCreate({
           where: { feed_id: feedDoc.id, post_id: currPostId, is_active: true },
           defaults: { feed_id: feedDoc.id, post_id: currPostId },
         });
@@ -1832,7 +1832,7 @@ const followAndUnfollwUser = async (body) => {
           });
           if (allPostDoc) {
             let allpostIdsArr = allPostDoc.map((elm) => elm.id);
-            await Feed_Post.destroy({
+            await FeedPost.destroy({
               where: {
                 feed_id: feedDoc.id,
                 post_id: { [Op.in]: allpostIdsArr },
@@ -1875,7 +1875,7 @@ const followAndUnfollwUser = async (body) => {
           let currPostId = postIds[i]["id"];
 
           if (!feedDoc) continue;
-          await Feed_Post.findOrCreate({
+          await FeedPost.findOrCreate({
             where: {
               feed_id: feedDoc.id,
               post_id: currPostId,
@@ -4171,7 +4171,7 @@ const getGoogleLocationDetails = async (body, params) => {
 module.exports = {
   getProfile,
   deactivateAccount,
-  notificationToogle,
+  notificationToggle,
   updateProfile,
   getProfileById,
   getAllUserList,

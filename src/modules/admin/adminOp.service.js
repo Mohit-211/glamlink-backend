@@ -16,7 +16,7 @@ const {
   Profile,
   UserAttachment,
   Payment,
-  userLoginTiming,
+  UserLoginTiming,
   Timezone,
   Permission,
   PermissionUser,
@@ -658,7 +658,7 @@ const deleteUser = async (body) => {
 
         UserToken.destroy({ where: { user_id: userId } }),
         revokeUserSessions(userId, "account_deleted"),
-        userLoginTiming.destroy({ where: { user_id: userId } }),
+        UserLoginTiming.destroy({ where: { user_id: userId } }),
         UserAddress.destroy({ where: { user_id: userId } }),
         UserAttachment.destroy({ where: { user_id: userId } }),
         Profile.destroy({ where: { user_id: userId } }),
@@ -906,7 +906,7 @@ const getAllAppointment = async (body, header, query) => {
 
 const getUserLoginTimings = async () => {
   try {
-    let result = await userLoginTiming.findAll({
+    let result = await UserLoginTiming.findAll({
       attributes: [
         "id",
         "user_id",
@@ -965,7 +965,7 @@ const loginTimingsByUserId = (loginTimings) => {
 
 const clearLoginRecords = async () => {
   try {
-    await userLoginTiming.destroy({ force: true, where: { is_active: true } });
+    await UserLoginTiming.destroy({ force: true, where: { is_active: true } });
     return "ok";
   } catch (error) {
     throw new ApiError(
@@ -1590,7 +1590,7 @@ const deleteServiceById = async (body, params) => {
   }
 };
 
-const promotedToogle = async (body) => {
+const promotedToggle = async (body) => {
   try {
     const { user_id, professionId, keywordIds = [] } = body;
 
@@ -2035,7 +2035,7 @@ const deleteServiceList = async (body) => {
   }
 };
 
-const foundersToogle = async (body) => {
+const foundersToggle = async (body) => {
   try {
     const { user_id } = body;
     const userDoc = await User.findOne({
@@ -2220,13 +2220,13 @@ module.exports = {
   deleteReelById,
   getAllService,
   deleteServiceById,
-  promotedToogle,
+  promotedToggle,
   getAllPromotionRequest,
   createServiceList,
   createServiceListUsingCSV,
   updateServiceList,
   deleteServiceList,
-  foundersToogle,
+  foundersToggle,
   unpromote,
   unpromoteAll,
   getUserPromotions,

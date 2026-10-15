@@ -3,7 +3,7 @@ const { Sequelize, Op } = require('sequelize');
 const { timeAgo } = require('../../core/utils/time');
 
 
-const { Follow, User, Story, Wall_Story, Wall, Profile, UserAttachment } = require('../../models');
+const { Follow, User, Story, WallStory, Wall, Profile, UserAttachment } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const config = require('../../core/config/config');
 
@@ -72,7 +72,7 @@ const addStoryIntoFollowersWall = async (followerDoc, storyDoc) => {
         });
 
         if (wallDoc) {
-            await Wall_Story.findOrCreate({
+            await WallStory.findOrCreate({
                 where: { wall_id: wallDoc.id, story_id: storyDoc.id, is_active: true },
                 defaults: { wall_id: wallDoc.id, story_id: storyDoc.id },
             });
