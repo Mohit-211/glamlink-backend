@@ -32,7 +32,7 @@ do not touch until the app or CRM phase).
 | 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a). Mohit: rotate the key in Google Cloud (the old one is in git history) and put the new one in the server `.env` |
 | 21 | Low | `.env.example` held real-looking credentials | Fixed: placeholders only (Phase 2b, `73092bc`) |
 | 22 | Low | Login reveals whether an email exists | Fixed for users: one `INVALID_CREDENTIALS` answer (Phase 3). Open for admins: the admin panel matches the message "User not found.", so it changes with the panel |
-| 23 | Low | CORS configured three ways; `Access-Control-Allow-Origin: *` on every response | Partly: one CORS file (`cbc20dc`). Open in Phase 2a: the `*` header, and a disallowed origin answering 500 |
+| 23 | Low | CORS configured three ways; `Access-Control-Allow-Origin: *` on every response | Fixed: one CORS file (`cbc20dc`); no wildcard; only `ACCESSDOMAINS` origins get CORS headers; others are refused with 403 (Phase 2a) |
 
 ## Bugs (backend audit: 32 findings)
 
@@ -86,7 +86,7 @@ Found during the work (not in the audits):
 
 | Item | Status |
 | --- | --- |
-| `PUT /ads/sort-order` unreachable: `PUT /ads/:id` is registered first | Open in Phase 2a |
-| A disallowed CORS origin gets a 500 | Open in Phase 2a |
+| `PUT /ads/sort-order` unreachable: `PUT /ads/:id` is registered first | Fixed (Phase 2a) |
+| A disallowed CORS origin gets a 500 | Fixed: 403 `ORIGIN_NOT_ALLOWED` (Phase 2a) |
 | `PUT /order/editAddress-public/:id` edited any address by id and re-pointed the card at it | Fixed: only the card's own address (Phase 2a) |
 | A card nobody owned could be edited by anyone (`updateBusinessCard`, featured-link reorder) | Fixed: card token or an admin (Phase 2a) |

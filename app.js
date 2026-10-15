@@ -76,11 +76,10 @@ if (config.env !== 'test') {
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 1;
 
 
-app.use(function (req, res, next) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.removeHeader("Cross-Origin-Embedder-Policy");
+// No Cross-Origin-Embedder-Policy: other sites may embed our images. CORS headers come from core/http/cors.js,
+// for the allowed origins only.
+app.use((req, res, next) => {
+  res.removeHeader('Cross-Origin-Embedder-Policy');
   next();
 });
 
