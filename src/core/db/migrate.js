@@ -71,7 +71,7 @@ const run = async (command = 'up', { database, log = console.log } = {}) => {
     }
 };
 
-module.exports = { run };
+module.exports = { run, connect };
 
 if (require.main === module) {
     run(process.argv[2]).catch((error) => {
