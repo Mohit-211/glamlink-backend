@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const reelController = require('./reel.controller');
-const { authenticate, optionalAuth } = require('../../shared/identity/authenticate');
+const { authenticate, optionalAuth } = require('../../shared/identity');
 
 router.post('/', [authenticate], reelController.createReel);
 router.get('/', [optionalAuth], reelController.getAllReel);

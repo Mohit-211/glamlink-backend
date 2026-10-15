@@ -15,7 +15,7 @@ const {
   userStatusTypes,
 } = require("../../core/config/types");
 const sequelize = require("../../core/db/central.db");
-const { createNotification } = require("../../shared/notifications/notification.service");
+const { createNotification } = require("../../shared/notifications");
 const { getCoordinates, getRouteInfo, formatDistance } = require('../../integrations/google');
 
 const getAllUserList = async () => {

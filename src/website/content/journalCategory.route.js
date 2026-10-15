@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 const journalCategoryController = require('./journalCategory.controller');
 

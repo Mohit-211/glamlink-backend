@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const reviewController = require('./review.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.post('/', [authenticate], reviewController.createReview);
 router.get('/:professional_id', [authenticate], reviewController.getAllReviewByProfessionalId);

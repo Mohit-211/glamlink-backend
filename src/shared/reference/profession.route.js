@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const professionController = require('./profession.controller');
-const { validateJWTtoken } = require('../admin/adminToken.middleware');
+const { validateJWTtoken } = require('../admin');
 
 
 router.post('/',[ validateJWTtoken], professionController.createProfession);

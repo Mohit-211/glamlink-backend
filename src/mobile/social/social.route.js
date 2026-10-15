@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const socialController = require('./social.controller');
-const { authenticate, optionalAuth } = require('../../shared/identity/authenticate');
+const { authenticate, optionalAuth } = require('../../shared/identity');
 
 router.get('/list', [optionalAuth], socialController.getAllUserList);
 router.get('/list/random-professionals', [optionalAuth], socialController.getAllRandomProfessionalList);

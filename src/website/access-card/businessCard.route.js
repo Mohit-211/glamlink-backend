@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin');
 const { BusinessCard } = require('../../models');
 
-const { requireProfessional } = require('../../shared/identity/authenticate');
+const { requireProfessional } = require('../../shared/identity');
 const businessCardController = require('./businessCard.controller');
 
 router.post('/', businessCardController.createBusinessCard);

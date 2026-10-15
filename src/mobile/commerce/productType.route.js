@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 const productTypeController = require('./productType.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.post('/createProductType', [authenticate], productTypeController.createProductType);
 router.get('/getAllProductType', [authenticate], productTypeController.getAllProductType);

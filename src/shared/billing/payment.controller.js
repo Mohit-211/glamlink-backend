@@ -4,7 +4,7 @@ const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");
 const Stripe = require("stripe");
 const { todayDate } = require("../../core/utils/time");
-const { accessCardOwner, setPasswordLink } = require("../identity/account.service");
+const { accessCardOwner, setPasswordLink } = require("../identity");
 const { Payment, User, CRMPayment, Order, OrderDetails, Customer, Cart, Product, PromotionPayment, UserPromotion, BusinessCard, UserAddress, AccessOrder, State, City } = require("../../models");
 const catchAsync = require("../../core/http/catchAsync");
 const ApiError = require("../../core/http/ApiError");
@@ -13,7 +13,7 @@ const config = require("../../core/config/config");
 const { getKeys } = require("./stripeCustomer.service");
 const {
   createNotification,
-} = require("../notifications/notification.service");
+} = require("../notifications");
 const { notificationTypes } = require("../../core/config/types");
 const {
   sendOrderConfirmationToSeller,

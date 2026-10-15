@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const chatController = require('./chat.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.get('/get-chat/:receiverUserId', [authenticate], chatController.getMessages);
 router.post('/send-message', [authenticate], chatController.postMessage);

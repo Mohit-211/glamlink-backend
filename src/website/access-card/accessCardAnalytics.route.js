@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin');
 const { BusinessCard } = require('../../models');
 
 const accessCardAnalyticsController = require("./accessCardAnalytics.controller");

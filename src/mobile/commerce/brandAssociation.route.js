@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const brandAssociationController = require('./brandAssociation.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.post('/professional/brand/association', [authenticate], brandAssociationController.requestForAssociationWithBrand);
 router.get('/professional/brand/association/list', [authenticate], brandAssociationController.getAllAssociationRequest);

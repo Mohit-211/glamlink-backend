@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const promotionRequestController = require('./promotionRequest.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.post('/requestForPromotion', [authenticate], promotionRequestController.requestForPromotion);
 

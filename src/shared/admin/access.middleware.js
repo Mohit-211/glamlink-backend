@@ -6,8 +6,8 @@ const { Admin } = require('../../models');
 const config = require('../../core/config/config');
 const catchAsync = require('../../core/http/catchAsync');
 const ApiError = require('../../core/http/ApiError');
-const { authenticate, identify } = require('../identity/authenticate');
-const { tokenFromRequest } = require('../identity/sessions');
+const { authenticate, identify } = require('../identity');
+const { tokenFromRequest } = require('../identity');
 
 // Admin tokens are signed with the hex-decoded secret (see adminAuth.service.js loginAdminUser).
 const verifyAdminToken = async (token) => {

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../shared/admin/access.middleware');
+const { requireAdmin } = require('../shared/admin');
 
 const customerController = require('./customer.controller');
-const { authenticate } = require('../shared/identity/authenticate');
+const { authenticate } = require('../shared/identity');
 
 router.post('/createCustomer',[authenticate],  customerController.createCustomer);
 router.get('/getAllCustomer', [authenticate], customerController.getAllCustomer);

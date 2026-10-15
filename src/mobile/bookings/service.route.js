@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 const serviceController = require('./service.controller');
-const { authenticate, optionalAuth } = require('../../shared/identity/authenticate');
+const { authenticate, optionalAuth } = require('../../shared/identity');
 const serviceValidation = require('./service.validation');
 
 router.post('', [authenticate, serviceValidation.validateNewServiceBody], serviceController.createService);

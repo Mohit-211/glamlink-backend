@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin');
 const { Product } = require('../../models');
 
 const productController = require('./product.controller');
-const { authenticate, optionalAuth } = require('../../shared/identity/authenticate');
+const { authenticate, optionalAuth } = require('../../shared/identity');
 
 router.post('/createProduct', [authenticate],productController.createProduct);
 router.get('/getAllProducts',[authenticate],  productController.getAllProducts);

@@ -1,7 +1,7 @@
 const express = require('express');
 const adController = require('./ad.controller');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 
 router.post('/', requireAdmin, adController.createAd);

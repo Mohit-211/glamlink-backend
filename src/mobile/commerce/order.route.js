@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin, requireOwnerOrAdmin } = require('../../shared/admin');
 const { OrderDetails } = require('../../models');
 
 const orderController = require('./order.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.get('/getAllUserOrders',[authenticate], orderController.getAllUserOrders);
 router.post('/getAllProfessionalOrders', [authenticate],orderController.getAllProfessionalOrders);

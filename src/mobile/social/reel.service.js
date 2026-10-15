@@ -4,8 +4,8 @@ const { Sequelize } = require('sequelize')
 const { Reel, User, Profile, UserAttachment, ReelComment, ReelLike, Tag, ReelTag } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { notificationTypes, actionTypes } = require('../../core/config/types');
-const { createNotification } = require('../../shared/notifications/notification.service');
-const { earnCoin } = require('../glamcoins/glamcoin.service');
+const { createNotification } = require('../../shared/notifications');
+const { earnCoin } = require('../glamcoins');
 
 const extractHashtags = (content) => {
     // Match all hashtags starting with '#' followed by any word characters or other characters like '@', '.', '_', etc.

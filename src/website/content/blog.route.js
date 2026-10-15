@@ -3,7 +3,7 @@ const router = express.Router();
 
 const blogController = require('./blog.controller');
 const blogValidation = require('./blog.validation');
-const { validateJWTtoken } = require('../../shared/admin/adminToken.middleware');
+const { validateJWTtoken } = require('../../shared/admin');
 
 router.post('/', [ validateJWTtoken, blogValidation.validateNewBlogBody ], blogController.createBlog);
 router.get('/', blogController.getAllBlogByToken);

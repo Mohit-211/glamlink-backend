@@ -3,7 +3,7 @@ const express = require("express");
 const partnershipInquiryController = require("./partnershipInquiry.controller");
 
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 // Public
 router.post("/", partnershipInquiryController.createPartnershipInquiry);

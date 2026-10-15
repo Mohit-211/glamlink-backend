@@ -23,7 +23,7 @@ const {
 	caseTypes,
 } = require("../../core/config/types");
 const config = require("../../core/config/config");
-const { createNotification } = require("../../shared/notifications/notification.service");
+const { createNotification } = require("../../shared/notifications");
 const { Sequelize } = require("../../core/db/central.db");
 const { sendAppointmentEmails } = require("../../integrations/mailer/email.service");
 

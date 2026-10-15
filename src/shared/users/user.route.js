@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const userController = require('./user.controller');
-const { authenticate, optionalAuth } = require('../identity/authenticate');
+const { authenticate, optionalAuth } = require('../identity');
 
 router.get('/profile', [authenticate], userController.getProfile);
 router.get('/profile/:userId', [optionalAuth], userController.getProfileById);

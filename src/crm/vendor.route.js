@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../shared/admin/access.middleware');
+const { requireAdmin } = require('../shared/admin');
 
 const vendorController = require('./vendor.controller');
-const { authenticate } = require('../shared/identity/authenticate');
+const { authenticate } = require('../shared/identity');
 
 router.post('/createVendor', [authenticate], vendorController.createVendor);
 router.get('/getAllVendor', [authenticate], vendorController.getAllVendor);

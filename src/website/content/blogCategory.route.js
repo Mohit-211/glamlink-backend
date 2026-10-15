@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 const blogCategoryController = require('./blogCategory.controller');
-const { validateJWTtoken } = require('../../shared/admin/adminToken.middleware');
+const { validateJWTtoken } = require('../../shared/admin');
 
 
 router.post('/',[ validateJWTtoken], blogCategoryController.createBlogCategory);

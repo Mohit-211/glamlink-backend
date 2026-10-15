@@ -7,7 +7,7 @@ const { Payment, Order, OrderDetails, Cart, Product } = require("../../models");
 const catchAsync = require("../../core/http/catchAsync");
 const ApiError = require("../../core/http/ApiError");
 const responseWrapper = require("../../core/http/responseWrapper");
-const { getKeys, getCustomer } = require("../../shared/billing/stripeCustomer.service");
+const { getKeys, getCustomer } = require("../../shared/billing");
 const {
   calculateCheckoutTax,
 } = require("./numeral.service");

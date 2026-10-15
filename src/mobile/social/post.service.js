@@ -21,9 +21,9 @@ const {
 	PostTag,
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
-const { createNotification } = require("../../shared/notifications/notification.service");
+const { createNotification } = require("../../shared/notifications");
 const { notificationTypes, actionTypes } = require("../../core/config/types");
-const { earnCoin } = require("../glamcoins/glamcoin.service");
+const { earnCoin } = require("../glamcoins");
 
 const extractHashtags = (content) => {
 	// Match all hashtags starting with '#' followed by any word characters or other characters like '@', '.', '_', etc.

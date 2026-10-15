@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 // Every route in this router is admin-only.
 router.use(requireAdmin);
 
 const backofficeController = require('./backoffice.controller');
 const adminOperationsController = require('./userActivity.controller');
-const { validateJWTtoken } = require('../../shared/admin/adminToken.middleware');
+const { validateJWTtoken } = require('../../shared/admin');
 const backofficeValidation = require('./backoffice.validation');
 
 router.post('/user/promoted', [validateJWTtoken], backofficeController.promotedToggle);

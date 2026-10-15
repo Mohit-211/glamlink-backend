@@ -12,9 +12,9 @@ const {
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 const config = require("../../core/config/config");
-const { createNotification } = require("../../shared/notifications/notification.service");
+const { createNotification } = require("../../shared/notifications");
 const { notificationTypes, actionTypes } = require("../../core/config/types");
-const { earnCoin } = require('../glamcoins/glamcoin.service');
+const { earnCoin } = require('../glamcoins');
 
 const createReview = async (reqBody) => {
 	try {

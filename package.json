@@ -18,10 +18,11 @@
     "migrate:status": "node src/core/db/migrate.js status",
     "migrate:down": "node src/core/db/migrate.js down",
     "seed": "node src/core/db/seed.js",
-    "lint": "oxlint",
+    "lint": "oxlint && node scripts/check-boundaries.js",
     "lint:fix": "oxlint --fix",
     "check:routes": "node scripts/route-table.js",
     "check:models": "node scripts/model-table.js",
+    "check:boundaries": "node scripts/check-boundaries.js",
     "check:contract": "node scripts/contract-check.js compare",
     "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""
   },

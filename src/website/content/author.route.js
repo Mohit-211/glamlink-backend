@@ -2,7 +2,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { requireAdmin } = require('../../shared/admin/access.middleware');
+const { requireAdmin } = require('../../shared/admin');
 
 const authorController = require("./author.controller");
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const caseController = require('./case.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 router.get('/', [authenticate], caseController.getAllCase);
 router.get('/:caseId', [authenticate], caseController.caseDetail);

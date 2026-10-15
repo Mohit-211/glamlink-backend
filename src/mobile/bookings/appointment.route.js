@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const appointmentController = require('./appointment.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 const appointmentMiddleware = require('./appointment.validation');
 
 router.post('/', [authenticate, appointmentMiddleware.validateCreateAppointmentBody], appointmentController.createAppointment);

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { requireOwnerOrAdmin } = require('../../shared/admin/access.middleware');
+const { requireOwnerOrAdmin } = require('../../shared/admin');
 const { BannerMedia } = require('../../models');
 
 
-const { requireProfessional } = require('../../shared/identity/authenticate');
+const { requireProfessional } = require('../../shared/identity');
 const bannerController = require('./banner.controller');
 
 router.post('/createBanner', [requireProfessional],bannerController.createBanner);

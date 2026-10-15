@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const productReviewController = require('./productReview.controller');
-const { authenticate, optionalAuth } = require('../../shared/identity/authenticate');
+const { authenticate, optionalAuth } = require('../../shared/identity');
 
 router.post('/postReviewAndRating',[authenticate],productReviewController.postReviewAndRating);
 router.put('/updateReviewAndRating',[authenticate],productReviewController.updateReviewAndRating);

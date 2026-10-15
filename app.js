@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
 const httpStatus = require('./src/core/http/status');
-const cron = require('node-cron');
 const path = require('path');
 const app = express();
 app.set("trust proxy", 1);
@@ -26,21 +25,14 @@ const { UPLOADS_DIR } = require('./src/core/config/paths');
 
 
 const handleFileUploads = require('./src/core/http/uploads.js');
-const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/crm/crmPayment.controller.js');
-const { updateUserPromotions } = require('./src/mobile/promotions/promotion.service.js');
+const jobs = require('./src/jobs');
 
 
 
 
-// Scheduled jobs (not under test: they change data on their own clock).
+// Scheduled jobs (not under test: they change data on their own clock). Each module declares its own.
 if (config.env !== 'test') {
-  cron.schedule('* * * * *', () => {
-    checkUserFreeTrialStatus();
-    checkUserPremiumStatus();
-  });
-  cron.schedule('1 0 * * *', async () => {
-    await updateUserPromotions();
-  });
+  jobs.start();
 }
 
 // set security HTTP headers

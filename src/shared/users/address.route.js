@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const addressController = require('./address.controller');
-const { authenticate } = require('../identity/authenticate');
+const { authenticate } = require('../identity');
 
 router.post('/addNewAddress',[authenticate], addressController.addNewAddress);
 router.put('/editAddress/:id',[authenticate], addressController.editAddress);

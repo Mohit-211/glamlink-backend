@@ -15,7 +15,7 @@ const slugify = require("slugify");
 const {
 	getCustomer,
 	getKeys,
-} = require("../../shared/billing/stripeCustomer.service");
+} = require("../../shared/billing");
 const responseWrapper = require("../../core/http/responseWrapper");
 const { Op } = require("sequelize");
 

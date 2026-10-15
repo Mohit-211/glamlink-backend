@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const schedulerController = require('./scheduler.controller');
-const { requireProfessional } = require('../../shared/identity/authenticate');
+const { requireProfessional } = require('../../shared/identity');
 const schedulerMiddleware = require('./scheduler.validation');
 
 

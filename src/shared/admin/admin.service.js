@@ -1,8 +1,8 @@
 /** @format */
 
 const httpStatus = require("../../core/http/status");
-const { createAccount, normalizeEmail } = require("../identity/account.service");
-const { revokeUserSessions } = require("../identity/sessions");
+const { createAccount, normalizeEmail } = require("../identity");
+const { revokeUserSessions } = require("../identity");
 const Sequelize = require("sequelize");
 const { toDateTime } = require("../../core/utils/time");
 const { literal } = require("sequelize");

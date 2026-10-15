@@ -1,0 +1,25 @@
+// Every module, in mount order: shared first, then the website, the mobile app and the CRM. Order matters only
+// where paths overlap: /user/auth before /user, /admin/auth before /admin, /product/category before /product,
+// and routers that share a path (/user, /order, /payment, /admin) keep the order they had as one router.
+module.exports = [
+    require('./shared/identity'),
+    require('./shared/users'),
+    require('./shared/admin'),
+    require('./shared/reference'),
+    require('./shared/billing'),
+    require('./shared/notifications'),
+    require('./website/access-card'),
+    require('./website/content'),
+    require('./website/inquiries'),
+    require('./website/professional-form'),
+    require('./mobile/social'),
+    require('./mobile/commerce'),
+    require('./mobile/promotions'),
+    require('./mobile/glamcoins'),
+    require('./mobile/face-analysis'),
+    require('./mobile/content'),
+    require('./mobile/bookings'),
+    require('./mobile/guests'),
+    require('./mobile/backoffice'),
+    require('./crm'),
+];

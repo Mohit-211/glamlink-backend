@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const numeralController = require('./numeral.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 
 

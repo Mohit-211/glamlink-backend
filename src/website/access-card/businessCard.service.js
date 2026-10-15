@@ -18,7 +18,7 @@ const {
   Payment,
   AccessOrder,
 } = require("../../models");
-const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity/account.service");
+const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity");
 const QRCode = require("qrcode");
 const path = require("path");
 const { UPLOADS_DIR } = require("../../core/config/paths");
@@ -38,7 +38,7 @@ const stripe = new Stripe(config.STRIPE_SECRET_KEY);
 const httpClient = require("../../core/http/httpClient");
 const {
   getCustomer,
-} = require("../../shared/billing/stripeCustomer.service");
+} = require("../../shared/billing");
 
 const parseFeaturedLinks = (featuredLinks) => {
   if (!featuredLinks) return [];

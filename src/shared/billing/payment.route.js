@@ -1,10 +1,10 @@
 const express = require('express');
 
 const router = express.Router();
-const { requireAdmin } = require('../admin/access.middleware');
+const { requireAdmin } = require('../admin');
 
 const paymentController = require('./payment.controller');
-const { optionalAuth } = require('../identity/authenticate');
+const { optionalAuth } = require('../identity');
 
 router.get('/stripe/stripe-key', [optionalAuth], paymentController.geStripeKeys);
 router.post('/stripe/charge-intent/webhooks', paymentController.handleChargeAndIntentWebhook);

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const cartController = require('./cart.controller');
-const { authenticate } = require('../../shared/identity/authenticate');
+const { authenticate } = require('../../shared/identity');
 
 
 

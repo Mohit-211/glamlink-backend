@@ -3,10 +3,10 @@ const httpStatus = require('../../core/http/status');
 const { Album, AlbumAttachment, AlbumComment, AlbumLike, AlbumAttachmentComment, AlbumAttachmentLike, User, Profile, UserAttachment } = require('../../models');
 const ApiError = require('../../core/http/ApiError');
 const { notificationTypes, actionTypes } = require('../../core/config/types');
-const { createNotification } = require('../../shared/notifications/notification.service');
+const { createNotification } = require('../../shared/notifications');
 const sequelize = require('../../core/db/central.db');
 const { Op } = require("sequelize");
-const { earnCoin } = require('../glamcoins/glamcoin.service');
+const { earnCoin } = require('../glamcoins');
 
 
 const createAlbum = async (body, files) => {
