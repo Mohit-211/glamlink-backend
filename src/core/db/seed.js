@@ -4,7 +4,7 @@
 //
 // Each file in ./seeds fills the table it is named after, and only while that table is empty, so running
 // it again (or against production) changes nothing. The files are exported from production; countries,
-// states and cities hold only the United States and Canada.
+// states, cities and timezones hold only the United States and Canada.
 const fs = require('fs');
 const path = require('path');
 const { connect } = require('./migrate');
