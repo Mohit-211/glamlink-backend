@@ -22,6 +22,4 @@ module.exports = {
     UPLOADS_DIR,
     IMAGES_DIR: path.join(UPLOADS_DIR, 'images'),
     LOGS_DIR: path.join(STORAGE_DIR, 'logs'),
-    // The real key is dropped in at this path on the server; keep it fixed so deploys don't collide with it.
-    FIREBASE_KEY_FILE: process.env.FIREBASE_KEY_FILE || path.join(root, 'src', 'config', 'serviceAccountKey.json'),
 };

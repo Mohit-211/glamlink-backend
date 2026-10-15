@@ -34,6 +34,13 @@ envVars.DEFAULT_TIMEZONE ??= 'UTC';
 envVars.MAIL_TRANSPORT ??= 'smtp';
 if (!['smtp', 'log'].includes(envVars.MAIL_TRANSPORT)) fail('MAIL_TRANSPORT must be smtp or log');
 
+// Firebase is optional: all three set, or none (push notifications and chat are then off).
+const FIREBASE = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
+const firebaseSet = FIREBASE.filter((key) => envVars[key] !== undefined);
+if (firebaseSet.length && firebaseSet.length < FIREBASE.length) {
+    fail(`set all of ${FIREBASE.join(', ')} or none (missing ${FIREBASE.filter((key) => !firebaseSet.includes(key)).join(', ')})`);
+}
+
 module.exports = {
     app_name: envVars.APP_NAME,
     env: envVars.NODE_ENV,
@@ -100,5 +107,12 @@ module.exports = {
     DELETED_EMAIL: envVars.DELETED_EMAIL,
     DELETED_NAME: envVars.DELETED_NAME,
 
-    // GOOGLE_APPLICATION_CREDENTIALS: envVars.GOOGLE_APPLICATION_CREDENTIALS,
+    // The service account's fields from its Google key file; null when Firebase is not configured.
+    firebase: firebaseSet.length ? {
+        projectId: envVars.FIREBASE_PROJECT_ID,
+        clientEmail: envVars.FIREBASE_CLIENT_EMAIL,
+        // Kept on one line in .env with \n for the line breaks
+        privateKey: envVars.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        databaseURL: envVars.FIREBASE_DATABASE_URL || `https://${envVars.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
+    } : null,
 };
