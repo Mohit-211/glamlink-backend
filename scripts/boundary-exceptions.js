@@ -1,9 +1,6 @@
 // Known exceptions to the module boundaries (scripts/check-boundaries.js). Each one is a real dependency that
 // predates the product layout. Remove an entry when its code is fixed; the check fails while a fixed entry stays.
 module.exports = [
-    // A data migration that merges duplicate accounts reuses the identity module's merge code.
-    'src/core/db/migrations/20261015-0300-merge-duplicate-accounts.js imports src/shared/identity/accountMerge.js (core imports nothing above it)',
-
     // Integrations that read data themselves: the mailer looks up people and records for its emails, Shippo
     // stores addresses. Fix: pass the data in from the calling module.
     'src/integrations/mailer/email.service.js imports src/models.js (integrations import only core)',

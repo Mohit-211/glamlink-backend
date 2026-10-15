@@ -17,6 +17,7 @@ const {
   AccessOrder,
 } = require("../../models");
 const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity");
+const { sanitizeBio } = require("./cardBio");
 const QRCode = require("qrcode");
 const path = require("path");
 const { UPLOADS_DIR } = require("../../core/config/paths");
@@ -258,7 +259,7 @@ const createBusinessCard = async (body, files) => {
   if (professional_title) {
     cardObj.professional_title = professional_title;
   }
-  if (bio) cardObj.bio = bio;
+  if (bio) cardObj.bio = sanitizeBio(bio);
   if (color_code) cardObj.color_code = color_code;
 
   /* =========================================================
@@ -878,7 +879,7 @@ const createBusinessCardByAdmin = async (body, files) => {
       professional_title;
   }
 
-  if (bio) cardObj.bio = bio;
+  if (bio) cardObj.bio = sanitizeBio(bio);
   if (color_code) {
     cardObj.color_code = color_code;
   }
@@ -1638,7 +1639,7 @@ const createBusinessCardWithToken = async (body, files) => {
   }
 
   if (bio) {
-    cardObj.bio = bio;
+    cardObj.bio = sanitizeBio(bio);
   }
 
   if (color_code) {
@@ -2646,7 +2647,7 @@ const updateBusinessCard = async (id, body, files) => {
   if (email) updateObj.email = email;
   if (phone) updateObj.phone = phone;
   if (professional_title) updateObj.professional_title = professional_title;
-  if (bio) updateObj.bio = bio;
+  if (bio) updateObj.bio = sanitizeBio(bio);
   if (color_code) updateObj.color_code = color_code;
 
   /* ================= SOCIAL ================= */
@@ -3289,7 +3290,11 @@ const filterBusinessCards = async ({ primary_specialty, location }) => {
         where: location
           ? {
               [Op.and]: [
-                Sequelize.literal(`CONCAT(city, ', ', state) = '${location}'`),
+                // "City, ST" as the directory filter sends it, compared as a value (never written into the SQL).
+                Sequelize.where(
+                  Sequelize.fn("CONCAT", Sequelize.col("city"), ", ", Sequelize.col("state")),
+                  String(location),
+                ),
                 { is_primary: true },
               ],
             }

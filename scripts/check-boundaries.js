@@ -2,7 +2,8 @@
 /**
  * Module boundaries (part of `npm run lint`). The code is grouped by product: shared/, website/, mobile/, crm/,
  * on top of core/ and integrations/. This check fails when:
- *   - core imports anything above it, or an integration imports a module;
+ *   - core imports anything above it, or an integration imports a module (data migrations in
+ *     core/db/migrations may use a module through its index.js);
  *   - a product imports another product (website, mobile and crm only share through shared/);
  *   - shared imports a product;
  *   - a module reaches into another module's files instead of its index.js;
@@ -23,11 +24,13 @@ const files = execSync('git ls-files "src/*.js"', { cwd: root }).toString().trim
 const set = new Set(files);
 
 const PRODUCTS = ['shared', 'website', 'mobile', 'crm'];
-// The module a file belongs to: shared/<m>, website/<m>, mobile/<m>, crm; or a layer: core, integrations, root.
+// The module a file belongs to: shared/<m>, website/<m>, mobile/<m>, crm; or a layer: core, integrations,
+// migrations, root.
 const moduleOf = (f) => {
     const p = f.replace(/^src\//, '').split('/');
     if (['shared', 'website', 'mobile'].includes(p[0]) && p.length > 2) return `${p[0]}/${p[1]}`;
     if (p[0] === 'crm') return 'crm';
+    if (p.slice(0, 3).join('/') === 'core/db/migrations') return 'migrations';
     if (p[0] === 'core' || p[0] === 'integrations') return p[0];
     return 'root'; // routes.js, models.js, modules.js, jobs.js: they assemble the modules
 };
@@ -60,6 +63,13 @@ for (const f of files) {
         if (!target) continue;
         const to = moduleOf(target);
 
+        // A data migration applies a module's rules to stored data, so it may use a module, through its index.js.
+        if (from === 'migrations') {
+            if (!['core', 'migrations'].includes(to) && !(isModule(to) && target.endsWith(`${to}/index.js`))) {
+                found.push(`${f} imports ${target} (migrations use core, or a module through its index.js)`);
+            }
+            continue;
+        }
         if (from === 'core' && to !== 'core') { found.push(`${f} imports ${target} (core imports nothing above it)`); continue; }
         if (from === 'integrations' && !['core', 'integrations'].includes(to)) { found.push(`${f} imports ${target} (integrations import only core)`); continue; }
         if (isModelFile && to !== 'core') { found.push(`${f} imports ${target} (model files import only core)`); continue; }

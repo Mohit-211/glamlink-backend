@@ -4,7 +4,8 @@
 //   npm run migrate:status     list applied and pending migrations
 //   npm run migrate:down       revert the most recent migration
 //
-// A migration exports `up` and `down`, each `async ({ queryInterface, sequelize, Sequelize }) => {}`.
+// A migration exports `up` and `down`, each `async ({ queryInterface, sequelize, Sequelize, log }) => {}`; `log`
+// prints through the runner (reports such as which rows a data migration changed).
 // MariaDB commits schema changes immediately, so a migration that fails halfway is not rolled back:
 // keep each one small, and write `up` so it can run again after a fix (check before adding or renaming).
 const fs = require('fs');
@@ -29,7 +30,7 @@ const connect = (database) => {
 
 const run = async (command = 'up', { database, log = console.log } = {}) => {
     const sequelize = connect(database);
-    const context = { queryInterface: sequelize.getQueryInterface(), sequelize, Sequelize };
+    const context = { queryInterface: sequelize.getQueryInterface(), sequelize, Sequelize, log };
     try {
         await sequelize.query(
             'CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) NOT NULL PRIMARY KEY, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)',
