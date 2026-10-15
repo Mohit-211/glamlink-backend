@@ -1,7 +1,7 @@
 // One person = one account: merges live accounts that share an email into the professional account
 // (see src/modules/identity/accountMerge.js), then links Google/Apple sign-ins to the accounts that own them.
 // Review `node scripts/merge-report.js <out.csv>` (a dry run) against the database first.
-const { mergeDuplicateAccounts } = require('../../../modules/identity/accountMerge');
+const { mergeDuplicateAccounts } = require('../../../shared/identity/accountMerge');
 
 module.exports = {
     up: async ({ sequelize }) => {

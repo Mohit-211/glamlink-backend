@@ -13,7 +13,7 @@
     "start": "pm2 start ecosystem.config.json --no-daemon",
     "staging": "pm2 start ecosystem.staging-config.json --no-daemon",
     "dev": "node --watch index.js",
-    "auth": "node src/modules/admin/createSuperAdmin.js",
+    "auth": "node scripts/create-super-admin.js",
     "migrate": "node src/core/db/migrate.js up",
     "migrate:status": "node src/core/db/migrate.js status",
     "migrate:down": "node src/core/db/migrate.js down",

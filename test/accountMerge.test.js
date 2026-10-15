@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('crypto');
 require('./env');
 const sequelize = require('../src/core/db/central.db');
-const { mergeDuplicateAccounts } = require('../src/modules/identity/accountMerge');
+const { mergeDuplicateAccounts } = require('../src/shared/identity/accountMerge');
 const uniqueEmail = require('../src/core/db/migrations/20261015-0400-unique-live-email');
 
 const q = async (sql, replacements = []) => (await sequelize.query(sql, { replacements }))[0];

@@ -262,7 +262,7 @@ describe('passwords', () => {
 
 describe('Access card accounts', () => {
     test('a card bought by email creates a professional with no password; the welcome link sets it and verifies', async () => {
-        const { accessCardOwner, setPasswordLink } = require('../src/modules/identity/account.service');
+        const { accessCardOwner, setPasswordLink } = require('../src/shared/identity/account.service');
         const email = unique('card');
         const { user, created } = await accessCardOwner({ email, name: 'Card Owner', phone: '555' });
         assert.equal(created, true);
@@ -278,7 +278,7 @@ describe('Access card accounts', () => {
     });
 
     test('a card bought with a user account email switches that account to professional', async () => {
-        const { accessCardOwner } = require('../src/modules/identity/account.service');
+        const { accessCardOwner } = require('../src/shared/identity/account.service');
         const email = unique('switch');
         await post('/register', { name: 'App User', email, password: PASSWORD, confirm_password: PASSWORD, client: 'app', account_type: 'user' });
         const { user, created } = await accessCardOwner({ email, name: 'App User' });

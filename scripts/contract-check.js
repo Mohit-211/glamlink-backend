@@ -123,7 +123,7 @@ const diffPaths = (a, b, p = '', out = new Set()) => {
     ];
 
     const app = require(path.join(ROOT, 'app.js'));
-    const { createSession, revokeSession } = require(path.join(ROOT, 'src/core/auth/sessions'));
+    const { createSession, revokeSession } = require(path.join(ROOT, 'src/shared/identity/sessions'));
     const ownerSession = await createSession({ id: ids.owner }, { client: 'contract-check' });
     tokens.owner = ownerSession.tokens.access_token;
     const server = app.listen(0, '127.0.0.1');

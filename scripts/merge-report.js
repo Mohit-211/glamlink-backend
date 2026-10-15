@@ -8,7 +8,7 @@
  * The CSV holds real email addresses: keep it outside the repo.
  */
 const fs = require('fs');
-const { mergeDuplicateAccounts } = require('../src/modules/identity/accountMerge');
+const { mergeDuplicateAccounts } = require('../src/shared/identity/accountMerge');
 const sequelize = require('../src/core/db/central.db');
 sequelize.options.logging = false;
 

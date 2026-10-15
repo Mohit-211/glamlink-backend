@@ -26,8 +26,8 @@ const { UPLOADS_DIR } = require('./src/core/config/paths');
 
 
 const handleFileUploads = require('./src/core/http/uploads.js');
-const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/modules/crm/crmPayment.controller.js');
-const { updateUserPromotions } = require('./src/modules/professional/promotion.service.js');
+const { checkUserPremiumStatus, checkUserFreeTrialStatus } = require('./src/crm/crmPayment.controller.js');
+const { updateUserPromotions } = require('./src/mobile/promotions/promotion.service.js');
 
 
 
