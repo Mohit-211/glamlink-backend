@@ -14,8 +14,7 @@ const config = require('./src/core/config/config.js');
 const routes = require('./src/routes');
 const accessLog = require('./src/core/http/accessLog.js');
 const { authLimiter } = require('./src/core/http/rateLimiter.js');
-const corsConfigs = require('./src/core/http/corsConfigs.js');
-const credentials = require('./src/core/http/credentials.js');
+const { credentials, corsOptions } = require('./src/core/http/cors.js');
 
 const ApiError = require('./src/core/http/ApiError.js');
 const errorHandler = require('./src/core/http/errorHandler.js');
@@ -86,7 +85,7 @@ app.use(function (req, res, next) {
 });
 
 app.use(credentials);
-app.use(cors(corsConfigs));
+app.use(cors(corsOptions));
 
 
 // Limit repeated attempts on admin sign-in (user sign-in limits its own routes: src/modules/identity/auth.route.js)
