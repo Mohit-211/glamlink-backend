@@ -52,7 +52,7 @@ const createAdminUser = async (userBody) => {
 
 const loginAdminUser = async (reqBody) => {
     try {
-        const user = await Admin.findOne({ where: { email: reqBody.email } })
+        const user = await Admin.findOne({ where: { email: reqBody.email, is_active: true } })
 
         if (!user) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'User not found.');
@@ -136,7 +136,7 @@ const verifyOTP = async (email, otp, otp_type) => {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Please Enter Required Fields : [email, otp]');
         };
 
-        const user = await Admin.findOne({ where: { email: email } });
+        const user = await Admin.findOne({ where: { email: email, is_active: true } });
         if (!user) {
             throw new ApiError(httpStatus.NOT_FOUND, 'Invalid Email');
         };

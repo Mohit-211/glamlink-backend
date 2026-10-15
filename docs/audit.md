@@ -18,11 +18,11 @@ do not touch until the app or CRM phase).
 | 6 | Critical | SQL injection through the `fcm_token` header | Fixed: parameterized (Phase 0); the token table is no longer written (sessions, Phase 3) |
 | 7 | Critical | SQL injection in `POST /user/search` | Fixed: LIKE terms escaped (Phase 0) |
 | 8 | Critical | OTP brute force, rate limiter on a dead path | Fixed: limiter on the real auth paths, 5 wrong codes burn an OTP (Phase 0); user OTPs replaced by email links (Phase 3) |
-| 9 | High | About 100 data-changing routes without auth | Fixed: admin guard on 201 back-office routes (Phase 0), explicit sign-in rules on every route (Phase 3, `6714501`). Partly: 11 routes still use the old admin check that accepts a deactivated admin; website and shared ones are fixed in Phase 2a |
+| 9 | High | About 100 data-changing routes without auth | Fixed: admin guard on 201 back-office routes (Phase 0), explicit sign-in rules on every route (Phase 3, `6714501`). Website and shared routes all use `requireAdmin` (Phase 2a). App: the app back-office routes and the app service categories still use the old check, until the app phase |
 | 10 | High | Personal data readable without login | Fixed: admin lists (Phase 0); the logged-out card purchase now needs the card token, the owner or an admin (Phase 2a) |
 | 11 | High | Shipping labels and push notifications without login | Fixed: owner-or-admin and admin only (Phase 0) |
 | 12 | High | Server logs public at `/api/v1/logs` | Fixed: removed (Phase 0) |
-| 13 | High | Admin tokens never re-checked; deactivated admins keep access; admin login ignores `is_active` | Partly: `requireAdmin` re-checks the admin is active (Phase 0). Open in Phase 2a: admin login still lets a deactivated admin sign in, and the 11 routes of #9. Open: admin roles are never enforced (all admin roles have the same power) |
+| 13 | High | Admin tokens never re-checked; deactivated admins keep access; admin login ignores `is_active` | Fixed: `requireAdmin` re-checks the admin is active (Phase 0) and is the only admin check on website and shared routes; admin sign-in and admin OTP verification refuse deactivated admins (Phase 2a). Open: admin roles are never enforced (all admin roles have the same power) |
 | 14 | High | Promotion webhook activated unpaid promotions | Fixed (Phase 0) |
 | 15 | Medium | "Login required" let guests through on 187 routes | Fixed: `authenticate` / `optionalAuth` / `requireProfessional` (Phase 3) |
 | 16 | Medium | Passwords and tokens written to logs | Fixed (Phase 0) |

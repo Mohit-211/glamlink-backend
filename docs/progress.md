@@ -2,13 +2,14 @@
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one.
 
-## Phase 2a: security (current, branch `phase4/structure`)
+## Phase 2a: security (current, branch `phase5/security`)
 
 In progress. Items and their status: plan.md (Phase 2a) and audit.md.
 
 | Item | Status |
 | --- | --- |
-| 1. Card token for the logged-out purchase | Done: `POST /businessCard` returns a 24-hour `card_token`; the six purchase calls and edits of an unowned card require it (or the owner, or an admin); `editAddress-public` edits only the card's own address. Tests: `test/cardAccess.test.js` |
+| 1. Card token for the logged-out purchase | Done: `POST /businessCard` returns a 24-hour `card_token`; the six purchase calls and edits of an unowned card require it (or the owner, or an admin); `editAddress-public` edits only the card's own address. Tests: `test/cardAccess.test.js` (`cc2a641`) |
+| 2. One admin guard | Done: `requireAdmin` on every website and shared admin route (blog, blog categories, professions, admin change-password; the redundant old check on `/admin/*` removed, so Bearer tokens work there); admin sign-in and admin OTP verification refuse deactivated admins. Tests: `test/adminGuard.test.js` |
 
 ## Phase 1: restructure into products (Oct 16, branch `phase4/structure`)
 

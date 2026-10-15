@@ -3,13 +3,13 @@ const router = express.Router();
 
 const blogController = require('./blog.controller');
 const blogValidation = require('./blog.validation');
-const { validateJWTtoken } = require('../../shared/admin');
+const { requireAdmin } = require('../../shared/admin');
 
-router.post('/', [ validateJWTtoken, blogValidation.validateNewBlogBody ], blogController.createBlog);
+router.post('/', [requireAdmin, blogValidation.validateNewBlogBody], blogController.createBlog);
 router.get('/', blogController.getAllBlogByToken);
 router.get('/:blog_id', blogController.blogDetailById);
-router.put('/update/:id', [ validateJWTtoken ], blogController.updateBlog);
-router.post('/delete', [ validateJWTtoken ], blogController.deleteBlog);
+router.put('/update/:id', [requireAdmin], blogController.updateBlog);
+router.post('/delete', [requireAdmin], blogController.deleteBlog);
 
 
 module.exports = router;

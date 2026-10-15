@@ -3,13 +3,12 @@ const router = express.Router();
 const { requireAdmin } = require('./access.middleware');
 
 const adminAuthController = require('./adminAuth.controller');
-const { validateJWTtoken } = require('./adminToken.middleware');
 const adminValidation = require('./admin.validation');
 
 // Only an existing admin can create another admin (Super Admin accounts come from `npm run auth`).
 router.post('/register', requireAdmin, [adminValidation.validateCreateAdminBody], adminAuthController.createAdminUser);
 router.post('/login', [adminValidation.validateLoginAdminBody], adminAuthController.loginAdminUser);
-router.post('/change-password',  [ adminValidation.validateResetPasswordBody, validateJWTtoken], adminAuthController.resetAdminPassword);
+router.post('/change-password', requireAdmin, [adminValidation.validateResetPasswordBody], adminAuthController.resetAdminPassword);
 router.post('/otp',  adminAuthController.sendOTP);
 router.post('/verify-otp',  adminAuthController.verifyOTP);
 router.post('/forgot-password',  adminAuthController.forgotAdminPassword);
