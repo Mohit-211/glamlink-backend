@@ -2,6 +2,7 @@ const httpStatus = require("../../core/http/status");
 const catchAsync = require("../../core/http/catchAsync");
 const journalService = require("./journal.service");
 const responseWrapper = require("../../core/http/responseWrapper");
+const { identifyAdmin } = require("../../shared/admin");
 
 const createJournal = catchAsync(async (req, res) => {
   const categoryDoc = await journalService.createJournal(req.body, req.files);
@@ -131,7 +132,9 @@ const getAllJournalTopics = catchAsync(async (req, res) => {
 });
 
 const getJournalTopicById = catchAsync(async (req, res) => {
-  const data = await journalService.getJournalTopicById(req.params.id);
+  // A public page: professionals' emails only for an admin.
+  const isAdmin = Boolean(await identifyAdmin(req));
+  const data = await journalService.getJournalTopicById(req.params.id, { withEmails: isAdmin });
 
   return responseWrapper(res, data, "");
 });

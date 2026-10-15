@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | `GET /journal/topic/:id` returns professionals' emails only with an admin token (the panel's topic screens send one) | Nothing |
 | Oct 16 | Errors: unexpected failures answer `500` with "An internal server error occurred." instead of the raw database message (website and shared endpoints). Admin 401s carry a code: `ADMIN_SIGN_IN_REQUIRED` (no token, "Admin authentication required") or `ADMIN_SESSION_EXPIRED` ("Invalid or expired admin token"), messages unchanged | **Can:** end the session on either code (see the checklist) |
 | Oct 16 | One admin check on every admin route outside the app screens: the token is accepted as `x-access-token` or `Authorization: Bearer` everywhere (the old check on `/admin/*` refused Bearer). A deactivated admin can no longer sign in (`400 User not found.`) or verify an admin OTP. `POST /admin/auth/change-password` checks the token before the body, so a missing token answers 401 instead of 400 | Nothing required; Bearer can now be used on every call |
 | Oct 16 | Editing a card nobody owns yet (`updateBusinessCard/:id`, `:id/featured-links/reorder`) now needs an admin token; before, anyone could. The panel's reorder call sends no token today | **Must:** send the admin token on these calls (covered by "token on every call" in the checklist) |

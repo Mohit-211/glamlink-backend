@@ -1126,7 +1126,8 @@ const getAllJournalTopics = async (query = {}) => {
   return topics;
 };
 
-const getJournalTopicById = async (id) => {
+// withEmails: professionals' emails are for admins only (the public topic page leaves them out).
+const getJournalTopicById = async (id, { withEmails = false } = {}) => {
   const topic = await JournalTopic.findOne({
     where: {
       id,
@@ -1169,7 +1170,7 @@ const getJournalTopicById = async (id) => {
         through: {
           attributes: ["sort_order"],
         },
-        attributes: ["id", "email"],
+        attributes: withEmails ? ["id", "email"] : ["id"],
         where: {
           is_active: true,
           account_type: "professional",
@@ -1407,7 +1408,7 @@ const updateJournalTopic = async (id, body, files) => {
     await topic.update(updateData);
   }
 
-  return getJournalTopicById(id);
+  return getJournalTopicById(id, { withEmails: true });
 };
 
 const deleteJournalTopic = async (body) => {
@@ -1796,7 +1797,7 @@ const updateJournalTopicProfessionals = async (topicId, body) => {
   }
 
   // Return complete Topic
-  return getJournalTopicById(topicId);
+  return getJournalTopicById(topicId, { withEmails: true });
 };
 
 const updateJournalTopicShops = async (topicId, body) => {
@@ -1856,7 +1857,7 @@ const updateJournalTopicShops = async (topicId, body) => {
   }
 
   // Return complete Topic
-  return getJournalTopicById(topicId);
+  return getJournalTopicById(topicId, { withEmails: true });
 };
 
 const updateJournalTopicPodcasts = async (topicId, body) => {
@@ -1916,7 +1917,7 @@ const updateJournalTopicPodcasts = async (topicId, body) => {
   }
 
   // Return complete Topic
-  return getJournalTopicById(topicId);
+  return getJournalTopicById(topicId, { withEmails: true });
 };
 
 module.exports = {

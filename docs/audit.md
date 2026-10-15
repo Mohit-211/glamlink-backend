@@ -72,7 +72,7 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 
 | Item | Status |
 | --- | --- |
-| Topic page returns users' private fields | Fixed earlier: the query returns only id and email. Open in Phase 2a: the email itself is public |
+| Topic page returns users' private fields | Fixed: only the id (and the profile name) is public; emails only for admins (Phase 2a) |
 | Card `bio` stored and shown as raw HTML (stored XSS) | Open in Phase 2a (clean on save) |
 | Purchase, plan, address and shipping calls take a bare card id with no auth | Fixed: card token (Phase 2a) |
 | `role_id: 7` header trusted | Fixed: ignored (Phase 3) |
