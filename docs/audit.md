@@ -29,7 +29,7 @@ do not touch until the app or CRM phase).
 | 17 | Medium | Uploads accepted on every route, no size limit | Partly: 50 MB per file, files removed when a request fails (Phase 0). Upload parsing still runs on every `/api/v1` request because the admin panel sends multipart bodies to plain endpoints |
 | 18 | Medium | Shippo webhook not verified | App: Shippo serves app orders (`src/mobile/commerce`) |
 | 19 | Medium | Admin tokens signed with `Buffer.from(JWT_SECRET, "hex")` | Open: production `JWT_SECRET` must be 64 hex characters (deploy checklist). User tokens use a derived key (Phase 3) |
-| 20 | Medium | Google Maps key hard-coded in source | Open in Phase 2a: read it from `.env`; the key in git history must be rotated |
+| 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a). Mohit: rotate the key in Google Cloud (the old one is in git history) and put the new one in the server `.env` |
 | 21 | Low | `.env.example` held real-looking credentials | Fixed: placeholders only (Phase 2b, `73092bc`) |
 | 22 | Low | Login reveals whether an email exists | Fixed for users: one `INVALID_CREDENTIALS` answer (Phase 3). Open for admins: the admin panel matches the message "User not found.", so it changes with the panel |
 | 23 | Low | CORS configured three ways; `Access-Control-Allow-Origin: *` on every response | Partly: one CORS file (`cbc20dc`). Open in Phase 2a: the `*` header, and a disallowed origin answering 500 |

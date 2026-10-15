@@ -2,7 +2,7 @@ const httpClient = require("../core/http/httpClient");
 const config = require("../core/config/config");
 
 const getCoordinates = async (address) => {
-  const apiKey = "AIzaSyDJWk5KeqEk39Wjks-5iT9fy0RTQGCUea0";
+  const apiKey = config.GOOGLE_API_KEY;
   const encodedAddress = encodeURIComponent(address);
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
 
@@ -24,7 +24,7 @@ const getCoordinates = async (address) => {
 };
 
 const getRouteInfo = async (originLat, originLng, destLat, destLng) => {
-  const apiKey = "AIzaSyDJWk5KeqEk39Wjks-5iT9fy0RTQGCUea0";
+  const apiKey = config.GOOGLE_API_KEY;
   const url = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
   const payload = {

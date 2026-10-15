@@ -11,7 +11,8 @@ In progress. Items and their status: plan.md (Phase 2a) and audit.md.
 | 1. Card token for the logged-out purchase | Done: `POST /businessCard` returns a 24-hour `card_token`; the six purchase calls and edits of an unowned card require it (or the owner, or an admin); `editAddress-public` edits only the card's own address. Tests: `test/cardAccess.test.js` (`cc2a641`) |
 | 2. One admin guard | Done: `requireAdmin` on every website and shared admin route (blog, blog categories, professions, admin change-password; the redundant old check on `/admin/*` removed, so Bearer tokens work there); admin sign-in and admin OTP verification refuse deactivated admins. Tests: `test/adminGuard.test.js` (`0a51572`) |
 | 3. Error handling | Done in shared and website code: 199 catch-and-rethrow wrappers removed (whitespace aside, only the wrapper lines change), so unexpected errors reach the error handler, are logged with their stack and answer a generic 500; Stripe payment errors keep their status and message (`PAYMENT_FAILED`); codes added to the address, NFC and admin-guard errors, messages unchanged. The old admin check (app routes only) is left as it is. Tests: `test/errorHandling.test.js` (`f2edce0`) |
-| 4. Topic page emails | Done: `GET /journal/topic/:id` leaves professionals' emails out unless the caller is an admin. Tests: `test/topicPrivacy.test.js` |
+| 4. Topic page emails | Done: `GET /journal/topic/:id` leaves professionals' emails out unless the caller is an admin. Tests: `test/topicPrivacy.test.js` (`80495eb`) |
+| 6. Google key | Done: read from `GOOGLE_API_KEY`; still to do by Mohit: rotate the key, set it in the server `.env` |
 
 ## Phase 1: restructure into products (Oct 16, branch `phase4/structure`)
 
