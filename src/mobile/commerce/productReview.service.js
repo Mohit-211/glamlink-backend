@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const {
 	User,

@@ -1,5 +1,3 @@
-/** @format */
-
 const { longDate } = require("../../core/utils/time");
 const config = require("../../core/config/config");
 const logger = require("../../core/logger");

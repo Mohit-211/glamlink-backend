@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const { UserAddress, Country, State, City } = require("../../models");
 const ApiError = require("../../core/http/ApiError");

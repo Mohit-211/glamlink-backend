@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const { Op, fn, col, literal } = require("sequelize");
 

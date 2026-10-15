@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const { toDateTime } = require("../../core/utils/time");
 const Stripe = require("stripe");

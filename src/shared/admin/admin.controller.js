@@ -1,5 +1,3 @@
-/** @format */
-
 const catchAsync = require("../../core/http/catchAsync");
 const adminService = require("./admin.service");
 const responseWrapper = require("../../core/http/responseWrapper");

@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const catchAsync = require("../../core/http/catchAsync");
 const cardAddressService = require("./cardAddress.service");

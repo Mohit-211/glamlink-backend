@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../core/http/status");
 const { User } = require("../models");
 const ApiError = require("../core/http/ApiError");

@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const config = require("../../core/config/config");
 const pick = require("../../core/utils/pick");

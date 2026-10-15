@@ -1,5 +1,3 @@
-/** @format */
-
 const express = require("express");
 const guestApplicationController = require("./guestApplication.controller");
 const router = express.Router();

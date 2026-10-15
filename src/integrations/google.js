@@ -1,5 +1,3 @@
-/** @format */
-
 const httpClient = require("../core/http/httpClient");
 const config = require("../core/config/config");
 

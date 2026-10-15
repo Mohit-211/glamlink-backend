@@ -1,5 +1,3 @@
-/** @format */
-
 const fs = require("fs");
 const path = require("path");
 const httpClient = require("../core/http/httpClient");

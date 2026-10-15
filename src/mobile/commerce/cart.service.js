@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 
 const { Product, ProductAttachment, Cart } = require("../../models");

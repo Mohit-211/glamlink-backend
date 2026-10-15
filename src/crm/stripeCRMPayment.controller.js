@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../core/http/status");
 const Stripe = require("stripe");
 const { CRMPayment } = require("../models");

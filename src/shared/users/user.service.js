@@ -1,5 +1,3 @@
-/** @format */
-
 const { revokeUserSessions } = require("../identity");
 const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");

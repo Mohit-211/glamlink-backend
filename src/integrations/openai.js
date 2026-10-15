@@ -1,5 +1,3 @@
-/** @format */
-
 const httpClient = require("../core/http/httpClient");
 
 // OpenAI Chat Completions over plain HTTP (https://platform.openai.com/docs/api-reference/chat).

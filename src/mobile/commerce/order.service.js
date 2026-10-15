@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const { Product, Order, ProductAttachment, User, UserAddress, OrderDetails, Profile, Country, State, City, Payment, OrderParcelDetails } = require("../../models");
 const ApiError = require("../../core/http/ApiError");

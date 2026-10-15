@@ -1,5 +1,3 @@
-/** @format */
-
 const { randomUUID } = require("crypto");
 const httpStatus = require("../../core/http/status");
 const { Guest } = require("../../models");

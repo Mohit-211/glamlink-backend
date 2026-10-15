@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const path = require("path");
 const { IMAGES_DIR } = require("../../core/config/paths");

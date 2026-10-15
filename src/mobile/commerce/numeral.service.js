@@ -1,5 +1,3 @@
-/** @format */
-
 const httpClient = require("../../core/http/httpClient");
 const { getAllProductsInCart } = require("./cart.service");
 const { getAllUserAddress } = require("./order.service");

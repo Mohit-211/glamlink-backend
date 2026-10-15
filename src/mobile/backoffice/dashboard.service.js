@@ -1,5 +1,3 @@
-/** @format */
-
 const { User, Post, Reel, Profile, Service, Booking } = require("../../models");
 const { Sequelize, Op } = require("sequelize");
 

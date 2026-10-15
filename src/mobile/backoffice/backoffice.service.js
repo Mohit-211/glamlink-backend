@@ -1,5 +1,3 @@
-/** @format */
-
 const httpStatus = require("../../core/http/status");
 const Sequelize = require("sequelize");
 const { toDateTime, timeAgo, slotTiming } = require("../../core/utils/time");
