@@ -26,7 +26,8 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
       `businessCard/getAllProfiles` (accepted cards only).
 - [ ] Ad tracking posts to the relative `/api/ads/track` (the website itself, always 404); it will point at the API
       once the backend adds the endpoint (see the changelog).
-- [ ] Logged-out card purchase: send the `card_token` (see the changelog, Phase 2a).
+- [ ] Logged-out card purchase: keep the `card_token` from `POST /businessCard` and send it on every purchase call;
+      signed-in owners send their access token instead (section 8).
 
 ## Changelog
 
@@ -34,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | Logged-out card purchase needs the card token (section 8). The public calls used to accept any card id, so anyone could change any card's plan or read its address. `editAddress-public` now edits only the card's own address | **Must:** keep the `card_token` from `POST /businessCard` and send it on the purchase calls; send the access token when a signed-in owner calls them |
 | Oct 16 | Internal restructure (code grouped by product). No API change | Nothing |
 | Oct 14–15 | Identity, sign-in and route changes in the sections below | See the checklist |
 
@@ -228,7 +230,7 @@ need an admin token and refuse user tokens.
 
 ## 7. Access card purchase: what changed
 
-- The purchase endpoints and their payloads are unchanged.
+- The purchase endpoints and their payloads are unchanged, apart from the card token (section 8).
 - A buyer without an account now gets a professional account **without a password**. The welcome email has
   a "Set Your Password" button to `/reset-password?token=…` (valid 7 days) instead of a generated password.
   Setting it also verifies the email. Until then, sign-in answers `PASSWORD_NOT_SET`.
@@ -236,3 +238,35 @@ need an admin token and refuse user tokens.
   professional one). Before, the payment webhook could fail in this case.
 - Cards bought while logged out are attached to the account once its email is verified (or the password is
   set from the welcome link).
+
+## 8. The card token (logged-out purchase)
+
+Added Oct 16. Before, the purchase calls took a bare `business_card_id`, so anyone could change any card's plan,
+read its shipping address, or edit a card nobody owned yet. Now a request must prove it may act on the card.
+
+`POST /businessCard` (create a card while logged out) adds `card_token` to its `data`:
+
+```json
+{ "success": true, "status": 201, "data": { "business_card_id": 412, "card_token": "eyJhbGciOi…", "…": "…" } }
+```
+
+Keep it for the rest of the purchase (for example in `sessionStorage` next to the card id, or pass it to
+`/pricing` with the card id). It is valid for 24 hours and works only for that card. Send it on these calls as the
+header `x-card-token` (or as `card_token` in the JSON body; in the query string for the GET):
+
+| Method | Path | Who may call it |
+| --- | --- | --- |
+| POST | `/businessCard/select-plan` | card token, the signed-in owner, or an admin |
+| POST | `/businessCard/shipping-rate-public` | same |
+| POST | `/businessCard/create-subscription-public` | same |
+| POST | `/order/addNewAddress-public` | same |
+| PUT | `/order/editAddress-public/:id` | same; and `:id` must be the card's own address (else 403) |
+| GET | `/order/getAddressByBusinessCardId/:business_card_id` | same |
+| PUT | `/businessCard/updateBusinessCard/:id`, `/businessCard/:id/featured-links/reorder` | while the card has no owner: card token or an admin; once owned: the owner or an admin, as before |
+
+A signed-in professional acting on their own card (the dashboard's plan change, `SubscriptionPlansTab`) sends their
+access token as usual; today the website calls `select-plan` there without any token, which is now refused.
+
+Refused requests answer `401` with `code: "CARD_TOKEN_REQUIRED"` (no or wrong token), `401 SIGN_IN_REQUIRED`
+(editing an owned card without signing in), or `403` (signed in, but not the owner). The token expires after
+24 hours; a buyer who comes back later signs in instead (their account exists once the card is paid for).

@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | Editing a card nobody owns yet (`updateBusinessCard/:id`, `:id/featured-links/reorder`) now needs an admin token; before, anyone could. The panel's reorder call sends no token today | **Must:** send the admin token on these calls (covered by "token on every call" in the checklist) |
 | Oct 16 | Internal restructure (code grouped by product). No API change | Nothing |
 | Oct 14–15 | Removed and renamed endpoints, account model changes in the sections below | See the checklist |
 

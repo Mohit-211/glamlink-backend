@@ -159,6 +159,11 @@ const editAddressPublic = async (body, id) => {
       throw new ApiError(httpStatus.BAD_REQUEST, "Address Id doesn't exist");
     }
 
+    // Only the card's own address can be edited through the card.
+    if (String(businessCard.user_address_id) !== String(addressDoc.id)) {
+      throw new ApiError(httpStatus.FORBIDDEN, "This address does not belong to this card.");
+    }
+
     const stateData = state_id
       ? await State.findOne({
           where: {

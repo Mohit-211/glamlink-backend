@@ -19,7 +19,7 @@ do not touch until the app or CRM phase).
 | 7 | Critical | SQL injection in `POST /user/search` | Fixed: LIKE terms escaped (Phase 0) |
 | 8 | Critical | OTP brute force, rate limiter on a dead path | Fixed: limiter on the real auth paths, 5 wrong codes burn an OTP (Phase 0); user OTPs replaced by email links (Phase 3) |
 | 9 | High | About 100 data-changing routes without auth | Fixed: admin guard on 201 back-office routes (Phase 0), explicit sign-in rules on every route (Phase 3, `6714501`). Partly: 11 routes still use the old admin check that accepts a deactivated admin; website and shared ones are fixed in Phase 2a |
-| 10 | High | Personal data readable without login | Fixed for admin lists (Phase 0). Partly: the logged-out card purchase reads and writes addresses and plans by bare card id; fixed in Phase 2a (card token) |
+| 10 | High | Personal data readable without login | Fixed: admin lists (Phase 0); the logged-out card purchase now needs the card token, the owner or an admin (Phase 2a) |
 | 11 | High | Shipping labels and push notifications without login | Fixed: owner-or-admin and admin only (Phase 0) |
 | 12 | High | Server logs public at `/api/v1/logs` | Fixed: removed (Phase 0) |
 | 13 | High | Admin tokens never re-checked; deactivated admins keep access; admin login ignores `is_active` | Partly: `requireAdmin` re-checks the admin is active (Phase 0). Open in Phase 2a: admin login still lets a deactivated admin sign in, and the 11 routes of #9. Open: admin roles are never enforced (all admin roles have the same power) |
@@ -74,7 +74,7 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 | --- | --- |
 | Topic page returns users' private fields | Fixed earlier: the query returns only id and email. Open in Phase 2a: the email itself is public |
 | Card `bio` stored and shown as raw HTML (stored XSS) | Open in Phase 2a (clean on save) |
-| Purchase, plan, address and shipping calls take a bare card id with no auth | Open in Phase 2a (card token) |
+| Purchase, plan, address and shipping calls take a bare card id with no auth | Fixed: card token (Phase 2a) |
 | `role_id: 7` header trusted | Fixed: ignored (Phase 3) |
 | Tokens in localStorage | Fixed on the backend: refresh token in an httpOnly cookie (Phase 3); the website must adopt it |
 | Auth errors answered 200 | Fixed: real statuses and codes (Phase 3) |
@@ -88,3 +88,5 @@ Found during the work (not in the audits):
 | --- | --- |
 | `PUT /ads/sort-order` unreachable: `PUT /ads/:id` is registered first | Open in Phase 2a |
 | A disallowed CORS origin gets a 500 | Open in Phase 2a |
+| `PUT /order/editAddress-public/:id` edited any address by id and re-pointed the card at it | Fixed: only the card's own address (Phase 2a) |
+| A card nobody owned could be edited by anyone (`updateBusinessCard`, featured-link reorder) | Fixed: card token or an admin (Phase 2a) |

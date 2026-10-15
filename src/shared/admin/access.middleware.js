@@ -34,6 +34,18 @@ const requireAdmin = catchAsync(async (req, res, next) => {
     next();
 });
 
+// The caller as an active admin, or null; never rejects. For routes that also serve non-admins.
+const identifyAdmin = async (req) => {
+    const token = tokenFromRequest(req);
+    if (!token) return null;
+    const admin = await verifyAdminToken(token);
+    if (!admin) return null;
+    req.user = admin;
+    req.isAdmin = true;
+    req.body.user = admin;
+    return admin;
+};
+
 // A signed-in user is required; guests are rejected.
 const requireUser = authenticate;
 
@@ -73,6 +85,7 @@ const requireOwnerOrAdmin = ({ model, ownerField = 'user_id', getIds, allowUnown
 
 module.exports = {
     requireAdmin,
+    identifyAdmin,
     requireUser,
     requireOwnerOrAdmin,
 };

@@ -1,5 +1,5 @@
 // Admin accounts and sign-in, roles, departments, permissions, user management, and the admin guards.
-const { requireAdmin, requireUser, requireOwnerOrAdmin } = require('./access.middleware');
+const { requireAdmin, identifyAdmin, requireUser, requireOwnerOrAdmin } = require('./access.middleware');
 const { validateJWTtoken } = require('./adminToken.middleware');
 
 module.exports = {
@@ -13,6 +13,7 @@ module.exports = {
     ],
     // For other modules.
     requireAdmin,
+    identifyAdmin,
     requireUser,
     requireOwnerOrAdmin,
     validateJWTtoken,

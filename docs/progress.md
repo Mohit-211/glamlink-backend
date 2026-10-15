@@ -6,6 +6,10 @@ Newest first. Each phase lists its commits; branches chain from `main` (old code
 
 In progress. Items and their status: plan.md (Phase 2a) and audit.md.
 
+| Item | Status |
+| --- | --- |
+| 1. Card token for the logged-out purchase | Done: `POST /businessCard` returns a 24-hour `card_token`; the six purchase calls and edits of an unowned card require it (or the owner, or an admin); `editAddress-public` edits only the card's own address. Tests: `test/cardAccess.test.js` |
+
 ## Phase 1: restructure into products (Oct 16, branch `phase4/structure`)
 
 No behaviour change: every route's handlers and guards, the model table and the 67-endpoint contract stayed

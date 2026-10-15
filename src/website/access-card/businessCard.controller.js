@@ -1,4 +1,5 @@
-const httpStatus = require("../../core/http/status");
+const httpStatus = require("../../core/http/status");
+const { issueCardToken } = require("./cardToken");
 const catchAsync = require("../../core/http/catchAsync");
 const businessCardService = require("./businessCard.service");
 const responseWrapper = require("../../core/http/responseWrapper");
@@ -9,6 +10,10 @@ const createBusinessCard = catchAsync(async (req, res) => {
     req.body,
     req.files,
   );
+  // The logged-out buyer needs this to finish the purchase (plan, address, shipping, payment).
+  if (response && response.business_card_id) {
+    response.card_token = issueCardToken(response.business_card_id);
+  }
   return responseWrapper(
     res,
     response,
