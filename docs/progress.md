@@ -2,9 +2,23 @@
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one.
 
-## Phase 2a: security (current, branch `phase5/security`)
+## Phase 2b: Access, and frontend takeovers (current, branch `phase5/security`)
 
-In progress. Items and their status: plan.md (Phase 2a) and audit.md. Contract baseline after these fixes:
+Access design: access.md (Oct 16). Build order and status:
+
+| Step | Status |
+| --- | --- |
+| 1. The card's fields (one create and one edit path, the website's checks, media limits, phone privacy) | Next |
+| 2. Drafts, one card per person, claim, owner delete and re-create on the same link | Planned |
+| 3. Plans, products, prices, discounts, personal prices, settings | Planned |
+| 4. Stripe: stripe-node 23, checkouts, seats, webhook handlers, setup and reconcile scripts | Planned |
+| 5. Shippo: address check, rates, labels, tracking webhook | Planned |
+| 6. Entitlements and the edit rules | Planned |
+| 7. Handoff notes, runbook steps | With each step |
+
+## Phase 2a: security (done Oct 16, branch `phase5/security`)
+
+Items and their status: plan.md (Phase 2a) and audit.md. Contract baseline after these fixes:
 `C:/Users/mohit/mysql/snapshots/phase5-security-baseline.json`.
 
 | Item | Status |
@@ -13,11 +27,12 @@ In progress. Items and their status: plan.md (Phase 2a) and audit.md. Contract b
 | 2. One admin guard | Done: `requireAdmin` on every website and shared admin route (blog, blog categories, professions, admin change-password; the redundant old check on `/admin/*` removed, so Bearer tokens work there); admin sign-in and admin OTP verification refuse deactivated admins. Tests: `test/adminGuard.test.js` (`0a51572`) |
 | 3. Error handling | Done in shared and website code: 199 catch-and-rethrow wrappers removed (whitespace aside, only the wrapper lines change), so unexpected errors reach the error handler, are logged with their stack and answer a generic 500; Stripe payment errors keep their status and message (`PAYMENT_FAILED`); codes added to the address, NFC and admin-guard errors, messages unchanged. The old admin check (app routes only) is left as it is. Tests: `test/errorHandling.test.js` (`f2edce0`) |
 | 4. Topic page emails | Done: `GET /journal/topic/:id` leaves professionals' emails out unless the caller is an admin. Tests: `test/topicPrivacy.test.js` (`80495eb`) |
-| 6. Google key | Done: read from `GOOGLE_API_KEY`; still to do by Mohit: rotate the key, set it in the server `.env` |
+| 6. Google key | Done: read from `GOOGLE_API_KEY`; Mohit rotated the key (Oct 16). The new key goes in the server `.env` at deploy |
 | 7. Stripe webhook idempotency | Done: each event is claimed in `stripe_events` after its signature is verified; a repeat delivery answers 200 `duplicate: true` without processing; a delivery that does not succeed releases its claim so Stripe's retry is processed. Migration `20261016-0100-stripe-events`. Tests: `test/stripeWebhook.test.js` |
 | 8. CORS | Done: no `Access-Control-Allow-Origin: *` on every response; only the origins in `ACCESSDOMAINS` get CORS headers; another origin is refused with 403 `ORIGIN_NOT_ALLOWED` before the request runs (was a 500). Tests: `test/cors.test.js` |
 | 9. `PUT /ads/sort-order` | Done: registered before `PUT /ads/:id`, which used to catch it (`edea8ca`, with item 8) |
-| 5. Card bio | Waiting: needs the `sanitize-html` package (Mohit's OK). Both frontends edit the bio with a rich-text editor and the website renders it as HTML, so it must be cleaned with an allow-list, not stripped |
+| 5. Card bio | Done: every save cleans the bio with `sanitize-html` and an allow-list matching the website's bio editor (paragraphs, bold, italic, underline, strike, h3, lists, quotes, links over http, https, mailto and tel). Migration `20261016-0200` cleans stored bios that would lose markup and keeps the originals in `business_card_bio_backup`: 0 of 293 on the local copy. Data migrations may now use a module through its index.js. Tests: `test/cardBio.test.js` (`d0dca4f`) |
+| 10. Directory filter | Done: `GET /businessCard/filter?location=` wrote the location into the SQL (an injection on a public route); it is compared as a value now. Test in `test/cardBio.test.js` (`d0dca4f`) |
 
 ## Phase 1: restructure into products (Oct 16, branch `phase4/structure`)
 

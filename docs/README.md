@@ -5,6 +5,7 @@ Start here. Every document below is kept current as work lands.
 | Document | What it holds |
 | --- | --- |
 | [plan.md](plan.md) | The go-live plan: new backend on api.glamlink.net with a new database, phase by phase, and the rules for the work |
+| [access.md](access.md) | The Access design (Phase 2b): the card's fields, plans and features, prices and discounts, one card per person, every purchase situation, Stripe and Shippo |
 | [progress.md](progress.md) | What is done so far, phase by phase, with commits |
 | [audit.md](audit.md) | Every finding of the original audits (backend, Oct 7; website, Oct 15) with its current status |
 | [architecture.md](architecture.md) | The code layout (shared, website, mobile, crm), module rules, and the checks used for refactors |

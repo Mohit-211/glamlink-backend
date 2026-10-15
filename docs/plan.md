@@ -35,7 +35,7 @@ Approved Oct 16, 2026. Progress is in progress.md; finding-by-finding status in 
 Code grouped by product (shared, website, mobile, crm), models and associations in their modules, an index.js
 per module, boundaries checked by `npm run lint`. No behaviour change. See architecture.md.
 
-### 2a. Security (current)
+### 2a. Security (done)
 
 Only shared, website and core code changes.
 
@@ -48,20 +48,28 @@ Only shared, website and core code changes.
    database message, in shared and website code. Stripe card errors keep their message; the messages the website
    matches on stay, with stable codes added.
 4. **Topic page** stops returning professionals' emails, except to admins.
-5. **Card bio** cleaned of unsafe HTML on save, plus a one-time clean-up of stored bios (needs the `sanitize-html`
-   package: to be confirmed).
-6. **Google Maps key** read from `.env` (Mohit rotates the key: the old one is in git history).
+5. **Card bio** cleaned on save with an allow-list matching the website's bio editor (`sanitize-html`), plus a
+   migration that cleans stored bios and keeps the originals.
+6. **Google Maps key** read from `.env` (Mohit rotated the key on Oct 16; the old one is in git history).
 7. **Stripe webhook** processes each event once (`stripe_events` table), so resending events after the switch is safe.
 8. **CORS**: no `Access-Control-Allow-Origin: *` on every response; a disallowed origin is refused with 403, not 500.
 9. **`PUT /ads/sort-order`** made reachable.
+10. **Directory filter** (`GET /businessCard/filter`) wrote its `location` into the SQL; it is now a value.
 
-### 2b. Backend takes over frontend logic
+### 2b. Access, and the backend takes over frontend logic (current)
 
-Each item adds an endpoint or an optional parameter, so nothing that works today breaks: plans and prices from
-Stripe, live ads and ad tracking, journal paging and search, real directory search with geocoding, podcast episodes
-from the server, the newsletter and "get featured" forms, analytics de-duplication, the edit lock on the server
-(to be confirmed), helpers for the admin panel (collapse double slashes, optional `department_id`, 20 gallery
-images), the access-order admin link.
+**Access** (designed in access.md, added Oct 16): the card takes precisely the website form's fields (the admin
+panel matches them); plans, features and prices are stored and served by the API; admins change prices, give one
+client a personal price and run site-wide discounts; one card per person, with the subscription as a seat the
+person keeps when they delete and re-create their card; guests build a draft card and pay, with every situation
+covered (signed in or not, email with an existing account, existing card); the keychain is a shipped one-time
+product; Stripe moves to stripe-node 23 (API `2026-09-30.endive`) and Shippo to its current address check, rates,
+labels and tracking; the plan features (pricing page) are enforced on the server, which settles the edit lock.
+
+**Takeovers:** each adds an endpoint or an optional parameter, so nothing that works today breaks: live ads and ad
+tracking, journal paging and search, real directory search with geocoding, podcast episodes from the server, the
+newsletter and "get featured" forms, analytics de-duplication, helpers for the admin panel (collapse double
+slashes, optional `department_id`, 20 gallery images), the access-order admin link.
 
 ### 3. New database and go-live readiness
 

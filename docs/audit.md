@@ -29,7 +29,7 @@ do not touch until the app or CRM phase).
 | 17 | Medium | Uploads accepted on every route, no size limit | Partly: 50 MB per file, files removed when a request fails (Phase 0). Upload parsing still runs on every `/api/v1` request because the admin panel sends multipart bodies to plain endpoints |
 | 18 | Medium | Shippo webhook not verified | App: Shippo serves app orders (`src/mobile/commerce`) |
 | 19 | Medium | Admin tokens signed with `Buffer.from(JWT_SECRET, "hex")` | Open: production `JWT_SECRET` must be 64 hex characters (deploy checklist). User tokens use a derived key (Phase 3) |
-| 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a). Mohit: rotate the key in Google Cloud (the old one is in git history) and put the new one in the server `.env` |
+| 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a); Mohit rotated the key (Oct 16). The new key goes in the server `.env` |
 | 21 | Low | `.env.example` held real-looking credentials | Fixed: placeholders only (Phase 2b, `73092bc`) |
 | 22 | Low | Login reveals whether an email exists | Fixed for users: one `INVALID_CREDENTIALS` answer (Phase 3). Open for admins: the admin panel matches the message "User not found.", so it changes with the panel |
 | 23 | Low | CORS configured three ways; `Access-Control-Allow-Origin: *` on every response | Fixed: one CORS file (`cbc20dc`); no wildcard; only `ACCESSDOMAINS` origins get CORS headers; others are refused with 403 (Phase 2a) |
@@ -73,13 +73,13 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 | Item | Status |
 | --- | --- |
 | Topic page returns users' private fields | Fixed: only the id (and the profile name) is public; emails only for admins (Phase 2a) |
-| Card `bio` stored and shown as raw HTML (stored XSS) | Open in Phase 2a (clean on save) |
+| Card `bio` stored and shown as raw HTML (stored XSS) | Fixed: cleaned on save with an allow-list; stored bios checked by a migration (Phase 2a, `d0dca4f`) |
 | Purchase, plan, address and shipping calls take a bare card id with no auth | Fixed: card token (Phase 2a) |
 | `role_id: 7` header trusted | Fixed: ignored (Phase 3) |
 | Tokens in localStorage | Fixed on the backend: refresh token in an httpOnly cookie (Phase 3); the website must adopt it |
 | Auth errors answered 200 | Fixed: real statuses and codes (Phase 3) |
 | Captcha skipped when the key is missing | Fixed: Turnstile required in production (Phase 3) |
-| Hard-coded prices, ad selection in the browser, ad tracking 404, journal paging in the browser, mock directory, YouTube key in the browser, four forms that send nothing, analytics counts easy to inflate, edit lock only in the UI | Open (Phase 2b) |
+| Hard-coded prices, ad selection in the browser, ad tracking 404, journal paging in the browser, mock directory, YouTube key in the browser, four forms that send nothing, analytics counts easy to inflate, edit lock only in the UI | Open (Phase 2b). Prices, plans and the edit lock: designed in access.md |
 | Password rules differ between sign-up and reset | Fixed: one rule (Phase 3) |
 
 Found during the work (not in the audits):
@@ -90,3 +90,6 @@ Found during the work (not in the audits):
 | A disallowed CORS origin gets a 500 | Fixed: 403 `ORIGIN_NOT_ALLOWED` (Phase 2a) |
 | `PUT /order/editAddress-public/:id` edited any address by id and re-pointed the card at it | Fixed: only the card's own address (Phase 2a) |
 | A card nobody owned could be edited by anyone (`updateBusinessCard`, featured-link reorder) | Fixed: card token or an admin (Phase 2a) |
+| SQL injection in `GET /businessCard/filter?location=` (public) | Fixed: compared as a value (Phase 2a, `d0dca4f`) |
+| A guest card is attached to any existing account whose email it uses (`POST /businessCard`) | Open (Phase 2b, access.md section 5: the account owner must sign in) |
+| `getAllProfiles` and the public card return the owner's subscription fields, and the phone even when hidden | Open (Phase 2b, access.md section 1) |

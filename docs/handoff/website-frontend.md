@@ -35,6 +35,8 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 9 lists what it will mean for the website; each part gets its own entry here when it lands | Nothing yet |
+| Oct 16 | The card bio is cleaned on save: only the bio editor's formatting stays (paragraphs, bold, italic, underline, strike, h3, lists, quotes, and links over http, https, mailto or tel, which get `target="_blank" rel="noopener noreferrer nofollow"`). The directory filter's `location` is matched as a value (it was written into the SQL) | Nothing: the bio editor only produces these |
 | Oct 16 | CORS: the API no longer answers `Access-Control-Allow-Origin: *`; only the origins in its `ACCESSDOMAINS` setting get CORS headers, and a browser on any other origin gets 403 `ORIGIN_NOT_ALLOWED`. The production setting must list `https://glamlink.net` (and `https://www.glamlink.net` if used) | Nothing, as long as the site runs on a listed origin. For local development, ask for `http://localhost:3000` to be listed |
 | Oct 16 | `GET /journal/topic/:id` no longer returns professionals' `email` (it is still returned to an admin token). The topic page's expert cards show emails today | **Must:** stop showing the email on the topic page (`ExpertCard`) |
 | Oct 16 | Errors: unexpected failures answer a generic 500 (database and library messages no longer reach the client); Stripe payment errors keep Stripe's status and message with `code: "PAYMENT_FAILED"`; the address and NFC messages gain codes (section 4), messages unchanged | **Can:** branch on `code` instead of message text |
@@ -284,3 +286,24 @@ access token as usual; today the website calls `select-plan` there without any t
 Refused requests answer `401` with `code: "CARD_TOKEN_REQUIRED"` (no or wrong token), `401 SIGN_IN_REQUIRED`
 (editing an owned card without signing in), or `403` (signed in, but not the owner). The token expires after
 24 hours; a buyer who comes back later signs in instead (their account exists once the card is paid for).
+
+## 9. Coming: Access cards, plans and payments (Phase 2b)
+
+Designed Oct 16 in the backend's `docs/access.md`; built step by step, each step logged in the changelog above
+with exactly what to change. What the website should expect:
+
+- **Plans and prices from the API** (`GET /access/plans`): names, taglines, features, badge, current prices,
+  a running sale, and a client's personal price. The hard-coded `PLANS`, `$4.99` and `$39.99` go.
+- **Draft cards:** a guest's card stays hidden until a plan is chosen or paid.
+- **An email that already has an account:** the guest is asked to sign in (`ACCOUNT_EXISTS`), then the draft is
+  claimed with its card token. Today such a card is silently attached to that account.
+- **One card per person:** creating a second answers `CARD_EXISTS`; owners can delete their card and make a new
+  one on the same subscription and public link.
+- **Checkout:** a quote with the line items, discount and the shipping choices; a corrected address to accept;
+  cancel at the end of the month (with resume) instead of immediately. The current purchase calls and
+  `confirmCardPayment` keep working; the Payment Element can add Apple Pay, Google Pay and Link.
+- **Card form:** exactly the fields in `docs/access.md` section 1, checked by the API as the form checks them
+  (`isPrimary` and the gallery captions are now read; up to 4 photos and 1 video).
+- **What Free and Pro can change** (pricing page features): Free owners can keep their details current; photos,
+  video and special offers need Pro (`UPGRADE_REQUIRED`). Today the website locks all editing for Free cards.
+- **Special offers:** the form gains the offer fields for Pro cards.

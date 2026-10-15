@@ -35,6 +35,8 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 7 lists the new screens and changes; each part gets its own entry here when it lands | Nothing yet |
+| Oct 16 | The card bio is cleaned on save with the allow-list of the website's bio editor (paragraphs, bold, italic, underline, strike, h3, lists, quotes, links). The panel edits the bio with the journal editor (fonts, colours, alignment, tables, images, video); anything outside the list is removed when the card is saved | **Must:** edit the card bio with an editor limited to the website's formatting and its 80-character limit |
 | Oct 16 | CORS: no `Access-Control-Allow-Origin: *` any more; only the origins in `ACCESSDOMAINS` (production: `https://admin.glamlink.net`) get CORS headers; others get 403 `ORIGIN_NOT_ALLOWED`. `PUT /ads/sort-order` now works (it was caught by `PUT /ads/:id`) | Nothing, as long as the panel runs on a listed origin (local: ask for its dev URL, e.g. `http://localhost:3000`) |
 | Oct 16 | `GET /journal/topic/:id` returns professionals' emails only with an admin token (the panel's topic screens send one) | Nothing |
 | Oct 16 | Errors: unexpected failures answer `500` with "An internal server error occurred." instead of the raw database message (website and shared endpoints). Admin 401s carry a code: `ADMIN_SIGN_IN_REQUIRED` (no token, "Admin authentication required") or `ADMIN_SESSION_EXPIRED` ("Invalid or expired admin token"), messages unchanged | **Can:** end the session on either code (see the checklist) |
@@ -127,6 +129,21 @@ Journal, journal categories, authors, blog, podcast schedule, discover (shop/edu
 contact, guest applications, partnership inquiries, Access card and access-order management, products and
 orders for admins, categories, professions, departments, roles: same endpoints and payloads (apart from the
 field renames above where those objects include users or bookings).
+
+## 7. Coming: Access cards, plans and payments (Phase 2b)
+
+Designed Oct 16 in the backend's `docs/access.md` (section 8); each part is logged in the changelog when it lands.
+
+- **The card form** shows exactly the website's fields (`docs/access.md` section 1). No longer saved:
+  `custom_handle`, `primary_specialty` (it is the first specialty), `elite_setup`, `excites_about_glamlink`,
+  `biggest_pain_points`, per-location phone and description. `location_type` is `exact_address` or `city_only`.
+  Gallery: up to 4 photos and 1 video (the panel allows 20 today).
+- **New screens:** plans (name, tagline, badge, features, order), prices (with "move subscribers at their next
+  renewal"), site-wide discounts, personal prices for one client, settings (Free and Pro features, shipping,
+  ship-from address and parcel), subscriptions (status, cancel).
+- **Access orders:** buy and void the shipping label, tracking status from Shippo.
+- **Cards:** guest drafts listed apart from live cards; creating a card for an email whose account already has a
+  card answers `CARD_EXISTS` (or replaces it when asked).
 
 ## Appendix: every admin endpoint
 
