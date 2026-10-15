@@ -65,7 +65,7 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 | Three end-user types under role ids 6, 7, 8 (+ 9 CRM staff); the client chose its role through a `role_id` header | Fixed: one account per email, `account_type` and `professional_type`; the header is ignored (Phase 3) |
 | "Counselor" naming everywhere | Fixed in code and routes (Phase 2d); database columns renamed by migration (Phase 3) |
 | Counselling-template features (fees, prices, trials, keywords admin, video calls) | Removed (Phase 2) |
-| Three error formats; status codes vary | Partly: errors carry `success: false` and auth errors carry a `code`. Open in Phase 2a: raw database errors still reach clients |
+| Three error formats; status codes vary | Partly: errors carry `success: false`; auth, card, address, payment and admin-guard errors carry a `code`; website and shared code no longer sends raw database or library messages (Phase 2a: 199 catch-and-rethrow wrappers removed, unexpected errors logged with their stack). Open: validation errors from `responseWrapper` still say `success: true` (changes with both frontends) |
 | Typos in file and function names | Fixed (`899f4f3`); misspelt admin URLs kept because the admin panel calls them |
 
 ## Website audit (Oct 15): items the backend owns

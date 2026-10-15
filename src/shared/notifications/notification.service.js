@@ -90,188 +90,173 @@ function getNotificationDefaults(notificationType, name = '') {
 }
 
 const createNotification = async (reqBody) => {
-    try {
-        let { sender_id, receiver_id, type: notificationType, medium, message: body, title, timezone } = reqBody;
-        if (sender_id === receiver_id) {
-            return '';
-        }
-        let registrationTokens = [];
-        medium = notificationMediumTypes.push;
-        if (!sender_id || !receiver_id || !notificationType) {
-            throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Provide required fields: sender_id, receiver_id, type.');
-        }
+    let { sender_id, receiver_id, type: notificationType, medium, message: body, title, timezone } = reqBody;
+    if (sender_id === receiver_id) {
+        return '';
+    }
+    let registrationTokens = [];
+    medium = notificationMediumTypes.push;
+    if (!sender_id || !receiver_id || !notificationType) {
+        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Provide required fields: sender_id, receiver_id, type.');
+    }
 
-        if (!notificationTypesArr.includes(notificationType)) {
-            throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Invalid Type Provided.');
-        }
+    if (!notificationTypesArr.includes(notificationType)) {
+        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Invalid Type Provided.');
+    }
 
-        let senderDoc = await Profile.findOne({
-            where: { user_id: sender_id }
+    let senderDoc = await Profile.findOne({
+        where: { user_id: sender_id }
+    });
+
+    // Get default title and body if not provided
+    const defaults = getNotificationDefaults(notificationType, senderDoc.name || 'Someone') || {};
+    title = title || defaults.title;
+    body = body || defaults.body;
+
+    let notificationObj = {
+        message: body,
+        title,
+        sender_id,
+        receiver_id,
+        type: notificationType,
+        medium,
+        event_time: new Date()
+    };
+    if (timezone) {
+        notificationObj['time_zone'] = timezone;
+    }
+    let notificationDoc = await Notification.create(notificationObj);
+
+    // The push tokens of the user's signed-in devices
+    const getUniqueFCMTokens = async (user_id) => {
+        const sessions = await AuthSession.findAll({
+            where: { user_id, revoked_at: null, expires_at: { [Op.gt]: new Date() }, push_token: { [Op.ne]: null } },
+            attributes: ['push_token']
         });
-
-        // Get default title and body if not provided
-        const defaults = getNotificationDefaults(notificationType, senderDoc.name || 'Someone') || {};
-        title = title || defaults.title;
-        body = body || defaults.body;
-
-        let notificationObj = {
-            message: body,
-            title,
-            sender_id,
-            receiver_id,
-            type: notificationType,
-            medium,
-            event_time: new Date()
-        };
-        if (timezone) {
-            notificationObj['time_zone'] = timezone;
-        }
-        let notificationDoc = await Notification.create(notificationObj);
-
-        // The push tokens of the user's signed-in devices
-        const getUniqueFCMTokens = async (user_id) => {
-            const sessions = await AuthSession.findAll({
-                where: { user_id, revoked_at: null, expires_at: { [Op.gt]: new Date() }, push_token: { [Op.ne]: null } },
-                attributes: ['push_token']
-            });
-            return [...new Set(sessions.map((s) => s.push_token))];
-        };
+        return [...new Set(sessions.map((s) => s.push_token))];
+    };
 
 
-        // Function to send push notification
-        const sendPushNotification = async (tokens, title, body, sound = 'default') => {
-            if (tokens.length === 0) return;
-            const message = {
-                notification: {
-                    title,
-                    body,
-                },
-                apns: {
-                    payload: {
-                        aps: {
-                            sound,
-                        },
+    // Function to send push notification
+    const sendPushNotification = async (tokens, title, body, sound = 'default') => {
+        if (tokens.length === 0) return;
+        const message = {
+            notification: {
+                title,
+                body,
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound,
                     },
                 },
-                tokens,
-            };
-
-            getMessaging().sendEachForMulticast(message)
-                .then((response) => {
-                    if (response.failureCount > 0) {
-                        const failedTokens = [];
-                        response.responses.forEach((resp, idx) => {
-                            if (!resp.success) {
-                                failedTokens.push(tokens[idx]);
-                            }
-                        });
-                        console.log('List of tokens that caused failures: ', failedTokens);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error sending push notifications: ', error);
-                });
+            },
+            tokens,
         };
 
-        if ([notificationTypes.appointmentRequest, notificationTypes.appointmentBooked, notificationTypes.appointmentCanceled, notificationTypes.trialBooked, notificationTypes.trialCanceled, notificationTypes.addReview, notificationTypes.follow, notificationTypes.postComment, notificationTypes.postLike, notificationTypes.postShare, notificationTypes.reelComment, notificationTypes.reelLike].includes(notificationType)) {
-            const receiverTokens = await getUniqueFCMTokens(receiver_id);
+        getMessaging().sendEachForMulticast(message)
+            .then((response) => {
+                if (response.failureCount > 0) {
+                    const failedTokens = [];
+                    response.responses.forEach((resp, idx) => {
+                        if (!resp.success) {
+                            failedTokens.push(tokens[idx]);
+                        }
+                    });
+                    console.log('List of tokens that caused failures: ', failedTokens);
+                }
+            })
+            .catch((error) => {
+                console.error('Error sending push notifications: ', error);
+            });
+    };
 
-            registrationTokens = receiverTokens;
-            console.log(" 222222222222222222: Register tokens: ", registrationTokens);
+    if ([notificationTypes.appointmentRequest, notificationTypes.appointmentBooked, notificationTypes.appointmentCanceled, notificationTypes.trialBooked, notificationTypes.trialCanceled, notificationTypes.addReview, notificationTypes.follow, notificationTypes.postComment, notificationTypes.postLike, notificationTypes.postShare, notificationTypes.reelComment, notificationTypes.reelLike].includes(notificationType)) {
+        const receiverTokens = await getUniqueFCMTokens(receiver_id);
 
-            if (medium === notificationMediumTypes.push) {
-                await sendPushNotification(registrationTokens, title, body);
-            }
-        } else if (notificationType === notificationTypes.incomingMessage) {
-            registrationTokens = await getUniqueFCMTokens(receiver_id);
-            console.log(" 222222222222222222: Register tokens: ", registrationTokens);
-            if (medium === notificationMediumTypes.push) {
-                await sendPushNotification(registrationTokens, title, body);
-            }
+        registrationTokens = receiverTokens;
+        console.log(" 222222222222222222: Register tokens: ", registrationTokens);
+
+        if (medium === notificationMediumTypes.push) {
+            await sendPushNotification(registrationTokens, title, body);
         }
-
-        notificationDoc.is_send = true;
-        notificationDoc.sending_time = new Date();
-        await notificationDoc.save();
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
+    } else if (notificationType === notificationTypes.incomingMessage) {
+        registrationTokens = await getUniqueFCMTokens(receiver_id);
+        console.log(" 222222222222222222: Register tokens: ", registrationTokens);
+        if (medium === notificationMediumTypes.push) {
+            await sendPushNotification(registrationTokens, title, body);
+        }
     }
+
+    notificationDoc.is_send = true;
+    notificationDoc.sending_time = new Date();
+    await notificationDoc.save();
 };
 
 const getAllNotifications = async (reqBody) => {
-    try {
-        let { user } = reqBody;
+    let { user } = reqBody;
 
-        let notificationDocs = await Notification.findAll({
-            attributes: ['receiver_id', 'type', 'event_time', 'title', 'message', 'time_zone', 'is_send', 'is_active', 'is_read'],
-            where: { receiver_id: user.id, type: { [Op.in]: [notificationTypes.appointmentRequest, notificationTypes.addReview, notificationTypes.appointmentBooked, notificationTypes.appointmentCanceled, notificationTypes.follow, notificationTypes.postComment, notificationTypes.postLike, notificationTypes.reelComment, notificationTypes.reelLike] } },
-            order: [['id', 'DESC']],
-            include: [
-                {
-                    model: User,
-                    as: 'sender',
-                    attributes: ['id', 'email', 'user_name', 'referral_code', 'latitude', 'longitude', 'role_id'],
-                    include: [
-                        {
-                            model: UserAttachment,
-                            as: 'user_attachments',
-                            attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
-                            order: [['id', 'desc']],
-                            where: { title: 'Profile Image' },
-                            limit: 1,
-                        },
-                        {
-                            model: Profile,
-                            as: 'user_profile',
-                            attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'about', 'overall_ratings', 'no_of_user_rated', 'no_of_user_reviewed', 'city_id', 'state_id', 'followee_count', 'follower_count', 'no_of_post_posted', 'no_of_service_provided', 'address'],
-                        }
-                    ]
-                }
-            ]
-        });
-        if (!notificationDocs) {
-            throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get all notification');
-        }
-        return notificationDocs;
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
+    let notificationDocs = await Notification.findAll({
+        attributes: ['receiver_id', 'type', 'event_time', 'title', 'message', 'time_zone', 'is_send', 'is_active', 'is_read'],
+        where: { receiver_id: user.id, type: { [Op.in]: [notificationTypes.appointmentRequest, notificationTypes.addReview, notificationTypes.appointmentBooked, notificationTypes.appointmentCanceled, notificationTypes.follow, notificationTypes.postComment, notificationTypes.postLike, notificationTypes.reelComment, notificationTypes.reelLike] } },
+        order: [['id', 'DESC']],
+        include: [
+            {
+                model: User,
+                as: 'sender',
+                attributes: ['id', 'email', 'user_name', 'referral_code', 'latitude', 'longitude', 'role_id'],
+                include: [
+                    {
+                        model: UserAttachment,
+                        as: 'user_attachments',
+                        attributes: ['id', 'title', 'file_type', 'file_name', 'file_uri', 'role_id'],
+                        order: [['id', 'desc']],
+                        where: { title: 'Profile Image' },
+                        limit: 1,
+                    },
+                    {
+                        model: Profile,
+                        as: 'user_profile',
+                        attributes: ['id', 'name', 'dialing_code', 'qualification', 'language', 'mobile', 'is_active', 'created_at', 'about', 'overall_ratings', 'no_of_user_rated', 'no_of_user_reviewed', 'city_id', 'state_id', 'followee_count', 'follower_count', 'no_of_post_posted', 'no_of_service_provided', 'address'],
+                    }
+                ]
+            }
+        ]
+    });
+    if (!notificationDocs) {
+        throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get all notification');
     }
+    return notificationDocs;
 };
 
 const markAsRead = async (reqBody) => {
-    try {
-        const { user } = reqBody;
+    const { user } = reqBody;
 
-        const [updatedCount] = await Notification.update(
-            { is_read: true },
-            {
-                where: {
-                    receiver_id: user.id,
-                    is_read: false,
-                    type: {
-                        [Op.in]: [
-                            notificationTypes.appointmentRequest,
-                            notificationTypes.addReview,
-                            notificationTypes.appointmentBooked,
-                            notificationTypes.appointmentCanceled,
-                            notificationTypes.follow,
-                            notificationTypes.postComment,
-                            notificationTypes.postLike,
-                            notificationTypes.reelComment,
-                            notificationTypes.reelLike
-                        ]
-                    }
+    const [updatedCount] = await Notification.update(
+        { is_read: true },
+        {
+            where: {
+                receiver_id: user.id,
+                is_read: false,
+                type: {
+                    [Op.in]: [
+                        notificationTypes.appointmentRequest,
+                        notificationTypes.addReview,
+                        notificationTypes.appointmentBooked,
+                        notificationTypes.appointmentCanceled,
+                        notificationTypes.follow,
+                        notificationTypes.postComment,
+                        notificationTypes.postLike,
+                        notificationTypes.reelComment,
+                        notificationTypes.reelLike
+                    ]
                 }
             }
-        );
+        }
+    );
 
-        return '';
-
-    } catch (error) {
-        throw new ApiError(error.statusCode || httpStatus.INTERNAL_SERVER_ERROR, error.message);
-    }
+    return '';
 };
 
 

@@ -100,236 +100,860 @@ const checkExistingBusinessCard = async ({ email, userId }) => {
 };
 
 const selectBusinessCardPlan = async (body) => {
-  try {
-    const { business_card_id, plan_type } = body;
+  const { business_card_id, plan_type } = body;
 
-    const card = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
+  const card = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
+
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+  }
+
+  if (plan_type === "free") {
+    await card.update({
+      plan_type: "free",
     });
+    if (card.user_id) {
+      // Existing logged-in user
 
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
-    }
-
-    if (plan_type === "free") {
-      await card.update({
-        plan_type: "free",
+      await sendBusinessCardApprovedEmail({
+        to: card.email,
+        name: card.name,
+        businessCardLink: card.business_card_link,
+        qrCodeUrl: card.business_card_qr,
+        purchaseType: "FREE",
       });
-      if (card.user_id) {
-        // Existing logged-in user
+    } else {
+      // Public (logged-out) flow
 
-        await sendBusinessCardApprovedEmail({
+      let user = await User.findOne({
+        where: {
+          email: normalizeEmail(card.email),
+        },
+      });
+
+      if (!user) {
+        ({ user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone }));
+        await card.update({ user_id: user.id });
+        await sendNewAccessUserEmail({
           to: card.email,
           name: card.name,
+          email: user.email,
+          setPasswordLink: await setPasswordLink(user),
           businessCardLink: card.business_card_link,
           qrCodeUrl: card.business_card_qr,
-          purchaseType: "FREE",
         });
-      } else {
-        // Public (logged-out) flow
-
-        let user = await User.findOne({
-          where: {
-            email: normalizeEmail(card.email),
-          },
-        });
-
-        if (!user) {
-          ({ user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone }));
-          await card.update({ user_id: user.id });
-          await sendNewAccessUserEmail({
-            to: card.email,
-            name: card.name,
-            email: user.email,
-            setPasswordLink: await setPasswordLink(user),
-            businessCardLink: card.business_card_link,
-            qrCodeUrl: card.business_card_qr,
-          });
-        }
       }
-
-      return {
-        payment_required: false,
-        next_step: "dashboard",
-        business_card_id: card.id,
-        plan_type,
-      };
-    }
-
-    if (plan_type === "subscription_only") {
-      return {
-        payment_required: true,
-        next_step: "payment",
-        business_card_id: card.id,
-        plan_type,
-      };
     }
 
     return {
-      payment_required: true,
-      next_step: "shipping",
+      payment_required: false,
+      next_step: "dashboard",
       business_card_id: card.id,
       plan_type,
     };
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Something went wrong.",
-    );
   }
+
+  if (plan_type === "subscription_only") {
+    return {
+      payment_required: true,
+      next_step: "payment",
+      business_card_id: card.id,
+      plan_type,
+    };
+  }
+
+  return {
+    payment_required: true,
+    next_step: "shipping",
+    business_card_id: card.id,
+    plan_type,
+  };
 };
 
 const createBusinessCard = async (body, files) => {
-  try {
-    const {
-      // basic
-      name,
-      business_name,
-      email,
-      phone,
-      professional_title,
-      bio,
-      color_code,
+  const {
+    // basic
+    name,
+    business_name,
+    email,
+    phone,
+    professional_title,
+    bio,
+    color_code,
 
-      // social
-      social_media,
-      website,
-      custom_handle,
-      other_links,
-      featured_links,
+    // social
+    social_media,
+    website,
+    custom_handle,
+    other_links,
+    featured_links,
 
-      // booking
-      booking_link,
-      preferred_booking_method,
+    // booking
+    booking_link,
+    preferred_booking_method,
 
-      // specialties
-      primary_specialty,
-      specialties,
+    // specialties
+    primary_specialty,
+    specialties,
 
-      // media
-      intro_video_url,
+    // media
+    intro_video_url,
 
-      // info / flags
-      important_info,
-      offer_promotion,
-      promotion_details,
-      elite_setup,
-      excites_about_glamlink,
-      biggest_pain_points,
+    // info / flags
+    important_info,
+    offer_promotion,
+    promotion_details,
+    elite_setup,
+    excites_about_glamlink,
+    biggest_pain_points,
 
-      // NEW
-      locations,
-      gallery_meta,
-      business_hour,
-      is_phone_visible,
-    } = body;
+    // NEW
+    locations,
+    gallery_meta,
+    business_hour,
+    is_phone_visible,
+  } = body;
 
-    let userLogin = false;
-    let cardObj = {};
+  let userLogin = false;
+  let cardObj = {};
 
-    /* =========================================================
-       EXISTING USER
-       ========================================================= */
+  /* =========================================================
+     EXISTING USER
+     ========================================================= */
 
-    let existingUser = null;
+  let existingUser = null;
 
-    if (email) {
-      existingUser = await User.findOne({
-        where: {
-          email: normalizeEmail(email),
-          account_type: "professional",
-        },
-        attributes: ["id", "status", "is_active"],
-      });
+  if (email) {
+    existingUser = await User.findOne({
+      where: {
+        email: normalizeEmail(email),
+        account_type: "professional",
+      },
+      attributes: ["id", "status", "is_active"],
+    });
 
-      if (
-        existingUser &&
-        existingUser.is_active &&
-        ["ACCEPTED", "PENDING"].includes(existingUser.status)
-      ) {
-        userLogin = true;
-        cardObj.user_id = existingUser.id;
-      }
+    if (
+      existingUser &&
+      existingUser.is_active &&
+      ["ACCEPTED", "PENDING"].includes(existingUser.status)
+    ) {
+      userLogin = true;
+      cardObj.user_id = existingUser.id;
+    }
+  }
+
+  /* =========================================================
+     BASIC
+     ========================================================= */
+
+  if (name) cardObj.name = name;
+  if (business_name) cardObj.business_name = business_name;
+  if (email) cardObj.email = email;
+  if (phone) cardObj.phone = phone;
+  if (professional_title) {
+    cardObj.professional_title = professional_title;
+  }
+  if (bio) cardObj.bio = bio;
+  if (color_code) cardObj.color_code = color_code;
+
+  /* =========================================================
+     SOCIAL
+     ========================================================= */
+
+  if (website) cardObj.website = website;
+  if (custom_handle) cardObj.custom_handle = custom_handle;
+
+  if (social_media) {
+    cardObj.social_media =
+      typeof social_media === "string"
+        ? JSON.parse(social_media)
+        : social_media;
+  }
+
+  if (other_links) {
+    const parsedLinks =
+      typeof other_links === "string"
+        ? JSON.parse(other_links)
+        : other_links;
+
+    cardObj.other_links = parsedLinks
+      .filter((link) => link?.url?.trim())
+      .map((link) => ({
+        title: link?.title?.trim() || null,
+        url: link.url.trim(),
+      }));
+  }
+
+  /* =========================================================
+     FEATURED LINKS
+     ========================================================= */
+
+  if (featured_links) {
+    const parsedFeaturedLinks =
+      typeof featured_links === "string"
+        ? JSON.parse(featured_links)
+        : featured_links;
+
+    if (!Array.isArray(parsedFeaturedLinks)) {
+      throw new ApiError(
+        400,
+        "featured_links must be an array.",
+      );
     }
 
-    /* =========================================================
-       BASIC
-       ========================================================= */
+    const featuredCount = parsedFeaturedLinks.filter(
+      (link) => link?.is_featured === true,
+    ).length;
 
-    if (name) cardObj.name = name;
-    if (business_name) cardObj.business_name = business_name;
-    if (email) cardObj.email = email;
-    if (phone) cardObj.phone = phone;
-    if (professional_title) {
-      cardObj.professional_title = professional_title;
-    }
-    if (bio) cardObj.bio = bio;
-    if (color_code) cardObj.color_code = color_code;
-
-    /* =========================================================
-       SOCIAL
-       ========================================================= */
-
-    if (website) cardObj.website = website;
-    if (custom_handle) cardObj.custom_handle = custom_handle;
-
-    if (social_media) {
-      cardObj.social_media =
-        typeof social_media === "string"
-          ? JSON.parse(social_media)
-          : social_media;
+    if (featuredCount > 1) {
+      throw new ApiError(
+        400,
+        "Only one featured link can be selected.",
+      );
     }
 
-    if (other_links) {
-      const parsedLinks =
-        typeof other_links === "string"
-          ? JSON.parse(other_links)
-          : other_links;
+    const featuredImageFiles =
+      files?.featured_link_images || [];
 
-      cardObj.other_links = parsedLinks
-        .filter((link) => link?.url?.trim())
-        .map((link) => ({
+    cardObj.featured_links = parsedFeaturedLinks
+      .filter((link) => link?.url?.trim())
+      .map((link, index) => {
+        const imageIndex =
+          link?.image_index !== undefined &&
+          link?.image_index !== null
+            ? Number(link.image_index)
+            : null;
+
+        const imageFile =
+          imageIndex !== null
+            ? featuredImageFiles[imageIndex]
+            : null;
+
+        return {
           title: link?.title?.trim() || null,
           url: link.url.trim(),
+          image: imageFile
+            ? imageFile.filename
+            : null,
+          sort_order:
+            Number(link?.sort_order) || index + 1,
+          is_featured:
+            link?.is_featured === true,
+        };
+      });
+  }
+
+  /* =========================================================
+     BOOKING
+     ========================================================= */
+
+  if (preferred_booking_method) {
+    const parsedMethods =
+      typeof preferred_booking_method === "string"
+        ? JSON.parse(preferred_booking_method)
+        : preferred_booking_method;
+
+    cardObj.preferred_booking_method =
+      JSON.stringify(parsedMethods);
+  }
+
+  /* =========================================================
+     SPECIALTIES
+     ========================================================= */
+
+  if (primary_specialty) {
+    cardObj.primary_specialty = primary_specialty;
+  }
+
+  if (specialties) {
+    const parsedSpecialties =
+      typeof specialties === "string"
+        ? JSON.parse(specialties)
+        : specialties;
+
+    cardObj.specialties = parsedSpecialties
+      .map((item) =>
+        typeof item === "string"
+          ? item.trim()
+          : null,
+      )
+      .filter(Boolean);
+  }
+
+  /* =========================================================
+     INFO / FLAGS
+     ========================================================= */
+
+  if (important_info) {
+    cardObj.important_info =
+      typeof important_info === "string"
+        ? JSON.parse(important_info)
+        : important_info;
+  }
+
+  /* =========================================================
+     PROMOTION DETAILS
+     ========================================================= */
+
+  if (offer_promotion !== undefined) {
+    cardObj.offer_promotion =
+      offer_promotion === true ||
+      offer_promotion === "true";
+
+    if (cardObj.offer_promotion) {
+      if (!promotion_details) {
+        throw new ApiError(
+          400,
+          "Promotion details are required when offer_promotion is true",
+        );
+      }
+
+      cardObj.promotion_details = promotion_details;
+    }
+  }
+
+  if (elite_setup !== undefined) {
+    cardObj.elite_setup = elite_setup;
+  }
+
+  /* =========================================================
+     PROFILE IMAGE
+     ========================================================= */
+
+  if (files?.profile_image?.length) {
+    cardObj.profile_image =
+      files.profile_image[0].filename;
+  }
+
+  /* =========================================================
+     BOOKING LINK
+     ========================================================= */
+
+  if (booking_link) {
+    cardObj.booking_link = booking_link;
+  }
+
+  /* =========================================================
+     DISCOVERY QUESTIONS
+     ========================================================= */
+
+  if (excites_about_glamlink) {
+    cardObj.excites_about_glamlink =
+      typeof excites_about_glamlink === "string"
+        ? JSON.parse(excites_about_glamlink)
+        : excites_about_glamlink;
+  }
+
+  if (biggest_pain_points) {
+    cardObj.biggest_pain_points =
+      typeof biggest_pain_points === "string"
+        ? JSON.parse(biggest_pain_points)
+        : biggest_pain_points;
+  }
+
+  /* =========================================================
+     PHONE VISIBILITY
+     ========================================================= */
+
+  cardObj.is_phone_visible =
+    is_phone_visible === undefined
+      ? true
+      : is_phone_visible === true ||
+        is_phone_visible === "true";
+
+  /* =========================================================
+     DEFAULT CARD VALUES
+     ========================================================= */
+
+  cardObj.status = "accepted";
+  cardObj.plan_type = "free";
+  cardObj.nfc_status = "not_purchased";
+
+  /* =========================================================
+     CREATE BUSINESS CARD
+     ========================================================= */
+
+  const cardDoc = await BusinessCard.create(cardObj);
+
+  if (!cardDoc) {
+    throw new ApiError(
+      500,
+      "Failed to create business card",
+    );
+  }
+
+  /* =========================================================
+     LOCATIONS
+     - ONE DB QUERY
+     ========================================================= */
+
+  if (locations) {
+    const parsedLocations =
+      typeof locations === "string"
+        ? JSON.parse(locations)
+        : locations;
+
+    if (
+      Array.isArray(parsedLocations) &&
+      parsedLocations.length
+    ) {
+      const locationsPayload =
+        parsedLocations.map((loc, index) => ({
+          business_card_id: cardDoc.id,
+          label: loc.label,
+          location_type: loc.location_type,
+          address: loc.address,
+          city: loc.city,
+          state: loc.state,
+          business_name: loc.business_name,
+          phone: loc.phone,
+          description: loc.description,
+          latitude: loc.latitude || null,
+          longitude: loc.longitude || null,
+          is_primary: !!loc.is_primary,
+          is_thumbnail: !!loc.is_thumbnail,
+          sort_order:
+            loc.sort_order ?? index + 1,
         }));
+
+      await BusinessLocation.bulkCreate(
+        locationsPayload,
+      );
+    }
+  }
+
+  /* =========================================================
+     BUSINESS HOURS
+     - Already bulkCreate, keep it
+     ========================================================= */
+
+  if (business_hour) {
+    const parsedHours =
+      typeof business_hour === "string"
+        ? JSON.parse(business_hour)
+        : business_hour;
+
+    const hoursPayload = parsedHours.map((h) => {
+      /* Custom Text Entry */
+      if (h.note) {
+        return {
+          business_card_id: cardDoc.id,
+          day: null,
+          is_closed: true,
+          open_time: null,
+          close_time: null,
+          note: h.note,
+        };
+      }
+
+      /* Normal Day Entry */
+      const isClosed = h.closed === true;
+
+      return {
+        business_card_id: cardDoc.id,
+        day: h.day,
+        is_closed: isClosed,
+        open_time: isClosed
+          ? null
+          : h.open_time,
+        close_time: isClosed
+          ? null
+          : h.close_time,
+        note: null,
+      };
+    });
+
+    if (hoursPayload.length) {
+      await BusinessHour.bulkCreate(
+        hoursPayload,
+      );
+    }
+  }
+
+  /* =========================================================
+     GALLERY
+     Images + Videos + Video Thumbnails
+     ========================================================= */
+
+  const imageFiles = files?.images || [];
+  const videoFiles = files?.videos || [];
+  const thumbnailFiles =
+    files?.video_thumbnails || [];
+
+  const meta = gallery_meta
+    ? typeof gallery_meta === "string"
+      ? JSON.parse(gallery_meta)
+      : gallery_meta
+    : [];
+
+  const mediaPayload = [];
+
+  /* -------------------------
+     Images
+     ------------------------- */
+
+  imageFiles.forEach((file, index) => {
+    mediaPayload.push({
+      business_card_id: cardDoc.id,
+      file_type: "image",
+      file_name: path.basename(
+        file.filename,
+      ),
+      file_uri: file.filename,
+      file_size: file.size,
+      caption:
+        meta[index]?.caption || null,
+      is_thumbnail:
+        !!meta[index]?.is_thumbnail,
+      thumbnail_uri: null,
+      sort_order:
+        meta[index]?.sort_order ??
+        index + 1,
+    });
+  });
+
+  /* -------------------------
+     Videos
+     ------------------------- */
+
+  videoFiles.forEach((file, index) => {
+    mediaPayload.push({
+      business_card_id: cardDoc.id,
+      file_type: "video",
+      file_name: path.basename(
+        file.filename,
+      ),
+      file_uri: file.filename,
+      file_size: file.size,
+      caption:
+        meta[index]?.caption || null,
+
+      thumbnail_uri:
+        thumbnailFiles[index]
+          ? thumbnailFiles[index].filename
+          : null,
+
+      is_thumbnail: false,
+
+      sort_order:
+        meta[index]?.sort_order ??
+        index + 1,
+    });
+  });
+
+  /* -------------------------
+     ONE DB QUERY
+     ------------------------- */
+
+  if (mediaPayload.length) {
+    await BusinessGalleryMedia.bulkCreate(
+      mediaPayload,
+    );
+  }
+
+  /* =========================================================
+     GENERATE UNIQUE PUBLIC SLUG
+     ========================================================= */
+
+  const slugBase =
+    (name ||
+      business_name ||
+      "business")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  let uniqueSlug = slugBase;
+  let counter = 1;
+
+  while (
+    await BusinessCard.findOne({
+      where: {
+        business_card_link:
+          `https://glamlink.net/access/${uniqueSlug}`,
+      },
+      attributes: ["id"],
+    })
+  ) {
+    uniqueSlug =
+      `${slugBase}-${counter}`;
+    counter++;
+  }
+
+  const publicLink =
+    `https://glamlink.net/access/${uniqueSlug}`;
+
+  /* =========================================================
+     QR PATH / URL
+     ========================================================= */
+
+
+  const qrFolderPath =
+    path.join(
+      UPLOADS_DIR,
+      "images/qr",
+    );
+
+  if (!fs.existsSync(qrFolderPath)) {
+    fs.mkdirSync(qrFolderPath, {
+      recursive: true,
+    });
+  }
+
+  const qrFileName =
+    `${uniqueSlug}.png`;
+
+  const qrFilePath =
+    path.join(
+      qrFolderPath,
+      qrFileName,
+    );
+
+  const qrPublicUrl =
+    `${config.API_BASE_URL}/images/qr/${qrFileName}`;
+
+  /* =========================================================
+     SAVE LINK + QR URL
+     IMPORTANT:
+     We save this BEFORE returning.
+     ========================================================= */
+
+  await cardDoc.update({
+    business_card_link: publicLink,
+    business_card_qr: qrPublicUrl,
+  });
+
+  /* =========================================================
+     BACKGROUND QR GENERATION
+     DO NOT WAIT
+     ========================================================= */
+
+  QRCode.toFile(
+    qrFilePath,
+    publicLink,
+  ).catch((err) => {
+    console.error(
+      "Business card QR generation failed:",
+      err,
+    );
+  });
+
+  /* =========================================================
+     BACKGROUND ADMIN EMAIL
+     DO NOT WAIT
+     ========================================================= */
+
+  sendAccessCardCreatedAdminEmail({
+    name: cardDoc.name,
+    business_name:
+      cardDoc.business_name,
+    email: cardDoc.email,
+    phone: cardDoc.phone,
+    businessCardLink: publicLink,
+    created_by: userLogin
+      ? "Existing User"
+      : "Guest",
+  }).catch((err) => {
+    console.error(
+      "sendAccessCardCreatedAdminEmail failed:",
+      err,
+    );
+  });
+
+  /* =========================================================
+     RETURN IMMEDIATELY
+     ========================================================= */
+
+  return {
+    success: true,
+    business_card_id: cardDoc.id,
+    user_exists: userLogin,
+    next_step: "plan_selection",
+    status: cardDoc.status,
+    plan_type: cardDoc.plan_type,
+    business_card_link: publicLink,
+    business_card_qr: qrPublicUrl,
+  };
+};
+
+const createBusinessCardByAdmin = async (body, files) => {
+  const {
+    // basic
+    name,
+    business_name,
+    email,
+    phone,
+    professional_title,
+    bio,
+
+    // social
+    social_media,
+    website,
+    custom_handle,
+    other_links,
+    featured_links,
+
+    // booking
+    booking_link,
+    preferred_booking_method,
+
+    // specialties
+    primary_specialty,
+    specialties,
+    color_code,
+
+    // media
+    intro_video_url,
+
+    // info / flags
+    important_info,
+    offer_promotion,
+    promotion_details,
+    elite_setup,
+    excites_about_glamlink,
+    biggest_pain_points,
+
+    // NEW
+    locations,
+    gallery_meta,
+    business_hour,
+    is_phone_visible,
+  } = body;
+
+  let cardObj = {};
+
+  /* =========================================================
+     LINK EXISTING USER
+     ========================================================= */
+
+  let existingUser = null;
+
+  /*
+   * IMPORTANT:
+   * We intentionally DO NOT call checkExistingBusinessCard()
+   * here because multiple business cards can use the same email.
+   */
+
+  if (email) {
+    existingUser = await User.findOne({
+      where: {
+        email: normalizeEmail(email),
+        is_active: true,
+      },
+      attributes: ["id"],
+    });
+
+    if (existingUser) {
+      cardObj.user_id = existingUser.id;
+    }
+  }
+
+  /* =========================================================
+     DEFAULT CARD VALUES
+     ========================================================= */
+
+  cardObj.created_by_admin = true;
+  cardObj.status = "accepted";
+  cardObj.plan_type = "free";
+  cardObj.nfc_status = "not_purchased";
+  cardObj.address_verified = false;
+
+  /* =========================================================
+     BASIC
+     ========================================================= */
+
+  if (name) cardObj.name = name;
+  if (business_name) {
+    cardObj.business_name = business_name;
+  }
+  if (email) cardObj.email = email;
+  if (phone) cardObj.phone = phone;
+
+  if (professional_title) {
+    cardObj.professional_title =
+      professional_title;
+  }
+
+  if (bio) cardObj.bio = bio;
+  if (color_code) {
+    cardObj.color_code = color_code;
+  }
+
+  /* =========================================================
+     SOCIAL
+     ========================================================= */
+
+  if (website) {
+    cardObj.website = website;
+  }
+
+  if (custom_handle) {
+    cardObj.custom_handle = custom_handle;
+  }
+
+  if (social_media) {
+    cardObj.social_media =
+      typeof social_media === "string"
+        ? JSON.parse(social_media)
+        : social_media;
+  }
+
+  if (other_links) {
+    const parsedLinks =
+      typeof other_links === "string"
+        ? JSON.parse(other_links)
+        : other_links;
+
+    cardObj.other_links = parsedLinks
+      .filter((link) => link?.url?.trim())
+      .map((link) => ({
+        title: link?.title?.trim() || null,
+        url: link.url.trim(),
+      }));
+  }
+
+  /* =========================================================
+     FEATURED LINKS
+     ========================================================= */
+
+  if (featured_links) {
+    const parsedFeaturedLinks =
+      typeof featured_links === "string"
+        ? JSON.parse(featured_links)
+        : featured_links;
+
+    if (!Array.isArray(parsedFeaturedLinks)) {
+      throw new ApiError(
+        400,
+        "featured_links must be an array.",
+      );
     }
 
-    /* =========================================================
-       FEATURED LINKS
-       ========================================================= */
-
-    if (featured_links) {
-      const parsedFeaturedLinks =
-        typeof featured_links === "string"
-          ? JSON.parse(featured_links)
-          : featured_links;
-
-      if (!Array.isArray(parsedFeaturedLinks)) {
-        throw new ApiError(
-          400,
-          "featured_links must be an array.",
-        );
-      }
-
-      const featuredCount = parsedFeaturedLinks.filter(
-        (link) => link?.is_featured === true,
+    const featuredCount =
+      parsedFeaturedLinks.filter(
+        (link) =>
+          link?.is_featured === true,
       ).length;
 
-      if (featuredCount > 1) {
-        throw new ApiError(
-          400,
-          "Only one featured link can be selected.",
-        );
-      }
+    if (featuredCount > 1) {
+      throw new ApiError(
+        400,
+        "Only one featured link can be selected.",
+      );
+    }
 
-      const featuredImageFiles =
-        files?.featured_link_images || [];
+    const featuredImageFiles =
+      files?.featured_link_images || [];
 
-      cardObj.featured_links = parsedFeaturedLinks
-        .filter((link) => link?.url?.trim())
+    cardObj.featured_links =
+      parsedFeaturedLinks
+        .filter((link) =>
+          link?.url?.trim(),
+        )
         .map((link, index) => {
           const imageIndex =
             link?.image_index !== undefined &&
@@ -339,311 +963,395 @@ const createBusinessCard = async (body, files) => {
 
           const imageFile =
             imageIndex !== null
-              ? featuredImageFiles[imageIndex]
+              ? featuredImageFiles[
+                  imageIndex
+                ]
               : null;
 
           return {
-            title: link?.title?.trim() || null,
+            title:
+              link?.title?.trim() || null,
+
             url: link.url.trim(),
+
             image: imageFile
               ? imageFile.filename
               : null,
+
             sort_order:
-              Number(link?.sort_order) || index + 1,
+              Number(link?.sort_order) ||
+              index + 1,
+
             is_featured:
               link?.is_featured === true,
           };
         });
-    }
+  }
 
-    /* =========================================================
-       BOOKING
-       ========================================================= */
+  /* =========================================================
+     BOOKING
+     ========================================================= */
 
-    if (preferred_booking_method) {
-      const parsedMethods =
-        typeof preferred_booking_method === "string"
-          ? JSON.parse(preferred_booking_method)
-          : preferred_booking_method;
+  if (preferred_booking_method) {
+    const parsedMethods =
+      typeof preferred_booking_method ===
+      "string"
+        ? JSON.parse(
+            preferred_booking_method,
+          )
+        : preferred_booking_method;
 
-      cardObj.preferred_booking_method =
-        JSON.stringify(parsedMethods);
-    }
+    cardObj.preferred_booking_method =
+      JSON.stringify(parsedMethods);
+  }
 
-    /* =========================================================
-       SPECIALTIES
-       ========================================================= */
+  /* =========================================================
+     SPECIALTIES
+     ========================================================= */
 
-    if (primary_specialty) {
-      cardObj.primary_specialty = primary_specialty;
-    }
+  if (primary_specialty) {
+    cardObj.primary_specialty =
+      primary_specialty;
+  }
 
-    if (specialties) {
-      const parsedSpecialties =
-        typeof specialties === "string"
-          ? JSON.parse(specialties)
-          : specialties;
+  if (specialties) {
+    const parsedSpecialties =
+      typeof specialties === "string"
+        ? JSON.parse(specialties)
+        : specialties;
 
-      cardObj.specialties = parsedSpecialties
+    cardObj.specialties =
+      parsedSpecialties
         .map((item) =>
           typeof item === "string"
             ? item.trim()
             : null,
         )
         .filter(Boolean);
-    }
+  }
 
-    /* =========================================================
-       INFO / FLAGS
-       ========================================================= */
+  /* =========================================================
+     INFO / FLAGS
+     ========================================================= */
 
-    if (important_info) {
-      cardObj.important_info =
-        typeof important_info === "string"
-          ? JSON.parse(important_info)
-          : important_info;
-    }
+  if (important_info) {
+    cardObj.important_info =
+      typeof important_info === "string"
+        ? JSON.parse(important_info)
+        : important_info;
+  }
 
-    /* =========================================================
-       PROMOTION DETAILS
-       ========================================================= */
+  /* =========================================================
+     PROMOTION DETAILS
+     ========================================================= */
 
-    if (offer_promotion !== undefined) {
-      cardObj.offer_promotion =
-        offer_promotion === true ||
-        offer_promotion === "true";
+  if (offer_promotion !== undefined) {
+    cardObj.offer_promotion =
+      offer_promotion === true ||
+      offer_promotion === "true";
 
-      if (cardObj.offer_promotion) {
-        if (!promotion_details) {
-          throw new ApiError(
-            400,
-            "Promotion details are required when offer_promotion is true",
-          );
-        }
-
-        cardObj.promotion_details = promotion_details;
+    if (cardObj.offer_promotion) {
+      if (!promotion_details) {
+        throw new ApiError(
+          400,
+          "Promotion details are required when offer_promotion is true",
+        );
       }
+
+      // Plain text - DO NOT JSON.parse
+      cardObj.promotion_details =
+        promotion_details;
     }
+  }
 
-    if (elite_setup !== undefined) {
-      cardObj.elite_setup = elite_setup;
-    }
+  if (elite_setup !== undefined) {
+    cardObj.elite_setup = elite_setup;
+  }
 
-    /* =========================================================
-       PROFILE IMAGE
-       ========================================================= */
+  /* =========================================================
+     PROFILE IMAGE
+     ========================================================= */
 
-    if (files?.profile_image?.length) {
-      cardObj.profile_image =
-        files.profile_image[0].filename;
-    }
+  if (files?.profile_image?.length) {
+    cardObj.profile_image =
+      files.profile_image[0].filename;
+  }
 
-    /* =========================================================
-       BOOKING LINK
-       ========================================================= */
+  /* =========================================================
+     BOOKING LINK
+     ========================================================= */
 
-    if (booking_link) {
-      cardObj.booking_link = booking_link;
-    }
+  if (booking_link) {
+    cardObj.booking_link = booking_link;
+  }
 
-    /* =========================================================
-       DISCOVERY QUESTIONS
-       ========================================================= */
+  /* =========================================================
+     DISCOVERY QUESTIONS
+     ========================================================= */
 
-    if (excites_about_glamlink) {
-      cardObj.excites_about_glamlink =
-        typeof excites_about_glamlink === "string"
-          ? JSON.parse(excites_about_glamlink)
-          : excites_about_glamlink;
-    }
+  if (excites_about_glamlink) {
+    cardObj.excites_about_glamlink =
+      typeof excites_about_glamlink ===
+      "string"
+        ? JSON.parse(
+            excites_about_glamlink,
+          )
+        : excites_about_glamlink;
+  }
 
-    if (biggest_pain_points) {
-      cardObj.biggest_pain_points =
-        typeof biggest_pain_points === "string"
-          ? JSON.parse(biggest_pain_points)
-          : biggest_pain_points;
-    }
+  if (biggest_pain_points) {
+    cardObj.biggest_pain_points =
+      typeof biggest_pain_points ===
+      "string"
+        ? JSON.parse(
+            biggest_pain_points,
+          )
+        : biggest_pain_points;
+  }
 
-    /* =========================================================
-       PHONE VISIBILITY
-       ========================================================= */
+  /* =========================================================
+     PHONE VISIBILITY
+     ========================================================= */
 
-    cardObj.is_phone_visible =
-      is_phone_visible === undefined
-        ? true
-        : is_phone_visible === true ||
-          is_phone_visible === "true";
+  cardObj.is_phone_visible =
+    is_phone_visible === undefined
+      ? true
+      : is_phone_visible === true ||
+        is_phone_visible === "true";
 
-    /* =========================================================
-       DEFAULT CARD VALUES
-       ========================================================= */
+  /* =========================================================
+     CREATE CARD
+     ========================================================= */
 
-    cardObj.status = "accepted";
-    cardObj.plan_type = "free";
-    cardObj.nfc_status = "not_purchased";
+  const cardDoc =
+    await BusinessCard.create(cardObj);
 
-    /* =========================================================
-       CREATE BUSINESS CARD
-       ========================================================= */
+  if (!cardDoc) {
+    throw new ApiError(
+      500,
+      "Failed to create business card",
+    );
+  }
 
-    const cardDoc = await BusinessCard.create(cardObj);
+  /* =========================================================
+     LOCATIONS
+     ========================================================= */
 
-    if (!cardDoc) {
-      throw new ApiError(
-        500,
-        "Failed to create business card",
-      );
-    }
+  let locationsPromise =
+    Promise.resolve();
 
-    /* =========================================================
-       LOCATIONS
-       - ONE DB QUERY
-       ========================================================= */
+  if (locations) {
+    const parsedLocations =
+      typeof locations === "string"
+        ? JSON.parse(locations)
+        : locations;
 
-    if (locations) {
-      const parsedLocations =
-        typeof locations === "string"
-          ? JSON.parse(locations)
-          : locations;
+    if (
+      Array.isArray(parsedLocations) &&
+      parsedLocations.length
+    ) {
+      const locationsPayload =
+        parsedLocations.map(
+          (loc, index) => ({
+            business_card_id:
+              cardDoc.id,
 
-      if (
-        Array.isArray(parsedLocations) &&
-        parsedLocations.length
-      ) {
-        const locationsPayload =
-          parsedLocations.map((loc, index) => ({
-            business_card_id: cardDoc.id,
             label: loc.label,
-            location_type: loc.location_type,
+            location_type:
+              loc.location_type,
+
             address: loc.address,
             city: loc.city,
             state: loc.state,
-            business_name: loc.business_name,
-            phone: loc.phone,
-            description: loc.description,
-            latitude: loc.latitude || null,
-            longitude: loc.longitude || null,
-            is_primary: !!loc.is_primary,
-            is_thumbnail: !!loc.is_thumbnail,
-            sort_order:
-              loc.sort_order ?? index + 1,
-          }));
 
-        await BusinessLocation.bulkCreate(
+            business_name:
+              loc.business_name,
+
+            phone: loc.phone,
+
+            description:
+              loc.description,
+
+            latitude:
+              loc.latitude || null,
+
+            longitude:
+              loc.longitude || null,
+
+            is_primary:
+              !!loc.is_primary,
+
+            is_thumbnail:
+              !!loc.is_thumbnail,
+
+            sort_order:
+              loc.sort_order ??
+              index + 1,
+          }),
+        );
+
+      locationsPromise =
+        BusinessLocation.bulkCreate(
           locationsPayload,
         );
-      }
     }
+  }
 
-    /* =========================================================
-       BUSINESS HOURS
-       - Already bulkCreate, keep it
-       ========================================================= */
+  /* =========================================================
+     BUSINESS HOURS
+     ========================================================= */
 
-    if (business_hour) {
-      const parsedHours =
-        typeof business_hour === "string"
-          ? JSON.parse(business_hour)
-          : business_hour;
+  let hoursPromise =
+    Promise.resolve();
 
-      const hoursPayload = parsedHours.map((h) => {
+  if (business_hour) {
+    const parsedHours =
+      typeof business_hour === "string"
+        ? JSON.parse(business_hour)
+        : business_hour;
+
+    const hoursPayload =
+      parsedHours.map((h) => {
         /* Custom Text Entry */
         if (h.note) {
           return {
-            business_card_id: cardDoc.id,
+            business_card_id:
+              cardDoc.id,
+
             day: null,
             is_closed: true,
+
             open_time: null,
             close_time: null,
+
             note: h.note,
           };
         }
 
         /* Normal Day Entry */
-        const isClosed = h.closed === true;
+        const isClosed =
+          h.closed === true;
 
         return {
-          business_card_id: cardDoc.id,
+          business_card_id:
+            cardDoc.id,
+
           day: h.day,
+
           is_closed: isClosed,
+
           open_time: isClosed
             ? null
             : h.open_time,
+
           close_time: isClosed
             ? null
             : h.close_time,
+
           note: null,
         };
       });
 
-      if (hoursPayload.length) {
-        await BusinessHour.bulkCreate(
+    if (hoursPayload.length) {
+      hoursPromise =
+        BusinessHour.bulkCreate(
           hoursPayload,
         );
-      }
     }
+  }
 
-    /* =========================================================
-       GALLERY
-       Images + Videos + Video Thumbnails
-       ========================================================= */
+  /* =========================================================
+     GALLERY
+     Images + Videos + Thumbnails
+     ========================================================= */
 
-    const imageFiles = files?.images || [];
-    const videoFiles = files?.videos || [];
-    const thumbnailFiles =
-      files?.video_thumbnails || [];
+  const imageFiles =
+    files?.images || [];
 
-    const meta = gallery_meta
-      ? typeof gallery_meta === "string"
-        ? JSON.parse(gallery_meta)
-        : gallery_meta
-      : [];
+  const videoFiles =
+    files?.videos || [];
 
-    const mediaPayload = [];
+  const thumbnailFiles =
+    files?.video_thumbnails || [];
 
-    /* -------------------------
-       Images
-       ------------------------- */
+  const meta = gallery_meta
+    ? typeof gallery_meta === "string"
+      ? JSON.parse(gallery_meta)
+      : gallery_meta
+    : [];
 
-    imageFiles.forEach((file, index) => {
+  const mediaPayload = [];
+
+  /* -------------------------
+     Images
+     ------------------------- */
+
+  imageFiles.forEach(
+    (file, index) => {
       mediaPayload.push({
-        business_card_id: cardDoc.id,
+        business_card_id:
+          cardDoc.id,
+
         file_type: "image",
-        file_name: path.basename(
+
+        file_name:
+          path.basename(
+            file.filename,
+          ),
+
+        file_uri:
           file.filename,
-        ),
-        file_uri: file.filename,
-        file_size: file.size,
+
+        file_size:
+          file.size,
+
         caption:
-          meta[index]?.caption || null,
+          meta[index]?.caption ||
+          null,
+
         is_thumbnail:
           !!meta[index]?.is_thumbnail,
+
         thumbnail_uri: null,
+
         sort_order:
           meta[index]?.sort_order ??
           index + 1,
       });
-    });
+    },
+  );
 
-    /* -------------------------
-       Videos
-       ------------------------- */
+  /* -------------------------
+     Videos
+     ------------------------- */
 
-    videoFiles.forEach((file, index) => {
+  videoFiles.forEach(
+    (file, index) => {
       mediaPayload.push({
-        business_card_id: cardDoc.id,
+        business_card_id:
+          cardDoc.id,
+
         file_type: "video",
-        file_name: path.basename(
+
+        file_name:
+          path.basename(
+            file.filename,
+          ),
+
+        file_uri:
           file.filename,
-        ),
-        file_uri: file.filename,
-        file_size: file.size,
+
+        file_size:
+          file.size,
+
         caption:
-          meta[index]?.caption || null,
+          meta[index]?.caption ||
+          null,
 
         thumbnail_uri:
           thumbnailFiles[index]
-            ? thumbnailFiles[index].filename
+            ? thumbnailFiles[index]
+                .filename
             : null,
 
         is_thumbnail: false,
@@ -652,1777 +1360,1018 @@ const createBusinessCard = async (body, files) => {
           meta[index]?.sort_order ??
           index + 1,
       });
-    });
+    },
+  );
 
-    /* -------------------------
-       ONE DB QUERY
-       ------------------------- */
+  let galleryPromise =
+    Promise.resolve();
 
-    if (mediaPayload.length) {
-      await BusinessGalleryMedia.bulkCreate(
+  if (mediaPayload.length) {
+    galleryPromise =
+      BusinessGalleryMedia.bulkCreate(
         mediaPayload,
       );
-    }
-
-    /* =========================================================
-       GENERATE UNIQUE PUBLIC SLUG
-       ========================================================= */
-
-    const slugBase =
-      (name ||
-        business_name ||
-        "business")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-
-    let uniqueSlug = slugBase;
-    let counter = 1;
-
-    while (
-      await BusinessCard.findOne({
-        where: {
-          business_card_link:
-            `https://glamlink.net/access/${uniqueSlug}`,
-        },
-        attributes: ["id"],
-      })
-    ) {
-      uniqueSlug =
-        `${slugBase}-${counter}`;
-      counter++;
-    }
-
-    const publicLink =
-      `https://glamlink.net/access/${uniqueSlug}`;
-
-    /* =========================================================
-       QR PATH / URL
-       ========================================================= */
-
-
-    const qrFolderPath =
-      path.join(
-        UPLOADS_DIR,
-        "images/qr",
-      );
-
-    if (!fs.existsSync(qrFolderPath)) {
-      fs.mkdirSync(qrFolderPath, {
-        recursive: true,
-      });
-    }
-
-    const qrFileName =
-      `${uniqueSlug}.png`;
-
-    const qrFilePath =
-      path.join(
-        qrFolderPath,
-        qrFileName,
-      );
-
-    const qrPublicUrl =
-      `${config.API_BASE_URL}/images/qr/${qrFileName}`;
-
-    /* =========================================================
-       SAVE LINK + QR URL
-       IMPORTANT:
-       We save this BEFORE returning.
-       ========================================================= */
-
-    await cardDoc.update({
-      business_card_link: publicLink,
-      business_card_qr: qrPublicUrl,
-    });
-
-    /* =========================================================
-       BACKGROUND QR GENERATION
-       DO NOT WAIT
-       ========================================================= */
-
-    QRCode.toFile(
-      qrFilePath,
-      publicLink,
-    ).catch((err) => {
-      console.error(
-        "Business card QR generation failed:",
-        err,
-      );
-    });
-
-    /* =========================================================
-       BACKGROUND ADMIN EMAIL
-       DO NOT WAIT
-       ========================================================= */
-
-    sendAccessCardCreatedAdminEmail({
-      name: cardDoc.name,
-      business_name:
-        cardDoc.business_name,
-      email: cardDoc.email,
-      phone: cardDoc.phone,
-      businessCardLink: publicLink,
-      created_by: userLogin
-        ? "Existing User"
-        : "Guest",
-    }).catch((err) => {
-      console.error(
-        "sendAccessCardCreatedAdminEmail failed:",
-        err,
-      );
-    });
-
-    /* =========================================================
-       RETURN IMMEDIATELY
-       ========================================================= */
-
-    return {
-      success: true,
-      business_card_id: cardDoc.id,
-      user_exists: userLogin,
-      next_step: "plan_selection",
-      status: cardDoc.status,
-      plan_type: cardDoc.plan_type,
-      business_card_link: publicLink,
-      business_card_qr: qrPublicUrl,
-    };
-  } catch (error) {
-    console.error(
-      "CREATE BUSINESS CARD ERROR",
-    );
-    console.error(error);
-    console.error(error.stack);
-
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message ||
-        "Something went wrong",
-    );
   }
-};
 
-const createBusinessCardByAdmin = async (body, files) => {
-  try {
-    const {
-      // basic
-      name,
-      business_name,
-      email,
-      phone,
-      professional_title,
-      bio,
-
-      // social
-      social_media,
-      website,
-      custom_handle,
-      other_links,
-      featured_links,
-
-      // booking
-      booking_link,
-      preferred_booking_method,
-
-      // specialties
-      primary_specialty,
-      specialties,
-      color_code,
-
-      // media
-      intro_video_url,
-
-      // info / flags
-      important_info,
-      offer_promotion,
-      promotion_details,
-      elite_setup,
-      excites_about_glamlink,
-      biggest_pain_points,
-
-      // NEW
-      locations,
-      gallery_meta,
-      business_hour,
-      is_phone_visible,
-    } = body;
-
-    let cardObj = {};
-
-    /* =========================================================
-       LINK EXISTING USER
-       ========================================================= */
-
-    let existingUser = null;
-
-    /*
-     * IMPORTANT:
-     * We intentionally DO NOT call checkExistingBusinessCard()
-     * here because multiple business cards can use the same email.
-     */
-
-    if (email) {
-      existingUser = await User.findOne({
-        where: {
-          email: normalizeEmail(email),
-          is_active: true,
-        },
-        attributes: ["id"],
-      });
-
-      if (existingUser) {
-        cardObj.user_id = existingUser.id;
-      }
-    }
-
-    /* =========================================================
-       DEFAULT CARD VALUES
-       ========================================================= */
-
-    cardObj.created_by_admin = true;
-    cardObj.status = "accepted";
-    cardObj.plan_type = "free";
-    cardObj.nfc_status = "not_purchased";
-    cardObj.address_verified = false;
-
-    /* =========================================================
-       BASIC
-       ========================================================= */
-
-    if (name) cardObj.name = name;
-    if (business_name) {
-      cardObj.business_name = business_name;
-    }
-    if (email) cardObj.email = email;
-    if (phone) cardObj.phone = phone;
-
-    if (professional_title) {
-      cardObj.professional_title =
-        professional_title;
-    }
-
-    if (bio) cardObj.bio = bio;
-    if (color_code) {
-      cardObj.color_code = color_code;
-    }
-
-    /* =========================================================
-       SOCIAL
-       ========================================================= */
-
-    if (website) {
-      cardObj.website = website;
-    }
-
-    if (custom_handle) {
-      cardObj.custom_handle = custom_handle;
-    }
-
-    if (social_media) {
-      cardObj.social_media =
-        typeof social_media === "string"
-          ? JSON.parse(social_media)
-          : social_media;
-    }
-
-    if (other_links) {
-      const parsedLinks =
-        typeof other_links === "string"
-          ? JSON.parse(other_links)
-          : other_links;
-
-      cardObj.other_links = parsedLinks
-        .filter((link) => link?.url?.trim())
-        .map((link) => ({
-          title: link?.title?.trim() || null,
-          url: link.url.trim(),
-        }));
-    }
-
-    /* =========================================================
-       FEATURED LINKS
-       ========================================================= */
-
-    if (featured_links) {
-      const parsedFeaturedLinks =
-        typeof featured_links === "string"
-          ? JSON.parse(featured_links)
-          : featured_links;
-
-      if (!Array.isArray(parsedFeaturedLinks)) {
-        throw new ApiError(
-          400,
-          "featured_links must be an array.",
-        );
-      }
-
-      const featuredCount =
-        parsedFeaturedLinks.filter(
-          (link) =>
-            link?.is_featured === true,
-        ).length;
-
-      if (featuredCount > 1) {
-        throw new ApiError(
-          400,
-          "Only one featured link can be selected.",
-        );
-      }
-
-      const featuredImageFiles =
-        files?.featured_link_images || [];
-
-      cardObj.featured_links =
-        parsedFeaturedLinks
-          .filter((link) =>
-            link?.url?.trim(),
-          )
-          .map((link, index) => {
-            const imageIndex =
-              link?.image_index !== undefined &&
-              link?.image_index !== null
-                ? Number(link.image_index)
-                : null;
-
-            const imageFile =
-              imageIndex !== null
-                ? featuredImageFiles[
-                    imageIndex
-                  ]
-                : null;
-
-            return {
-              title:
-                link?.title?.trim() || null,
-
-              url: link.url.trim(),
-
-              image: imageFile
-                ? imageFile.filename
-                : null,
-
-              sort_order:
-                Number(link?.sort_order) ||
-                index + 1,
-
-              is_featured:
-                link?.is_featured === true,
-            };
-          });
-    }
-
-    /* =========================================================
-       BOOKING
-       ========================================================= */
-
-    if (preferred_booking_method) {
-      const parsedMethods =
-        typeof preferred_booking_method ===
-        "string"
-          ? JSON.parse(
-              preferred_booking_method,
-            )
-          : preferred_booking_method;
-
-      cardObj.preferred_booking_method =
-        JSON.stringify(parsedMethods);
-    }
-
-    /* =========================================================
-       SPECIALTIES
-       ========================================================= */
-
-    if (primary_specialty) {
-      cardObj.primary_specialty =
-        primary_specialty;
-    }
-
-    if (specialties) {
-      const parsedSpecialties =
-        typeof specialties === "string"
-          ? JSON.parse(specialties)
-          : specialties;
-
-      cardObj.specialties =
-        parsedSpecialties
-          .map((item) =>
-            typeof item === "string"
-              ? item.trim()
-              : null,
-          )
-          .filter(Boolean);
-    }
-
-    /* =========================================================
-       INFO / FLAGS
-       ========================================================= */
-
-    if (important_info) {
-      cardObj.important_info =
-        typeof important_info === "string"
-          ? JSON.parse(important_info)
-          : important_info;
-    }
-
-    /* =========================================================
-       PROMOTION DETAILS
-       ========================================================= */
-
-    if (offer_promotion !== undefined) {
-      cardObj.offer_promotion =
-        offer_promotion === true ||
-        offer_promotion === "true";
-
-      if (cardObj.offer_promotion) {
-        if (!promotion_details) {
-          throw new ApiError(
-            400,
-            "Promotion details are required when offer_promotion is true",
-          );
-        }
-
-        // Plain text - DO NOT JSON.parse
-        cardObj.promotion_details =
-          promotion_details;
-      }
-    }
-
-    if (elite_setup !== undefined) {
-      cardObj.elite_setup = elite_setup;
-    }
-
-    /* =========================================================
-       PROFILE IMAGE
-       ========================================================= */
-
-    if (files?.profile_image?.length) {
-      cardObj.profile_image =
-        files.profile_image[0].filename;
-    }
-
-    /* =========================================================
-       BOOKING LINK
-       ========================================================= */
-
-    if (booking_link) {
-      cardObj.booking_link = booking_link;
-    }
-
-    /* =========================================================
-       DISCOVERY QUESTIONS
-       ========================================================= */
-
-    if (excites_about_glamlink) {
-      cardObj.excites_about_glamlink =
-        typeof excites_about_glamlink ===
-        "string"
-          ? JSON.parse(
-              excites_about_glamlink,
-            )
-          : excites_about_glamlink;
-    }
-
-    if (biggest_pain_points) {
-      cardObj.biggest_pain_points =
-        typeof biggest_pain_points ===
-        "string"
-          ? JSON.parse(
-              biggest_pain_points,
-            )
-          : biggest_pain_points;
-    }
-
-    /* =========================================================
-       PHONE VISIBILITY
-       ========================================================= */
-
-    cardObj.is_phone_visible =
-      is_phone_visible === undefined
-        ? true
-        : is_phone_visible === true ||
-          is_phone_visible === "true";
-
-    /* =========================================================
-       CREATE CARD
-       ========================================================= */
-
-    const cardDoc =
-      await BusinessCard.create(cardObj);
-
-    if (!cardDoc) {
-      throw new ApiError(
-        500,
-        "Failed to create business card",
-      );
-    }
-
-    /* =========================================================
-       LOCATIONS
-       ========================================================= */
-
-    let locationsPromise =
-      Promise.resolve();
-
-    if (locations) {
-      const parsedLocations =
-        typeof locations === "string"
-          ? JSON.parse(locations)
-          : locations;
-
-      if (
-        Array.isArray(parsedLocations) &&
-        parsedLocations.length
-      ) {
-        const locationsPayload =
-          parsedLocations.map(
-            (loc, index) => ({
-              business_card_id:
-                cardDoc.id,
-
-              label: loc.label,
-              location_type:
-                loc.location_type,
-
-              address: loc.address,
-              city: loc.city,
-              state: loc.state,
-
-              business_name:
-                loc.business_name,
-
-              phone: loc.phone,
-
-              description:
-                loc.description,
-
-              latitude:
-                loc.latitude || null,
-
-              longitude:
-                loc.longitude || null,
-
-              is_primary:
-                !!loc.is_primary,
-
-              is_thumbnail:
-                !!loc.is_thumbnail,
-
-              sort_order:
-                loc.sort_order ??
-                index + 1,
-            }),
-          );
-
-        locationsPromise =
-          BusinessLocation.bulkCreate(
-            locationsPayload,
-          );
-      }
-    }
-
-    /* =========================================================
-       BUSINESS HOURS
-       ========================================================= */
-
-    let hoursPromise =
-      Promise.resolve();
-
-    if (business_hour) {
-      const parsedHours =
-        typeof business_hour === "string"
-          ? JSON.parse(business_hour)
-          : business_hour;
-
-      const hoursPayload =
-        parsedHours.map((h) => {
-          /* Custom Text Entry */
-          if (h.note) {
-            return {
-              business_card_id:
-                cardDoc.id,
-
-              day: null,
-              is_closed: true,
-
-              open_time: null,
-              close_time: null,
-
-              note: h.note,
-            };
-          }
-
-          /* Normal Day Entry */
-          const isClosed =
-            h.closed === true;
-
-          return {
-            business_card_id:
-              cardDoc.id,
-
-            day: h.day,
-
-            is_closed: isClosed,
-
-            open_time: isClosed
-              ? null
-              : h.open_time,
-
-            close_time: isClosed
-              ? null
-              : h.close_time,
-
-            note: null,
-          };
-        });
-
-      if (hoursPayload.length) {
-        hoursPromise =
-          BusinessHour.bulkCreate(
-            hoursPayload,
-          );
-      }
-    }
-
-    /* =========================================================
-       GALLERY
-       Images + Videos + Thumbnails
-       ========================================================= */
-
-    const imageFiles =
-      files?.images || [];
-
-    const videoFiles =
-      files?.videos || [];
-
-    const thumbnailFiles =
-      files?.video_thumbnails || [];
-
-    const meta = gallery_meta
-      ? typeof gallery_meta === "string"
-        ? JSON.parse(gallery_meta)
-        : gallery_meta
-      : [];
-
-    const mediaPayload = [];
-
-    /* -------------------------
-       Images
-       ------------------------- */
-
-    imageFiles.forEach(
-      (file, index) => {
-        mediaPayload.push({
-          business_card_id:
-            cardDoc.id,
-
-          file_type: "image",
-
-          file_name:
-            path.basename(
-              file.filename,
-            ),
-
-          file_uri:
-            file.filename,
-
-          file_size:
-            file.size,
-
-          caption:
-            meta[index]?.caption ||
-            null,
-
-          is_thumbnail:
-            !!meta[index]?.is_thumbnail,
-
-          thumbnail_uri: null,
-
-          sort_order:
-            meta[index]?.sort_order ??
-            index + 1,
-        });
+  /* =========================================================
+     WAIT FOR ALL CARD-RELATED BULK OPERATIONS
+     
+     These are independent after cardDoc is created,
+     so execute them concurrently.
+     ========================================================= */
+
+  await Promise.all([
+    locationsPromise,
+    hoursPromise,
+    galleryPromise,
+  ]);
+
+  /* =========================================================
+     UNIQUE PUBLIC SLUG
+     ========================================================= */
+
+  const slugBase =
+    (name ||
+      business_name ||
+      "business")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  let uniqueSlug = slugBase;
+  let counter = 1;
+
+  while (
+    await BusinessCard.findOne({
+      where: {
+        business_card_link:
+          `https://glamlink.net/access/${uniqueSlug}`,
       },
+      attributes: ["id"],
+    })
+  ) {
+    uniqueSlug =
+      `${slugBase}-${counter}`;
+    counter++;
+  }
+
+  const publicLink =
+    `https://glamlink.net/access/${uniqueSlug}`;
+
+  /* =========================================================
+     QR PATH / URL
+     ========================================================= */
+
+
+  const qrFolderPath =
+    path.join(
+      UPLOADS_DIR,
+      "images/qr",
     );
 
-    /* -------------------------
-       Videos
-       ------------------------- */
+  if (!fs.existsSync(qrFolderPath)) {
+    fs.mkdirSync(qrFolderPath, {
+      recursive: true,
+    });
+  }
 
-    videoFiles.forEach(
-      (file, index) => {
-        mediaPayload.push({
-          business_card_id:
-            cardDoc.id,
+  const qrFileName =
+    `${uniqueSlug}.png`;
 
-          file_type: "video",
-
-          file_name:
-            path.basename(
-              file.filename,
-            ),
-
-          file_uri:
-            file.filename,
-
-          file_size:
-            file.size,
-
-          caption:
-            meta[index]?.caption ||
-            null,
-
-          thumbnail_uri:
-            thumbnailFiles[index]
-              ? thumbnailFiles[index]
-                  .filename
-              : null,
-
-          is_thumbnail: false,
-
-          sort_order:
-            meta[index]?.sort_order ??
-            index + 1,
-        });
-      },
+  const qrFilePath =
+    path.join(
+      qrFolderPath,
+      qrFileName,
     );
 
-    let galleryPromise =
-      Promise.resolve();
+  const qrPublicUrl =
+    `${config.API_BASE_URL}/images/qr/${qrFileName}`;
 
-    if (mediaPayload.length) {
-      galleryPromise =
-        BusinessGalleryMedia.bulkCreate(
-          mediaPayload,
-        );
-    }
+  /* =========================================================
+     SAVE PUBLIC LINK
+     ========================================================= */
 
-    /* =========================================================
-       WAIT FOR ALL CARD-RELATED BULK OPERATIONS
-       
-       These are independent after cardDoc is created,
-       so execute them concurrently.
-       ========================================================= */
+  await cardDoc.update({
+    business_card_link:
+      publicLink,
 
-    await Promise.all([
-      locationsPromise,
-      hoursPromise,
-      galleryPromise,
-    ]);
+    business_card_qr:
+      qrPublicUrl,
+  });
 
-    /* =========================================================
-       UNIQUE PUBLIC SLUG
-       ========================================================= */
+  /* =========================================================
+     BACKGROUND QR GENERATION
+     DO NOT WAIT
+     ========================================================= */
 
-    const slugBase =
-      (name ||
-        business_name ||
-        "business")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
+  QRCode.toFile(
+    qrFilePath,
+    publicLink,
+  ).catch((err) => {
+    console.error(
+      "Business card QR generation failed:",
+      err,
+    );
+  });
 
-    let uniqueSlug = slugBase;
-    let counter = 1;
+  /* =========================================================
+     EXISTING USER
+     
+     User is already linked to the card.
+     Only send the approval email in background.
+     ========================================================= */
 
-    while (
-      await BusinessCard.findOne({
-        where: {
-          business_card_link:
-            `https://glamlink.net/access/${uniqueSlug}`,
-        },
-        attributes: ["id"],
-      })
-    ) {
-      uniqueSlug =
-        `${slugBase}-${counter}`;
-      counter++;
-    }
+  if (existingUser) {
+    sendBusinessCardApprovedEmail({
+      to: cardDoc.email,
 
-    const publicLink =
-      `https://glamlink.net/access/${uniqueSlug}`;
+      name: cardDoc.name,
 
-    /* =========================================================
-       QR PATH / URL
-       ========================================================= */
-
-
-    const qrFolderPath =
-      path.join(
-        UPLOADS_DIR,
-        "images/qr",
-      );
-
-    if (!fs.existsSync(qrFolderPath)) {
-      fs.mkdirSync(qrFolderPath, {
-        recursive: true,
-      });
-    }
-
-    const qrFileName =
-      `${uniqueSlug}.png`;
-
-    const qrFilePath =
-      path.join(
-        qrFolderPath,
-        qrFileName,
-      );
-
-    const qrPublicUrl =
-      `${config.API_BASE_URL}/images/qr/${qrFileName}`;
-
-    /* =========================================================
-       SAVE PUBLIC LINK
-       ========================================================= */
-
-    await cardDoc.update({
-      business_card_link:
+      businessCardLink:
         publicLink,
 
-      business_card_qr:
+      qrCodeUrl:
         qrPublicUrl,
-    });
-
-    /* =========================================================
-       BACKGROUND QR GENERATION
-       DO NOT WAIT
-       ========================================================= */
-
-    QRCode.toFile(
-      qrFilePath,
-      publicLink,
-    ).catch((err) => {
+    }).catch((err) => {
       console.error(
-        "Business card QR generation failed:",
+        "sendBusinessCardApprovedEmail failed:",
         err,
       );
     });
+  } else {
+    /* =======================================================
+       NEW USER
+       ======================================================= */
 
-    /* =========================================================
-       EXISTING USER
-       
-       User is already linked to the card.
-       Only send the approval email in background.
-       ========================================================= */
+    const { user } = await accessCardOwner({
+      email: cardDoc.email,
+      name: cardDoc.name,
+      phone: cardDoc.phone,
+    });
 
-    if (existingUser) {
-      sendBusinessCardApprovedEmail({
+    await cardDoc.update({
+      user_id: user.id,
+    });
+
+    /* =====================================================
+       BACKGROUND WELCOME EMAIL (with a link to set a password)
+       DO NOT WAIT
+       ===================================================== */
+
+    setPasswordLink(user)
+      .then((link) => sendNewAccessUserEmail({
         to: cardDoc.email,
-
         name: cardDoc.name,
-
-        businessCardLink:
-          publicLink,
-
-        qrCodeUrl:
-          qrPublicUrl,
-      }).catch((err) => {
+        email: user.email,
+        setPasswordLink: link,
+        qrCodeUrl: qrPublicUrl,
+      }))
+      .catch((err) => {
         console.error(
-          "sendBusinessCardApprovedEmail failed:",
+          "sendNewAccessUserEmail failed:",
           err,
         );
       });
-    } else {
-      /* =======================================================
-         NEW USER
-         ======================================================= */
-
-      const { user } = await accessCardOwner({
-        email: cardDoc.email,
-        name: cardDoc.name,
-        phone: cardDoc.phone,
-      });
-
-      await cardDoc.update({
-        user_id: user.id,
-      });
-
-      /* =====================================================
-         BACKGROUND WELCOME EMAIL (with a link to set a password)
-         DO NOT WAIT
-         ===================================================== */
-
-      setPasswordLink(user)
-        .then((link) => sendNewAccessUserEmail({
-          to: cardDoc.email,
-          name: cardDoc.name,
-          email: user.email,
-          setPasswordLink: link,
-          qrCodeUrl: qrPublicUrl,
-        }))
-        .catch((err) => {
-          console.error(
-            "sendNewAccessUserEmail failed:",
-            err,
-          );
-        });
-    }
-
-    /* =========================================================
-       RETURN
-       ========================================================= */
-
-    return cardDoc;
-  } catch (error) {
-    console.error(
-      "CREATE BUSINESS CARD ERROR",
-    );
-
-    console.error(error);
-    console.error(error.stack);
-
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message ||
-        "Something went wrong",
-    );
   }
+
+  /* =========================================================
+     RETURN
+     ========================================================= */
+
+  return cardDoc;
 };
 
 const createBusinessCardWithToken = async (body, files) => {
-  try {
-    const {
-      // basic
-      user,
-      name,
-      business_name,
-      email,
-      phone,
-      professional_title,
-      bio,
-      color_code,
+  const {
+    // basic
+    user,
+    name,
+    business_name,
+    email,
+    phone,
+    professional_title,
+    bio,
+    color_code,
 
-      // social
-      social_media,
-      website,
-      custom_handle,
-      other_links,
-      featured_links,
+    // social
+    social_media,
+    website,
+    custom_handle,
+    other_links,
+    featured_links,
 
-      // booking
-      booking_link,
-      preferred_booking_method,
+    // booking
+    booking_link,
+    preferred_booking_method,
 
-      // specialties
-      primary_specialty,
-      specialties,
+    // specialties
+    primary_specialty,
+    specialties,
 
-      // media
-      intro_video_url,
+    // media
+    intro_video_url,
 
-      // info / flags
-      important_info,
-      offer_promotion,
-      promotion_details,
-      elite_setup,
-      excites_about_glamlink,
-      biggest_pain_points,
+    // info / flags
+    important_info,
+    offer_promotion,
+    promotion_details,
+    elite_setup,
+    excites_about_glamlink,
+    biggest_pain_points,
 
-      // NEW
-      locations,
-      gallery_meta,
-      business_hour,
-      is_phone_visible,
-    } = body;
+    // NEW
+    locations,
+    gallery_meta,
+    business_hour,
+    is_phone_visible,
+  } = body;
 
-    /* =========================================================
-       CHECK EXISTING ACCESS CARD
-       
-       KEEP THIS.
-       This API is token/user based and should preserve the
-       existing duplicate-card protection.
-       ========================================================= */
+  /* =========================================================
+     CHECK EXISTING ACCESS CARD
+     
+     KEEP THIS.
+     This API is token/user based and should preserve the
+     existing duplicate-card protection.
+     ========================================================= */
 
-    await checkExistingBusinessCard({
-      userId: user.id,
-      email: email || user.email,
-    });
+  await checkExistingBusinessCard({
+    userId: user.id,
+    email: email || user.email,
+  });
 
-    let cardObj = {};
+  let cardObj = {};
 
-    /* =========================================================
-       USER
-       ========================================================= */
+  /* =========================================================
+     USER
+     ========================================================= */
 
-    if (user) {
-      cardObj.user_id = user.id;
+  if (user) {
+    cardObj.user_id = user.id;
 
-      cardObj.status = "accepted";
-      cardObj.is_details = true;
-      cardObj.plan_type = "free";
+    cardObj.status = "accepted";
+    cardObj.is_details = true;
+    cardObj.plan_type = "free";
+  }
+
+  /* =========================================================
+     BASIC
+     ========================================================= */
+
+  if (name) {
+    cardObj.name = name;
+  }
+
+  if (business_name) {
+    cardObj.business_name = business_name;
+  }
+
+  if (email) {
+    cardObj.email = email;
+  }
+
+  if (phone) {
+    cardObj.phone = phone;
+  }
+
+  if (professional_title) {
+    cardObj.professional_title =
+      professional_title;
+  }
+
+  if (bio) {
+    cardObj.bio = bio;
+  }
+
+  if (color_code) {
+    cardObj.color_code = color_code;
+  }
+
+  /* =========================================================
+     SOCIAL
+     ========================================================= */
+
+  if (website) {
+    cardObj.website = website;
+  }
+
+  if (custom_handle) {
+    cardObj.custom_handle = custom_handle;
+  }
+
+  if (social_media) {
+    cardObj.social_media =
+      typeof social_media === "string"
+        ? JSON.parse(social_media)
+        : social_media;
+  }
+
+  if (other_links) {
+    const parsedLinks =
+      typeof other_links === "string"
+        ? JSON.parse(other_links)
+        : other_links;
+
+    cardObj.other_links =
+      parsedLinks
+        .filter((link) =>
+          link?.url?.trim(),
+        )
+        .map((link) => ({
+          title:
+            link?.title?.trim() || null,
+
+          url: link.url.trim(),
+        }));
+  }
+
+  /* =========================================================
+     FEATURED LINKS
+     ========================================================= */
+
+  if (featured_links) {
+    const parsedFeaturedLinks =
+      typeof featured_links === "string"
+        ? JSON.parse(featured_links)
+        : featured_links;
+
+    if (
+      !Array.isArray(
+        parsedFeaturedLinks,
+      )
+    ) {
+      throw new ApiError(
+        400,
+        "featured_links must be an array.",
+      );
     }
 
-    /* =========================================================
-       BASIC
-       ========================================================= */
+    const featuredCount =
+      parsedFeaturedLinks.filter(
+        (link) =>
+          link?.is_featured === true,
+      ).length;
 
-    if (name) {
-      cardObj.name = name;
+    if (featuredCount > 1) {
+      throw new ApiError(
+        400,
+        "Only one featured link can be selected.",
+      );
     }
 
-    if (business_name) {
-      cardObj.business_name = business_name;
-    }
+    const featuredImageFiles =
+      files?.featured_link_images || [];
 
-    if (email) {
-      cardObj.email = email;
-    }
+    cardObj.featured_links =
+      parsedFeaturedLinks
+        .filter((link) =>
+          link?.url?.trim(),
+        )
+        .map((link, index) => {
+          const imageIndex =
+            link?.image_index !==
+              undefined &&
+            link?.image_index !== null
+              ? Number(link.image_index)
+              : null;
 
-    if (phone) {
-      cardObj.phone = phone;
-    }
+          const imageFile =
+            imageIndex !== null
+              ? featuredImageFiles[
+                  imageIndex
+                ]
+              : null;
 
-    if (professional_title) {
-      cardObj.professional_title =
-        professional_title;
-    }
-
-    if (bio) {
-      cardObj.bio = bio;
-    }
-
-    if (color_code) {
-      cardObj.color_code = color_code;
-    }
-
-    /* =========================================================
-       SOCIAL
-       ========================================================= */
-
-    if (website) {
-      cardObj.website = website;
-    }
-
-    if (custom_handle) {
-      cardObj.custom_handle = custom_handle;
-    }
-
-    if (social_media) {
-      cardObj.social_media =
-        typeof social_media === "string"
-          ? JSON.parse(social_media)
-          : social_media;
-    }
-
-    if (other_links) {
-      const parsedLinks =
-        typeof other_links === "string"
-          ? JSON.parse(other_links)
-          : other_links;
-
-      cardObj.other_links =
-        parsedLinks
-          .filter((link) =>
-            link?.url?.trim(),
-          )
-          .map((link) => ({
+          return {
             title:
-              link?.title?.trim() || null,
+              link?.title?.trim() ||
+              null,
 
             url: link.url.trim(),
-          }));
-    }
 
-    /* =========================================================
-       FEATURED LINKS
-       ========================================================= */
-
-    if (featured_links) {
-      const parsedFeaturedLinks =
-        typeof featured_links === "string"
-          ? JSON.parse(featured_links)
-          : featured_links;
-
-      if (
-        !Array.isArray(
-          parsedFeaturedLinks,
-        )
-      ) {
-        throw new ApiError(
-          400,
-          "featured_links must be an array.",
-        );
-      }
-
-      const featuredCount =
-        parsedFeaturedLinks.filter(
-          (link) =>
-            link?.is_featured === true,
-        ).length;
-
-      if (featuredCount > 1) {
-        throw new ApiError(
-          400,
-          "Only one featured link can be selected.",
-        );
-      }
-
-      const featuredImageFiles =
-        files?.featured_link_images || [];
-
-      cardObj.featured_links =
-        parsedFeaturedLinks
-          .filter((link) =>
-            link?.url?.trim(),
-          )
-          .map((link, index) => {
-            const imageIndex =
-              link?.image_index !==
-                undefined &&
-              link?.image_index !== null
-                ? Number(link.image_index)
-                : null;
-
-            const imageFile =
-              imageIndex !== null
-                ? featuredImageFiles[
-                    imageIndex
-                  ]
-                : null;
-
-            return {
-              title:
-                link?.title?.trim() ||
-                null,
-
-              url: link.url.trim(),
-
-              image: imageFile
-                ? imageFile.filename
-                : null,
-
-              sort_order:
-                Number(
-                  link?.sort_order,
-                ) || index + 1,
-
-              is_featured:
-                link?.is_featured === true,
-            };
-          });
-    }
-
-    /* =========================================================
-       BOOKING
-       ========================================================= */
-
-    if (preferred_booking_method) {
-      const parsedMethods =
-        typeof preferred_booking_method ===
-        "string"
-          ? JSON.parse(
-              preferred_booking_method,
-            )
-          : preferred_booking_method;
-
-      cardObj.preferred_booking_method =
-        JSON.stringify(
-          parsedMethods,
-        );
-    }
-
-    /* =========================================================
-       SPECIALTIES
-       ========================================================= */
-
-    if (primary_specialty) {
-      cardObj.primary_specialty =
-        primary_specialty;
-    }
-
-    if (specialties) {
-      const parsedSpecialties =
-        typeof specialties === "string"
-          ? JSON.parse(specialties)
-          : specialties;
-
-      cardObj.specialties =
-        parsedSpecialties
-          .map((item) =>
-            typeof item === "string"
-              ? item.trim()
+            image: imageFile
+              ? imageFile.filename
               : null,
+
+            sort_order:
+              Number(
+                link?.sort_order,
+              ) || index + 1,
+
+            is_featured:
+              link?.is_featured === true,
+          };
+        });
+  }
+
+  /* =========================================================
+     BOOKING
+     ========================================================= */
+
+  if (preferred_booking_method) {
+    const parsedMethods =
+      typeof preferred_booking_method ===
+      "string"
+        ? JSON.parse(
+            preferred_booking_method,
           )
-          .filter(Boolean);
+        : preferred_booking_method;
+
+    cardObj.preferred_booking_method =
+      JSON.stringify(
+        parsedMethods,
+      );
+  }
+
+  /* =========================================================
+     SPECIALTIES
+     ========================================================= */
+
+  if (primary_specialty) {
+    cardObj.primary_specialty =
+      primary_specialty;
+  }
+
+  if (specialties) {
+    const parsedSpecialties =
+      typeof specialties === "string"
+        ? JSON.parse(specialties)
+        : specialties;
+
+    cardObj.specialties =
+      parsedSpecialties
+        .map((item) =>
+          typeof item === "string"
+            ? item.trim()
+            : null,
+        )
+        .filter(Boolean);
+  }
+
+  /* =========================================================
+     INFO / FLAGS
+     ========================================================= */
+
+  if (important_info) {
+    cardObj.important_info =
+      typeof important_info === "string"
+        ? JSON.parse(
+            important_info,
+          )
+        : important_info;
+  }
+
+  /* =========================================================
+     PROMOTION DETAILS
+     ========================================================= */
+
+  if (
+    offer_promotion !==
+    undefined
+  ) {
+    cardObj.offer_promotion =
+      offer_promotion === true ||
+      offer_promotion === "true";
+
+    if (cardObj.offer_promotion) {
+      if (!promotion_details) {
+        throw new ApiError(
+          400,
+          "Promotion details are required when offer_promotion is true",
+        );
+      }
+
+      // Plain text.
+      // DO NOT JSON.parse.
+      cardObj.promotion_details =
+        promotion_details;
     }
+  }
 
-    /* =========================================================
-       INFO / FLAGS
-       ========================================================= */
+  if (
+    elite_setup !== undefined
+  ) {
+    cardObj.elite_setup =
+      elite_setup;
+  }
 
-    if (important_info) {
-      cardObj.important_info =
-        typeof important_info === "string"
-          ? JSON.parse(
-              important_info,
-            )
-          : important_info;
-    }
+  /* =========================================================
+     PROFILE IMAGE
+     ========================================================= */
 
-    /* =========================================================
-       PROMOTION DETAILS
-       ========================================================= */
+  if (files?.profile_image?.length) {
+    cardObj.profile_image =
+      files.profile_image[0]
+        .filename;
+  }
+
+  /* =========================================================
+     BOOKING LINK
+     ========================================================= */
+
+  if (booking_link) {
+    cardObj.booking_link =
+      booking_link;
+  }
+
+  /* =========================================================
+     DISCOVERY QUESTIONS
+     ========================================================= */
+
+  if (excites_about_glamlink) {
+    cardObj.excites_about_glamlink =
+      typeof excites_about_glamlink ===
+      "string"
+        ? JSON.parse(
+            excites_about_glamlink,
+          )
+        : excites_about_glamlink;
+  }
+
+  if (biggest_pain_points) {
+    cardObj.biggest_pain_points =
+      typeof biggest_pain_points ===
+      "string"
+        ? JSON.parse(
+            biggest_pain_points,
+          )
+        : biggest_pain_points;
+  }
+
+  /* =========================================================
+     PHONE VISIBILITY
+     ========================================================= */
+
+  cardObj.is_phone_visible =
+    is_phone_visible === undefined
+      ? true
+      : is_phone_visible === true ||
+        is_phone_visible === "true";
+
+  /* =========================================================
+     DEFAULT VALUES
+     ========================================================= */
+
+  cardObj.nfc_status =
+    "not_purchased";
+
+  cardObj.address_verified =
+    false;
+
+  /* =========================================================
+     CREATE CARD
+     ========================================================= */
+
+  const cardDoc =
+    await BusinessCard.create(
+      cardObj,
+    );
+
+  if (!cardDoc) {
+    throw new ApiError(
+      500,
+      "Failed to create business card",
+    );
+  }
+
+  /* =========================================================
+     LOCATIONS
+     ========================================================= */
+
+  let locationsPromise =
+    Promise.resolve();
+
+  if (locations) {
+    const parsedLocations =
+      typeof locations === "string"
+        ? JSON.parse(locations)
+        : locations;
 
     if (
-      offer_promotion !==
-      undefined
+      Array.isArray(
+        parsedLocations,
+      ) &&
+      parsedLocations.length
     ) {
-      cardObj.offer_promotion =
-        offer_promotion === true ||
-        offer_promotion === "true";
+      const locationsPayload =
+        parsedLocations.map(
+          (loc, index) => ({
+            business_card_id:
+              cardDoc.id,
 
-      if (cardObj.offer_promotion) {
-        if (!promotion_details) {
-          throw new ApiError(
-            400,
-            "Promotion details are required when offer_promotion is true",
-          );
-        }
+            label: loc.label,
 
-        // Plain text.
-        // DO NOT JSON.parse.
-        cardObj.promotion_details =
-          promotion_details;
-      }
+            location_type:
+              loc.location_type,
+
+            address:
+              loc.address,
+
+            city:
+              loc.city,
+
+            state:
+              loc.state,
+
+            business_name:
+              loc.business_name,
+
+            phone:
+              loc.phone,
+
+            description:
+              loc.description,
+
+            latitude:
+              loc.latitude || null,
+
+            longitude:
+              loc.longitude || null,
+
+            is_primary:
+              !!loc.is_primary,
+
+            is_thumbnail:
+              !!loc.is_thumbnail,
+
+            sort_order:
+              loc.sort_order ??
+              index + 1,
+          }),
+        );
+
+      locationsPromise =
+        BusinessLocation.bulkCreate(
+          locationsPayload,
+        );
     }
+  }
 
-    if (
-      elite_setup !== undefined
-    ) {
-      cardObj.elite_setup =
-        elite_setup;
-    }
+  /* =========================================================
+     BUSINESS HOURS
+     ========================================================= */
 
-    /* =========================================================
-       PROFILE IMAGE
-       ========================================================= */
+  let hoursPromise =
+    Promise.resolve();
 
-    if (files?.profile_image?.length) {
-      cardObj.profile_image =
-        files.profile_image[0]
-          .filename;
-    }
+  if (business_hour) {
+    const parsedHours =
+      typeof business_hour === "string"
+        ? JSON.parse(
+            business_hour,
+          )
+        : business_hour;
 
-    /* =========================================================
-       BOOKING LINK
-       ========================================================= */
+    const hoursPayload =
+      parsedHours.map((h) => {
+        /* -------------------------
+           Custom Text Entry
+           ------------------------- */
 
-    if (booking_link) {
-      cardObj.booking_link =
-        booking_link;
-    }
-
-    /* =========================================================
-       DISCOVERY QUESTIONS
-       ========================================================= */
-
-    if (excites_about_glamlink) {
-      cardObj.excites_about_glamlink =
-        typeof excites_about_glamlink ===
-        "string"
-          ? JSON.parse(
-              excites_about_glamlink,
-            )
-          : excites_about_glamlink;
-    }
-
-    if (biggest_pain_points) {
-      cardObj.biggest_pain_points =
-        typeof biggest_pain_points ===
-        "string"
-          ? JSON.parse(
-              biggest_pain_points,
-            )
-          : biggest_pain_points;
-    }
-
-    /* =========================================================
-       PHONE VISIBILITY
-       ========================================================= */
-
-    cardObj.is_phone_visible =
-      is_phone_visible === undefined
-        ? true
-        : is_phone_visible === true ||
-          is_phone_visible === "true";
-
-    /* =========================================================
-       DEFAULT VALUES
-       ========================================================= */
-
-    cardObj.nfc_status =
-      "not_purchased";
-
-    cardObj.address_verified =
-      false;
-
-    /* =========================================================
-       CREATE CARD
-       ========================================================= */
-
-    const cardDoc =
-      await BusinessCard.create(
-        cardObj,
-      );
-
-    if (!cardDoc) {
-      throw new ApiError(
-        500,
-        "Failed to create business card",
-      );
-    }
-
-    /* =========================================================
-       LOCATIONS
-       ========================================================= */
-
-    let locationsPromise =
-      Promise.resolve();
-
-    if (locations) {
-      const parsedLocations =
-        typeof locations === "string"
-          ? JSON.parse(locations)
-          : locations;
-
-      if (
-        Array.isArray(
-          parsedLocations,
-        ) &&
-        parsedLocations.length
-      ) {
-        const locationsPayload =
-          parsedLocations.map(
-            (loc, index) => ({
-              business_card_id:
-                cardDoc.id,
-
-              label: loc.label,
-
-              location_type:
-                loc.location_type,
-
-              address:
-                loc.address,
-
-              city:
-                loc.city,
-
-              state:
-                loc.state,
-
-              business_name:
-                loc.business_name,
-
-              phone:
-                loc.phone,
-
-              description:
-                loc.description,
-
-              latitude:
-                loc.latitude || null,
-
-              longitude:
-                loc.longitude || null,
-
-              is_primary:
-                !!loc.is_primary,
-
-              is_thumbnail:
-                !!loc.is_thumbnail,
-
-              sort_order:
-                loc.sort_order ??
-                index + 1,
-            }),
-          );
-
-        locationsPromise =
-          BusinessLocation.bulkCreate(
-            locationsPayload,
-          );
-      }
-    }
-
-    /* =========================================================
-       BUSINESS HOURS
-       ========================================================= */
-
-    let hoursPromise =
-      Promise.resolve();
-
-    if (business_hour) {
-      const parsedHours =
-        typeof business_hour === "string"
-          ? JSON.parse(
-              business_hour,
-            )
-          : business_hour;
-
-      const hoursPayload =
-        parsedHours.map((h) => {
-          /* -------------------------
-             Custom Text Entry
-             ------------------------- */
-
-          if (h.note) {
-            return {
-              business_card_id:
-                cardDoc.id,
-
-              day: null,
-
-              is_closed: true,
-
-              open_time: null,
-
-              close_time: null,
-
-              note: h.note,
-            };
-          }
-
-          /* -------------------------
-             Normal Day Entry
-             ------------------------- */
-
-          const isClosed =
-            h.closed === true;
-
+        if (h.note) {
           return {
             business_card_id:
               cardDoc.id,
 
-            day: h.day,
+            day: null,
 
-            is_closed:
-              isClosed,
+            is_closed: true,
 
-            open_time:
-              isClosed
-                ? null
-                : h.open_time,
+            open_time: null,
 
-            close_time:
-              isClosed
-                ? null
-                : h.close_time,
+            close_time: null,
 
-            note: null,
+            note: h.note,
           };
-        });
+        }
 
-      if (hoursPayload.length) {
-        hoursPromise =
-          BusinessHour.bulkCreate(
-            hoursPayload,
-          );
-      }
-    }
+        /* -------------------------
+           Normal Day Entry
+           ------------------------- */
 
-    /* =========================================================
-       GALLERY
-       Images + Videos + Video Thumbnails
-       ========================================================= */
+        const isClosed =
+          h.closed === true;
 
-    const imageFiles =
-      files?.images || [];
-
-    const videoFiles =
-      files?.videos || [];
-
-    const thumbnailFiles =
-      files?.video_thumbnails || [];
-
-    const meta = gallery_meta
-      ? typeof gallery_meta === "string"
-        ? JSON.parse(
-            gallery_meta,
-          )
-        : gallery_meta
-      : [];
-
-    const mediaPayload = [];
-
-    /* -------------------------
-       Images
-       ------------------------- */
-
-    imageFiles.forEach(
-      (file, index) => {
-        mediaPayload.push({
+        return {
           business_card_id:
             cardDoc.id,
 
-          file_type:
-            "image",
+          day: h.day,
 
-          file_name:
-            path.basename(
-              file.filename,
-            ),
+          is_closed:
+            isClosed,
 
-          file_uri:
-            file.filename,
+          open_time:
+            isClosed
+              ? null
+              : h.open_time,
 
-          file_size:
-            file.size,
+          close_time:
+            isClosed
+              ? null
+              : h.close_time,
 
-          caption:
-            meta[index]?.caption ||
-            null,
+          note: null,
+        };
+      });
 
-          is_thumbnail:
-            !!meta[index]
-              ?.is_thumbnail,
-
-          thumbnail_uri:
-            null,
-
-          sort_order:
-            meta[index]
-              ?.sort_order ??
-            index + 1,
-        });
-      },
-    );
-
-    /* -------------------------
-       Videos
-       ------------------------- */
-
-    videoFiles.forEach(
-      (file, index) => {
-        mediaPayload.push({
-          business_card_id:
-            cardDoc.id,
-
-          file_type:
-            "video",
-
-          file_name:
-            path.basename(
-              file.filename,
-            ),
-
-          file_uri:
-            file.filename,
-
-          file_size:
-            file.size,
-
-          caption:
-            meta[index]?.caption ||
-            null,
-
-          /*
-           * Keep existing behavior:
-           * video thumbnail is mapped
-           * using the same index.
-           */
-          thumbnail_uri:
-            thumbnailFiles[index]
-              ? thumbnailFiles[index]
-                  .filename
-              : null,
-
-          is_thumbnail:
-            false,
-
-          sort_order:
-            meta[index]
-              ?.sort_order ??
-            index + 1,
-        });
-      },
-    );
-
-    /* -------------------------
-       Gallery DB operation
-       ------------------------- */
-
-    let galleryPromise =
-      Promise.resolve();
-
-    if (mediaPayload.length) {
-      galleryPromise =
-        BusinessGalleryMedia.bulkCreate(
-          mediaPayload,
+    if (hoursPayload.length) {
+      hoursPromise =
+        BusinessHour.bulkCreate(
+          hoursPayload,
         );
     }
+  }
 
-    /* =========================================================
-       IMPORTANT OPTIMIZATION
-       
-       Locations, hours and gallery don't depend on each other.
-       Run all three DB operations concurrently.
-       ========================================================= */
+  /* =========================================================
+     GALLERY
+     Images + Videos + Video Thumbnails
+     ========================================================= */
 
-    await Promise.all([
-      locationsPromise,
-      hoursPromise,
-      galleryPromise,
-    ]);
+  const imageFiles =
+    files?.images || [];
 
-    /* =========================================================
-       GENERATE UNIQUE PUBLIC SLUG
-       ========================================================= */
+  const videoFiles =
+    files?.videos || [];
 
-    const slugBase =
-      (
-        name ||
-        business_name ||
-        "business"
-      )
-        .toLowerCase()
-        .replace(
-          /[^a-z0-9]/g,
-          "",
-        );
+  const thumbnailFiles =
+    files?.video_thumbnails || [];
 
-    let uniqueSlug =
-      slugBase;
+  const meta = gallery_meta
+    ? typeof gallery_meta === "string"
+      ? JSON.parse(
+          gallery_meta,
+        )
+      : gallery_meta
+    : [];
 
-    let counter = 1;
+  const mediaPayload = [];
 
-    while (
-      await BusinessCard.findOne({
-        where: {
-          business_card_link:
-            `https://glamlink.net/access/${uniqueSlug}`,
-        },
+  /* -------------------------
+     Images
+     ------------------------- */
+
+  imageFiles.forEach(
+    (file, index) => {
+      mediaPayload.push({
+        business_card_id:
+          cardDoc.id,
+
+        file_type:
+          "image",
+
+        file_name:
+          path.basename(
+            file.filename,
+          ),
+
+        file_uri:
+          file.filename,
+
+        file_size:
+          file.size,
+
+        caption:
+          meta[index]?.caption ||
+          null,
+
+        is_thumbnail:
+          !!meta[index]
+            ?.is_thumbnail,
+
+        thumbnail_uri:
+          null,
+
+        sort_order:
+          meta[index]
+            ?.sort_order ??
+          index + 1,
+      });
+    },
+  );
+
+  /* -------------------------
+     Videos
+     ------------------------- */
+
+  videoFiles.forEach(
+    (file, index) => {
+      mediaPayload.push({
+        business_card_id:
+          cardDoc.id,
+
+        file_type:
+          "video",
+
+        file_name:
+          path.basename(
+            file.filename,
+          ),
+
+        file_uri:
+          file.filename,
+
+        file_size:
+          file.size,
+
+        caption:
+          meta[index]?.caption ||
+          null,
 
         /*
-         * We only need to know whether it exists.
-         * Don't retrieve the entire row.
+         * Keep existing behavior:
+         * video thumbnail is mapped
+         * using the same index.
          */
-        attributes: ["id"],
-      })
-    ) {
-      uniqueSlug =
-        `${slugBase}-${counter}`;
+        thumbnail_uri:
+          thumbnailFiles[index]
+            ? thumbnailFiles[index]
+                .filename
+            : null,
 
-      counter++;
-    }
+        is_thumbnail:
+          false,
 
-    const publicLink =
-      `https://glamlink.net/access/${uniqueSlug}`;
+        sort_order:
+          meta[index]
+            ?.sort_order ??
+          index + 1,
+      });
+    },
+  );
 
-    /* =========================================================
-       QR PATH / URL
-       ========================================================= */
+  /* -------------------------
+     Gallery DB operation
+     ------------------------- */
 
+  let galleryPromise =
+    Promise.resolve();
 
-    const qrFolderPath =
-      path.join(
-        UPLOADS_DIR,
-        "images/qr",
+  if (mediaPayload.length) {
+    galleryPromise =
+      BusinessGalleryMedia.bulkCreate(
+        mediaPayload,
+      );
+  }
+
+  /* =========================================================
+     IMPORTANT OPTIMIZATION
+     
+     Locations, hours and gallery don't depend on each other.
+     Run all three DB operations concurrently.
+     ========================================================= */
+
+  await Promise.all([
+    locationsPromise,
+    hoursPromise,
+    galleryPromise,
+  ]);
+
+  /* =========================================================
+     GENERATE UNIQUE PUBLIC SLUG
+     ========================================================= */
+
+  const slugBase =
+    (
+      name ||
+      business_name ||
+      "business"
+    )
+      .toLowerCase()
+      .replace(
+        /[^a-z0-9]/g,
+        "",
       );
 
-    if (
-      !fs.existsSync(
-        qrFolderPath,
-      )
-    ) {
-      fs.mkdirSync(
-        qrFolderPath,
-        {
-          recursive: true,
-        },
-      );
-    }
+  let uniqueSlug =
+    slugBase;
 
-    const qrFileName =
-      `${uniqueSlug}.png`;
+  let counter = 1;
 
-    const qrFilePath =
-      path.join(
-        qrFolderPath,
-        qrFileName,
-      );
-
-    const qrPublicUrl =
-      `${config.API_BASE_URL}/images/qr/${qrFileName}`;
-
-    /* =========================================================
-       SAVE PUBLIC LINK + QR URL
-       ========================================================= */
-
-    await cardDoc.update({
-      business_card_link:
-        publicLink,
-
-      business_card_qr:
-        qrPublicUrl,
-    });
-
-    /* =========================================================
-       QR GENERATION - BACKGROUND
-       
-       DO NOT WAIT FOR THIS.
-       The DB already contains the QR URL.
-       ========================================================= */
-
-    QRCode.toFile(
-      qrFilePath,
-      publicLink,
-    ).catch((err) => {
-      console.error(
-        "Business card QR generation failed:",
-        err,
-      );
-    });
-
-    /* =========================================================
-       ADMIN EMAIL - BACKGROUND
-       
-       This was already non-blocking in your current code,
-       so keep it that way.
-       ========================================================= */
-
-    sendAccessCardCreatedAdminEmail({
-      name: cardDoc.name,
-
-      business_name:
-        cardDoc.business_name,
-
-      email: cardDoc.email,
-
-      phone: cardDoc.phone,
-
-      businessCardLink:
-        cardDoc.business_card_link,
+  while (
+    await BusinessCard.findOne({
+      where: {
+        business_card_link:
+          `https://glamlink.net/access/${uniqueSlug}`,
+      },
 
       /*
-       * Fix existing undefined userLogin variable.
+       * We only need to know whether it exists.
+       * Don't retrieve the entire row.
        */
-      created_by: user
-        ? "Existing User"
-        : "Guest",
-    }).catch((err) => {
-      console.error(
-        "sendAccessCardCreatedAdminEmail failed:",
-        err,
-      );
-    });
+      attributes: ["id"],
+    })
+  ) {
+    uniqueSlug =
+      `${slugBase}-${counter}`;
 
-    /* =========================================================
-       RETURN CARD
-       ========================================================= */
+    counter++;
+  }
 
-    return cardDoc;
-  } catch (error) {
-    console.error(
-      "CREATE BUSINESS CARD ERROR",
+  const publicLink =
+    `https://glamlink.net/access/${uniqueSlug}`;
+
+  /* =========================================================
+     QR PATH / URL
+     ========================================================= */
+
+
+  const qrFolderPath =
+    path.join(
+      UPLOADS_DIR,
+      "images/qr",
     );
 
-    console.error(error);
-    console.error(error.stack);
-
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message ||
-        "Something went wrong",
+  if (
+    !fs.existsSync(
+      qrFolderPath,
+    )
+  ) {
+    fs.mkdirSync(
+      qrFolderPath,
+      {
+        recursive: true,
+      },
     );
   }
+
+  const qrFileName =
+    `${uniqueSlug}.png`;
+
+  const qrFilePath =
+    path.join(
+      qrFolderPath,
+      qrFileName,
+    );
+
+  const qrPublicUrl =
+    `${config.API_BASE_URL}/images/qr/${qrFileName}`;
+
+  /* =========================================================
+     SAVE PUBLIC LINK + QR URL
+     ========================================================= */
+
+  await cardDoc.update({
+    business_card_link:
+      publicLink,
+
+    business_card_qr:
+      qrPublicUrl,
+  });
+
+  /* =========================================================
+     QR GENERATION - BACKGROUND
+     
+     DO NOT WAIT FOR THIS.
+     The DB already contains the QR URL.
+     ========================================================= */
+
+  QRCode.toFile(
+    qrFilePath,
+    publicLink,
+  ).catch((err) => {
+    console.error(
+      "Business card QR generation failed:",
+      err,
+    );
+  });
+
+  /* =========================================================
+     ADMIN EMAIL - BACKGROUND
+     
+     This was already non-blocking in your current code,
+     so keep it that way.
+     ========================================================= */
+
+  sendAccessCardCreatedAdminEmail({
+    name: cardDoc.name,
+
+    business_name:
+      cardDoc.business_name,
+
+    email: cardDoc.email,
+
+    phone: cardDoc.phone,
+
+    businessCardLink:
+      cardDoc.business_card_link,
+
+    /*
+     * Fix existing undefined userLogin variable.
+     */
+    created_by: user
+      ? "Existing User"
+      : "Guest",
+  }).catch((err) => {
+    console.error(
+      "sendAccessCardCreatedAdminEmail failed:",
+      err,
+    );
+  });
+
+  /* =========================================================
+     RETURN CARD
+     ========================================================= */
+
+  return cardDoc;
 };
 
 const getMyBusinessCard = async (body) => {
@@ -2552,517 +2501,509 @@ const getMyBusinessCard = async (body) => {
 };
 
 const getBusinessCardById = async (id) => {
-  try {
-    const card = await BusinessCard.findByPk(id, {
-      include: [
-        {
-          model: BusinessLocation,
-          as: "locations",
-        },
-        {
-          model: BusinessHour,
-          as: "business_hour",
-        },
-        {
-          model: BusinessGalleryMedia,
-          as: "images",
-        },
-        {
-          model: User,
-          as: "business_user",
-          required: false,
-          attributes: [
-            "id",
-            "subscription_status",
-            "subscription_started_at",
-            "subscription_renewal_at",
-          ],
-        },
+  const card = await BusinessCard.findByPk(id, {
+    include: [
+      {
+        model: BusinessLocation,
+        as: "locations",
+      },
+      {
+        model: BusinessHour,
+        as: "business_hour",
+      },
+      {
+        model: BusinessGalleryMedia,
+        as: "images",
+      },
+      {
+        model: User,
+        as: "business_user",
+        required: false,
+        attributes: [
+          "id",
+          "subscription_status",
+          "subscription_started_at",
+          "subscription_renewal_at",
+        ],
+      },
 
-        // Access Orders
-        {
-          model: AccessOrder,
-          as: "access_orders",
-          required: false,
-          attributes: [
-            "id",
-            "order_number",
-            "created_at",
-            "customer_name",
-            "customer_email",
-            "amount_paid",
-            "payment_status",
-            "recipient_name",
-            "shipping_address_line_1",
-            "shipping_address_line_2",
-            "shipping_city",
-            "shipping_state",
-            "shipping_postal_code",
-            "shipping_country",
-            "shipping_amount",
-            "tracking_number",
-            "tracking_link",
-            "fulfillment_status",
-          ],
-          order: [["created_at", "DESC"]],
-        },
-      ],
-    });
+      // Access Orders
+      {
+        model: AccessOrder,
+        as: "access_orders",
+        required: false,
+        attributes: [
+          "id",
+          "order_number",
+          "created_at",
+          "customer_name",
+          "customer_email",
+          "amount_paid",
+          "payment_status",
+          "recipient_name",
+          "shipping_address_line_1",
+          "shipping_address_line_2",
+          "shipping_city",
+          "shipping_state",
+          "shipping_postal_code",
+          "shipping_country",
+          "shipping_amount",
+          "tracking_number",
+          "tracking_link",
+          "fulfillment_status",
+        ],
+        order: [["created_at", "DESC"]],
+      },
+    ],
+  });
 
-    if (!card) {
-      throw new ApiError(404, "Business card not found");
+  if (!card) {
+    throw new ApiError(404, "Business card not found");
+  }
+
+  const data = card.toJSON();
+
+  const parsedLinks = data.other_links ? JSON.parse(data.other_links) : [];
+
+  data.other_links = parsedLinks.map((link) => {
+    if (typeof link === "string") {
+      return {
+        title: null,
+        url: link,
+      };
     }
 
-    const data = card.toJSON();
+    return {
+      title: link?.title || null,
+      url: link?.url || "",
+    };
+  });
 
-    const parsedLinks = data.other_links ? JSON.parse(data.other_links) : [];
+  data.featured_links = parseFeaturedLinks(data.featured_links);
 
-    data.other_links = parsedLinks.map((link) => {
-      if (typeof link === "string") {
+  if (!data.preferred_booking_method) {
+    data.preferred_booking_method = [];
+  } else {
+    try {
+      data.preferred_booking_method =
+        typeof data.preferred_booking_method === "string"
+          ? JSON.parse(data.preferred_booking_method)
+          : data.preferred_booking_method;
+    } catch {
+      data.preferred_booking_method = [
+        normalizeBookingMethod(data.preferred_booking_method),
+      ];
+    }
+  }
+
+  return data;
+};
+
+const updateBusinessCard = async (id, body, files) => {
+  const cardDoc = await BusinessCard.findByPk(id);
+
+  if (!cardDoc) {
+    throw new ApiError(404, "Business card not found");
+  }
+
+
+  let updateObj = {};
+
+  const {
+    name,
+    business_name,
+    email,
+    phone,
+    professional_title,
+    bio,
+    color_code,
+    social_media,
+    other_links,
+    featured_links,
+    website,
+    custom_handle,
+    preferred_booking_method,
+    primary_specialty,
+    specialties,
+    important_info,
+    offer_promotion,
+    promotion_details,
+    elite_setup,
+    excites_about_glamlink,
+    biggest_pain_points,
+    locations,
+    business_hour,
+    gallery_meta,
+    booking_link,
+    existing_image_ids,
+    existing_video_ids,
+    is_phone_visible,
+  } = body;
+
+  /* ================= BASIC ================= */
+  if (name) updateObj.name = name;
+  if (business_name) updateObj.business_name = business_name;
+  if (email) updateObj.email = email;
+  if (phone) updateObj.phone = phone;
+  if (professional_title) updateObj.professional_title = professional_title;
+  if (bio) updateObj.bio = bio;
+  if (color_code) updateObj.color_code = color_code;
+
+  /* ================= SOCIAL ================= */
+  if (website) updateObj.website = website;
+  if (custom_handle) updateObj.custom_handle = custom_handle;
+
+  if (preferred_booking_method) {
+    const parsedMethods =
+      typeof preferred_booking_method === "string"
+        ? JSON.parse(preferred_booking_method)
+        : preferred_booking_method;
+
+    updateObj.preferred_booking_method = JSON.stringify(parsedMethods);
+  }
+
+  if (booking_link !== undefined) {
+    updateObj.booking_link = booking_link;
+  }
+
+  if (is_phone_visible !== undefined) {
+    updateObj.is_phone_visible =
+      is_phone_visible === true || is_phone_visible === "true";
+  }
+
+  if (social_media) {
+    updateObj.social_media =
+      typeof social_media === "string"
+        ? JSON.parse(social_media)
+        : social_media;
+  }
+
+  if (other_links) {
+    const parsedLinks =
+      typeof other_links === "string" ? JSON.parse(other_links) : other_links;
+
+    updateObj.other_links = parsedLinks
+      .map((link) => {
+        // old format
+        if (typeof link === "string") {
+          return {
+            title: null,
+            url: link.trim(),
+          };
+        }
+
+        // new format
         return {
-          title: null,
-          url: link,
+          title: link?.title?.trim() || null,
+          url: link?.url?.trim() || "",
+        };
+      })
+      .filter((link) => link.url);
+  }
+
+  /* ================= FEATURED LINKS ================= */
+
+  if (featured_links !== undefined) {
+    const parsedFeaturedLinks =
+      typeof featured_links === "string"
+        ? JSON.parse(featured_links)
+        : featured_links;
+
+    if (!Array.isArray(parsedFeaturedLinks)) {
+      throw new ApiError(400, "featured_links must be an array.");
+    }
+
+    const featuredCount = parsedFeaturedLinks.filter(
+      (link) => link?.is_featured === true,
+    ).length;
+
+    if (featuredCount > 1) {
+      throw new ApiError(400, "Only one featured link can be selected.");
+    }
+
+    const featuredImageFiles = files?.featured_link_images || [];
+
+    updateObj.featured_links = parsedFeaturedLinks
+      .filter((link) => link?.url?.trim())
+      .map((link, index) => {
+        const imageIndex =
+          link?.image_index !== undefined && link?.image_index !== null
+            ? Number(link.image_index)
+            : null;
+
+        const imageFile =
+          imageIndex !== null ? featuredImageFiles[imageIndex] : null;
+
+        return {
+          title: link?.title?.trim() || null,
+          url: link.url.trim(),
+          image: imageFile ? imageFile.filename : link?.image || null,
+          sort_order: index + 1,
+          is_featured: link?.is_featured === true,
+        };
+      });
+  }
+
+  /* ================= SPECIALTIES ================= */
+  if (primary_specialty) updateObj.primary_specialty = primary_specialty;
+
+  if (specialties) {
+    const parsed =
+      typeof specialties === "string" ? JSON.parse(specialties) : specialties;
+
+    updateObj.specialties = parsed.filter(Boolean);
+  }
+
+  /* ================= INFO ================= */
+  if (important_info) {
+    updateObj.important_info =
+      typeof important_info === "string"
+        ? JSON.parse(important_info)
+        : important_info;
+  }
+
+  /* ================= PROMOTION ================= */
+  if (offer_promotion !== undefined) {
+    updateObj.offer_promotion =
+      offer_promotion === true || offer_promotion === "true";
+
+    if (updateObj.offer_promotion) {
+      updateObj.promotion_details = promotion_details;
+    }
+  }
+
+  if (elite_setup !== undefined) updateObj.elite_setup = elite_setup;
+
+  if (excites_about_glamlink) {
+    updateObj.excites_about_glamlink =
+      typeof excites_about_glamlink === "string"
+        ? JSON.parse(excites_about_glamlink)
+        : excites_about_glamlink;
+  }
+
+  if (biggest_pain_points) {
+    updateObj.biggest_pain_points =
+      typeof biggest_pain_points === "string"
+        ? JSON.parse(biggest_pain_points)
+        : biggest_pain_points;
+  }
+
+  /* ================= MEDIA ================= */
+  if (files?.profile_image?.length) {
+    updateObj.profile_image = files.profile_image[0].filename;
+  }
+
+  /* ================= ACCESS CARD MIGRATION ================= */
+
+  const needsMigration =
+    !cardDoc.business_card_link ||
+    cardDoc.business_card_link.includes("/business-card/");
+
+  if (needsMigration) {
+    const slugBase = (
+      updateObj.name ||
+      cardDoc.name ||
+      updateObj.business_name ||
+      cardDoc.business_name ||
+      "business"
+    )
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    let uniqueSlug = slugBase;
+    let counter = 1;
+
+    while (
+      await BusinessCard.findOne({
+        where: {
+          business_card_link: `https://glamlink.net/access/${uniqueSlug}`,
+          id: {
+            [Op.ne]: cardDoc.id,
+          },
+        },
+      })
+    ) {
+      uniqueSlug = `${slugBase}-${counter}`;
+      counter++;
+    }
+
+    const publicLink = `https://glamlink.net/access/${uniqueSlug}`;
+
+    const qrFolderPath = path.join(UPLOADS_DIR, "images/qr");
+
+    if (!fs.existsSync(qrFolderPath)) {
+      fs.mkdirSync(qrFolderPath, { recursive: true });
+    }
+
+    const qrFileName = `${uniqueSlug}.png`;
+    const qrFilePath = path.join(qrFolderPath, qrFileName);
+    const qrPublicUrl = `${config.API_BASE_URL}/images/qr/${qrFileName}`;
+
+    await QRCode.toFile(qrFilePath, publicLink);
+
+    updateObj.business_card_link = publicLink;
+    updateObj.business_card_qr = qrPublicUrl;
+  }
+
+  await cardDoc.update(updateObj);
+
+  /* ================= LOCATIONS ================= */
+  if (locations) {
+    const parsed =
+      typeof locations === "string" ? JSON.parse(locations) : locations;
+
+    await BusinessLocation.destroy({
+      where: { business_card_id: id },
+      force: true,
+    });
+
+    for (let index = 0; index < parsed.length; index++) {
+      const loc = parsed[index];
+
+      await BusinessLocation.create({
+        business_card_id: id,
+        label: loc.label,
+        location_type: loc.location_type,
+        address: loc.address,
+        city: loc.city,
+        state: loc.state,
+        business_name: loc.business_name,
+        phone: loc.phone,
+        description: loc.description,
+        latitude: loc.latitude || null,
+        longitude: loc.longitude || null,
+        sort_order: index + 1,
+        is_primary: !!loc.is_primary,
+      });
+    }
+  }
+
+  /* ================= HOURS ================= */
+  if (business_hour) {
+    const parsed =
+      typeof business_hour === "string"
+        ? JSON.parse(business_hour)
+        : business_hour;
+
+    await BusinessHour.destroy({
+      where: { business_card_id: id },
+      force: true,
+    });
+
+    const payload = parsed.map((h) => {
+      if (h.note) {
+        return {
+          business_card_id: id,
+          day: null,
+          is_closed: true,
+          note: h.note,
+        };
+      }
+
+      if (h.open_time && h.open_time.length > 10) {
+        return {
+          business_card_id: id,
+          day: null,
+          is_closed: true,
+          open_time: null,
+          close_time: null,
+          note: `${h.day}: ${h.open_time}`,
         };
       }
 
       return {
-        title: link?.title || null,
-        url: link?.url || "",
+        business_card_id: id,
+        day: h.day,
+        is_closed: h.closed === true,
+        open_time: h.closed ? null : h.open_time,
+        close_time: h.closed ? null : h.close_time,
       };
     });
 
-    data.featured_links = parseFeaturedLinks(data.featured_links);
-
-    if (!data.preferred_booking_method) {
-      data.preferred_booking_method = [];
-    } else {
-      try {
-        data.preferred_booking_method =
-          typeof data.preferred_booking_method === "string"
-            ? JSON.parse(data.preferred_booking_method)
-            : data.preferred_booking_method;
-      } catch {
-        data.preferred_booking_method = [
-          normalizeBookingMethod(data.preferred_booking_method),
-        ];
-      }
-    }
-
-    return data;
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    await BusinessHour.bulkCreate(payload);
   }
-};
 
-const updateBusinessCard = async (id, body, files) => {
-  try {
-    const cardDoc = await BusinessCard.findByPk(id);
+  /* DELETE REMOVED IMAGES */
 
-    if (!cardDoc) {
-      throw new ApiError(404, "Business card not found");
-    }
+  if (existing_image_ids !== undefined) {
+    const keepIds =
+      typeof existing_image_ids === "string"
+        ? JSON.parse(existing_image_ids)
+        : existing_image_ids;
 
-
-    let updateObj = {};
-
-    const {
-      name,
-      business_name,
-      email,
-      phone,
-      professional_title,
-      bio,
-      color_code,
-      social_media,
-      other_links,
-      featured_links,
-      website,
-      custom_handle,
-      preferred_booking_method,
-      primary_specialty,
-      specialties,
-      important_info,
-      offer_promotion,
-      promotion_details,
-      elite_setup,
-      excites_about_glamlink,
-      biggest_pain_points,
-      locations,
-      business_hour,
-      gallery_meta,
-      booking_link,
-      existing_image_ids,
-      existing_video_ids,
-      is_phone_visible,
-    } = body;
-
-    /* ================= BASIC ================= */
-    if (name) updateObj.name = name;
-    if (business_name) updateObj.business_name = business_name;
-    if (email) updateObj.email = email;
-    if (phone) updateObj.phone = phone;
-    if (professional_title) updateObj.professional_title = professional_title;
-    if (bio) updateObj.bio = bio;
-    if (color_code) updateObj.color_code = color_code;
-
-    /* ================= SOCIAL ================= */
-    if (website) updateObj.website = website;
-    if (custom_handle) updateObj.custom_handle = custom_handle;
-
-    if (preferred_booking_method) {
-      const parsedMethods =
-        typeof preferred_booking_method === "string"
-          ? JSON.parse(preferred_booking_method)
-          : preferred_booking_method;
-
-      updateObj.preferred_booking_method = JSON.stringify(parsedMethods);
-    }
-
-    if (booking_link !== undefined) {
-      updateObj.booking_link = booking_link;
-    }
-
-    if (is_phone_visible !== undefined) {
-      updateObj.is_phone_visible =
-        is_phone_visible === true || is_phone_visible === "true";
-    }
-
-    if (social_media) {
-      updateObj.social_media =
-        typeof social_media === "string"
-          ? JSON.parse(social_media)
-          : social_media;
-    }
-
-    if (other_links) {
-      const parsedLinks =
-        typeof other_links === "string" ? JSON.parse(other_links) : other_links;
-
-      updateObj.other_links = parsedLinks
-        .map((link) => {
-          // old format
-          if (typeof link === "string") {
-            return {
-              title: null,
-              url: link.trim(),
-            };
-          }
-
-          // new format
-          return {
-            title: link?.title?.trim() || null,
-            url: link?.url?.trim() || "",
-          };
-        })
-        .filter((link) => link.url);
-    }
-
-    /* ================= FEATURED LINKS ================= */
-
-    if (featured_links !== undefined) {
-      const parsedFeaturedLinks =
-        typeof featured_links === "string"
-          ? JSON.parse(featured_links)
-          : featured_links;
-
-      if (!Array.isArray(parsedFeaturedLinks)) {
-        throw new ApiError(400, "featured_links must be an array.");
-      }
-
-      const featuredCount = parsedFeaturedLinks.filter(
-        (link) => link?.is_featured === true,
-      ).length;
-
-      if (featuredCount > 1) {
-        throw new ApiError(400, "Only one featured link can be selected.");
-      }
-
-      const featuredImageFiles = files?.featured_link_images || [];
-
-      updateObj.featured_links = parsedFeaturedLinks
-        .filter((link) => link?.url?.trim())
-        .map((link, index) => {
-          const imageIndex =
-            link?.image_index !== undefined && link?.image_index !== null
-              ? Number(link.image_index)
-              : null;
-
-          const imageFile =
-            imageIndex !== null ? featuredImageFiles[imageIndex] : null;
-
-          return {
-            title: link?.title?.trim() || null,
-            url: link.url.trim(),
-            image: imageFile ? imageFile.filename : link?.image || null,
-            sort_order: index + 1,
-            is_featured: link?.is_featured === true,
-          };
-        });
-    }
-
-    /* ================= SPECIALTIES ================= */
-    if (primary_specialty) updateObj.primary_specialty = primary_specialty;
-
-    if (specialties) {
-      const parsed =
-        typeof specialties === "string" ? JSON.parse(specialties) : specialties;
-
-      updateObj.specialties = parsed.filter(Boolean);
-    }
-
-    /* ================= INFO ================= */
-    if (important_info) {
-      updateObj.important_info =
-        typeof important_info === "string"
-          ? JSON.parse(important_info)
-          : important_info;
-    }
-
-    /* ================= PROMOTION ================= */
-    if (offer_promotion !== undefined) {
-      updateObj.offer_promotion =
-        offer_promotion === true || offer_promotion === "true";
-
-      if (updateObj.offer_promotion) {
-        updateObj.promotion_details = promotion_details;
-      }
-    }
-
-    if (elite_setup !== undefined) updateObj.elite_setup = elite_setup;
-
-    if (excites_about_glamlink) {
-      updateObj.excites_about_glamlink =
-        typeof excites_about_glamlink === "string"
-          ? JSON.parse(excites_about_glamlink)
-          : excites_about_glamlink;
-    }
-
-    if (biggest_pain_points) {
-      updateObj.biggest_pain_points =
-        typeof biggest_pain_points === "string"
-          ? JSON.parse(biggest_pain_points)
-          : biggest_pain_points;
-    }
-
-    /* ================= MEDIA ================= */
-    if (files?.profile_image?.length) {
-      updateObj.profile_image = files.profile_image[0].filename;
-    }
-
-    /* ================= ACCESS CARD MIGRATION ================= */
-
-    const needsMigration =
-      !cardDoc.business_card_link ||
-      cardDoc.business_card_link.includes("/business-card/");
-
-    if (needsMigration) {
-      const slugBase = (
-        updateObj.name ||
-        cardDoc.name ||
-        updateObj.business_name ||
-        cardDoc.business_name ||
-        "business"
-      )
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      let uniqueSlug = slugBase;
-      let counter = 1;
-
-      while (
-        await BusinessCard.findOne({
-          where: {
-            business_card_link: `https://glamlink.net/access/${uniqueSlug}`,
-            id: {
-              [Op.ne]: cardDoc.id,
-            },
-          },
-        })
-      ) {
-        uniqueSlug = `${slugBase}-${counter}`;
-        counter++;
-      }
-
-      const publicLink = `https://glamlink.net/access/${uniqueSlug}`;
-
-      const qrFolderPath = path.join(UPLOADS_DIR, "images/qr");
-
-      if (!fs.existsSync(qrFolderPath)) {
-        fs.mkdirSync(qrFolderPath, { recursive: true });
-      }
-
-      const qrFileName = `${uniqueSlug}.png`;
-      const qrFilePath = path.join(qrFolderPath, qrFileName);
-      const qrPublicUrl = `${config.API_BASE_URL}/images/qr/${qrFileName}`;
-
-      await QRCode.toFile(qrFilePath, publicLink);
-
-      updateObj.business_card_link = publicLink;
-      updateObj.business_card_qr = qrPublicUrl;
-    }
-
-    await cardDoc.update(updateObj);
-
-    /* ================= LOCATIONS ================= */
-    if (locations) {
-      const parsed =
-        typeof locations === "string" ? JSON.parse(locations) : locations;
-
-      await BusinessLocation.destroy({
-        where: { business_card_id: id },
-        force: true,
-      });
-
-      for (let index = 0; index < parsed.length; index++) {
-        const loc = parsed[index];
-
-        await BusinessLocation.create({
-          business_card_id: id,
-          label: loc.label,
-          location_type: loc.location_type,
-          address: loc.address,
-          city: loc.city,
-          state: loc.state,
-          business_name: loc.business_name,
-          phone: loc.phone,
-          description: loc.description,
-          latitude: loc.latitude || null,
-          longitude: loc.longitude || null,
-          sort_order: index + 1,
-          is_primary: !!loc.is_primary,
-        });
-      }
-    }
-
-    /* ================= HOURS ================= */
-    if (business_hour) {
-      const parsed =
-        typeof business_hour === "string"
-          ? JSON.parse(business_hour)
-          : business_hour;
-
-      await BusinessHour.destroy({
-        where: { business_card_id: id },
-        force: true,
-      });
-
-      const payload = parsed.map((h) => {
-        if (h.note) {
-          return {
-            business_card_id: id,
-            day: null,
-            is_closed: true,
-            note: h.note,
-          };
-        }
-
-        if (h.open_time && h.open_time.length > 10) {
-          return {
-            business_card_id: id,
-            day: null,
-            is_closed: true,
-            open_time: null,
-            close_time: null,
-            note: `${h.day}: ${h.open_time}`,
-          };
-        }
-
-        return {
-          business_card_id: id,
-          day: h.day,
-          is_closed: h.closed === true,
-          open_time: h.closed ? null : h.open_time,
-          close_time: h.closed ? null : h.close_time,
-        };
-      });
-
-      await BusinessHour.bulkCreate(payload);
-    }
-
-    /* DELETE REMOVED IMAGES */
-
-    if (existing_image_ids !== undefined) {
-      const keepIds =
-        typeof existing_image_ids === "string"
-          ? JSON.parse(existing_image_ids)
-          : existing_image_ids;
-
-      await BusinessGalleryMedia.destroy({
-        where: {
-          business_card_id: id,
-          file_type: "image",
-          id: {
-            [Op.notIn]: keepIds,
-          },
+    await BusinessGalleryMedia.destroy({
+      where: {
+        business_card_id: id,
+        file_type: "image",
+        id: {
+          [Op.notIn]: keepIds,
         },
-      });
-    }
-
-    /* DELETE REMOVED VIDEOS */
-
-    if (existing_video_ids !== undefined) {
-      const keepIds =
-        typeof existing_video_ids === "string"
-          ? JSON.parse(existing_video_ids)
-          : existing_video_ids;
-
-      await BusinessGalleryMedia.destroy({
-        where: {
-          business_card_id: id,
-          file_type: "video",
-          id: {
-            [Op.notIn]: keepIds,
-          },
-        },
-      });
-    }
-
-    /* ================= GALLERY ================= */
-
-    const imageFiles = files?.images || [];
-    const videoFiles = files?.videos || [];
-    const thumbnailFiles = files?.video_thumbnails || [];
-
-    if (imageFiles.length || videoFiles.length) {
-      const meta =
-        typeof gallery_meta === "string"
-          ? JSON.parse(gallery_meta)
-          : gallery_meta || [];
-
-      const mediaPayload = [];
-
-      imageFiles.forEach((file, index) => {
-        mediaPayload.push({
-          business_card_id: id,
-          file_type: "image",
-          file_name: file.filename,
-          file_uri: file.filename,
-          is_thumbnail: !!meta[index]?.is_thumbnail,
-          sort_order: index + 1,
-        });
-      });
-
-      videoFiles.forEach((file, index) => {
-        mediaPayload.push({
-          business_card_id: id,
-          file_type: "video",
-          file_name: file.filename,
-          file_uri: file.filename,
-          thumbnail_uri: thumbnailFiles[index]
-            ? thumbnailFiles[index].filename
-            : null,
-          sort_order: index + 1,
-        });
-      });
-
-      await BusinessGalleryMedia.bulkCreate(mediaPayload);
-    }
-
-    return cardDoc;
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+      },
+    });
   }
+
+  /* DELETE REMOVED VIDEOS */
+
+  if (existing_video_ids !== undefined) {
+    const keepIds =
+      typeof existing_video_ids === "string"
+        ? JSON.parse(existing_video_ids)
+        : existing_video_ids;
+
+    await BusinessGalleryMedia.destroy({
+      where: {
+        business_card_id: id,
+        file_type: "video",
+        id: {
+          [Op.notIn]: keepIds,
+        },
+      },
+    });
+  }
+
+  /* ================= GALLERY ================= */
+
+  const imageFiles = files?.images || [];
+  const videoFiles = files?.videos || [];
+  const thumbnailFiles = files?.video_thumbnails || [];
+
+  if (imageFiles.length || videoFiles.length) {
+    const meta =
+      typeof gallery_meta === "string"
+        ? JSON.parse(gallery_meta)
+        : gallery_meta || [];
+
+    const mediaPayload = [];
+
+    imageFiles.forEach((file, index) => {
+      mediaPayload.push({
+        business_card_id: id,
+        file_type: "image",
+        file_name: file.filename,
+        file_uri: file.filename,
+        is_thumbnail: !!meta[index]?.is_thumbnail,
+        sort_order: index + 1,
+      });
+    });
+
+    videoFiles.forEach((file, index) => {
+      mediaPayload.push({
+        business_card_id: id,
+        file_type: "video",
+        file_name: file.filename,
+        file_uri: file.filename,
+        thumbnail_uri: thumbnailFiles[index]
+          ? thumbnailFiles[index].filename
+          : null,
+        sort_order: index + 1,
+      });
+    });
+
+    await BusinessGalleryMedia.bulkCreate(mediaPayload);
+  }
+
+  return cardDoc;
 };
 
 const deleteBusinessCard = async (body) => {
@@ -3125,10 +3066,7 @@ const deleteBusinessCard = async (body) => {
   } catch (error) {
     await transaction.rollback();
 
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+    throw error;
   }
 };
 
@@ -3513,338 +3451,275 @@ const searchBusinessCards = async ({ search }) => {
 };
 
 const getAllBusinessCards = async () => {
-  try {
-    return await BusinessCard.findAll({
-      where: {
-        is_active: true,
+  return await BusinessCard.findAll({
+    where: {
+      is_active: true,
+    },
+    order: [["created_at", "DESC"]],
+    include: [
+      {
+        model: User,
+        as: "business_user",
+        attributes: [
+          "id",
+          "email",
+          "subscription_status",
+          "subscription_started_at",
+          "subscription_renewal_at",
+          "stripe_subscription_id",
+        ],
+        required: false,
       },
-      order: [["created_at", "DESC"]],
-      include: [
-        {
-          model: User,
-          as: "business_user",
-          attributes: [
-            "id",
-            "email",
-            "subscription_status",
-            "subscription_started_at",
-            "subscription_renewal_at",
-            "stripe_subscription_id",
-          ],
-          required: false,
-        },
-        {
-          model: BusinessLocation,
-          as: "locations",
-        },
-        {
-          model: BusinessGalleryMedia,
-          as: "images",
-        },
-        {
-          model: BusinessHour,
-          as: "business_hour",
-        },
-      ],
-    });
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Something went wrong",
-    );
-  }
+      {
+        model: BusinessLocation,
+        as: "locations",
+      },
+      {
+        model: BusinessGalleryMedia,
+        as: "images",
+      },
+      {
+        model: BusinessHour,
+        as: "business_hour",
+      },
+    ],
+  });
 };
 
 const updateBusinessCardStatus = async (reqBody) => {
-  try {
-    const { cardId, status } = reqBody;
+  const { cardId, status } = reqBody;
 
-    const allowedStatuses = ["pending", "accepted", "rejected"];
+  const allowedStatuses = ["pending", "accepted", "rejected"];
 
-    if (!allowedStatuses.includes(status)) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid status");
-    }
-
-    const card = await BusinessCard.findByPk(cardId);
-
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
-
-    card.status = status;
-    card.is_details = true;
-
-    await card.save();
-
-    if (status === "accepted") {
-      try {
-        await sendBusinessCardApprovedEmail({
-          to: card.email,
-          name: card.name,
-          businessCardLink: card.business_card_link,
-          qrCodeUrl: card.business_card_qr,
-        });
-      } catch (err) {
-        console.error("sendBusinessCardApprovedEmail failed:", err);
-      }
-    }
-
-    if (status === "rejected") {
-      try {
-        await sendBusinessCardRejectedEmail({
-          to: card.email,
-          name: card.name,
-        });
-      } catch (err) {
-        console.error("sendBusinessCardRejectedEmail failed:", err);
-      }
-    }
-
-    return card;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Something went wrong.",
-    );
+  if (!allowedStatuses.includes(status)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid status");
   }
+
+  const card = await BusinessCard.findByPk(cardId);
+
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
+
+  card.status = status;
+  card.is_details = true;
+
+  await card.save();
+
+  if (status === "accepted") {
+    try {
+      await sendBusinessCardApprovedEmail({
+        to: card.email,
+        name: card.name,
+        businessCardLink: card.business_card_link,
+        qrCodeUrl: card.business_card_qr,
+      });
+    } catch (err) {
+      console.error("sendBusinessCardApprovedEmail failed:", err);
+    }
+  }
+
+  if (status === "rejected") {
+    try {
+      await sendBusinessCardRejectedEmail({
+        to: card.email,
+        name: card.name,
+      });
+    } catch (err) {
+      console.error("sendBusinessCardRejectedEmail failed:", err);
+    }
+  }
+
+  return card;
 };
 
 const reorderFeaturedLinks = async (businessCardId, body) => {
-  try {
-    const { featured_links } = body;
-    console.log(featured_links, "featured_links");
+  const { featured_links } = body;
+  console.log(featured_links, "featured_links");
 
-    if (!Array.isArray(featured_links)) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "featured_links must be an array.",
-      );
-    }
-
-    const card = await BusinessCard.findOne({
-      where: {
-        id: businessCardId,
-        is_active: true,
-      },
-    });
-
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
-    }
-
-    // Only one link can be featured
-    const featuredCount = featured_links.filter(
-      (link) => link?.is_featured === true,
-    ).length;
-
-    if (featuredCount > 1) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Only one featured link can be selected.",
-      );
-    }
-
-    // Rebuild sort order based on the order received
-    const updatedLinks = featured_links
-      .filter((link) => link?.url?.trim())
-      .map((link, index) => ({
-        title: link?.title?.trim() || null,
-        url: link.url.trim(),
-        image: link?.image ?? null,
-        sort_order: index + 1,
-        is_featured: link?.is_featured === true,
-      }));
-
-    await card.update({
-      featured_links: updatedLinks,
-    });
-
-    return card;
-  } catch (error) {
-    console.error("REORDER FEATURED LINKS ERROR");
-    console.error(error);
-
+  if (!Array.isArray(featured_links)) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to reorder featured links.",
+      httpStatus.BAD_REQUEST,
+      "featured_links must be an array.",
     );
   }
+
+  const card = await BusinessCard.findOne({
+    where: {
+      id: businessCardId,
+      is_active: true,
+    },
+  });
+
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+  }
+
+  // Only one link can be featured
+  const featuredCount = featured_links.filter(
+    (link) => link?.is_featured === true,
+  ).length;
+
+  if (featuredCount > 1) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Only one featured link can be selected.",
+    );
+  }
+
+  // Rebuild sort order based on the order received
+  const updatedLinks = featured_links
+    .filter((link) => link?.url?.trim())
+    .map((link, index) => ({
+      title: link?.title?.trim() || null,
+      url: link.url.trim(),
+      image: link?.image ?? null,
+      sort_order: index + 1,
+      is_featured: link?.is_featured === true,
+    }));
+
+  await card.update({
+    featured_links: updatedLinks,
+  });
+
+  return card;
 };
 
 // business card category services
 
 const createCategory = async (reqBody) => {
-  try {
-    const categoryObj = {
-      title: reqBody.title,
-      created_at: new Date(),
-    };
+  const categoryObj = {
+    title: reqBody.title,
+    created_at: new Date(),
+  };
 
-    const categoryDoc = await BusinessCardCategory.create(categoryObj);
-    if (!categoryDoc) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to create new Category",
-      );
-    }
-    return categoryDoc;
-  } catch (error) {
+  const categoryDoc = await BusinessCardCategory.create(categoryObj);
+  if (!categoryDoc) {
     throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to create new Category",
     );
   }
+  return categoryDoc;
 };
 
 const getAllCategories = async () => {
-  try {
-    const categoryDoc = await BusinessCardCategory.findAndCountAll({
-      where: { is_active: true },
-      order: [["title", "ASC"]],
-    });
+  const categoryDoc = await BusinessCardCategory.findAndCountAll({
+    where: { is_active: true },
+    order: [["title", "ASC"]],
+  });
 
-    if (!categoryDoc) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to get all Category",
-      );
-    }
-
-    return categoryDoc;
-  } catch (error) {
+  if (!categoryDoc) {
     throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to get all Category",
     );
   }
+
+  return categoryDoc;
 };
 
 const findCategoryById = async (id) => {
-  try {
-    const categoryDoc = await BusinessCardCategory.findOne({
-      where: { id: id, is_active: true },
-    });
-    return categoryDoc ? categoryDoc : "No Category Found";
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
+  const categoryDoc = await BusinessCardCategory.findOne({
+    where: { id: id, is_active: true },
+  });
+  return categoryDoc ? categoryDoc : "No Category Found";
 };
 
 const updateCategory = async (reqBody, id) => {
-  try {
-    const categoryDoc = await BusinessCardCategory.findByPk(id);
+  const categoryDoc = await BusinessCardCategory.findByPk(id);
 
-    if (!categoryDoc) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
-    }
-    if (
-      reqBody.title &&
-      typeof reqBody.title !== "undefined" &&
-      reqBody.title !== ""
-    ) {
-      categoryDoc["title"] = reqBody.title;
-    }
-    if (
-      reqBody.description &&
-      typeof reqBody.description !== "undefined" &&
-      reqBody.description !== ""
-    ) {
-      categoryDoc["description"] = reqBody.description;
-    }
-
-    await categoryDoc.save();
-    return categoryDoc ? categoryDoc : {};
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!categoryDoc) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
   }
+  if (
+    reqBody.title &&
+    typeof reqBody.title !== "undefined" &&
+    reqBody.title !== ""
+  ) {
+    categoryDoc["title"] = reqBody.title;
+  }
+  if (
+    reqBody.description &&
+    typeof reqBody.description !== "undefined" &&
+    reqBody.description !== ""
+  ) {
+    categoryDoc["description"] = reqBody.description;
+  }
+
+  await categoryDoc.save();
+  return categoryDoc ? categoryDoc : {};
 };
 
 const deleteCategory = async (body) => {
-  try {
-    if (!Array.isArray(body.category_id) || body.category_id.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category_id");
-    }
-
-    // Ensure all IDs are trimmed and filtered
-    const categoryIds = body.category_id
-      .map((id) => String(id).trim())
-      .filter(Boolean);
-
-    if (categoryIds.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "No valid blog IDs provided");
-    }
-
-    // Find all categories with the given IDs
-    const categories = await BusinessCardCategory.findAll({
-      where: {
-        id: categoryIds,
-      },
-    });
-
-    if (categories.length === 0) {
-      throw new ApiError(httpStatus.NOT_FOUND, "No categories found");
-    }
-
-    // Delete the category themselves
-    await Promise.all(categories.map((category) => category.destroy()));
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!Array.isArray(body.category_id) || body.category_id.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category_id");
   }
+
+  // Ensure all IDs are trimmed and filtered
+  const categoryIds = body.category_id
+    .map((id) => String(id).trim())
+    .filter(Boolean);
+
+  if (categoryIds.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No valid blog IDs provided");
+  }
+
+  // Find all categories with the given IDs
+  const categories = await BusinessCardCategory.findAll({
+    where: {
+      id: categoryIds,
+    },
+  });
+
+  if (categories.length === 0) {
+    throw new ApiError(httpStatus.NOT_FOUND, "No categories found");
+  }
+
+  // Delete the category themselves
+  await Promise.all(categories.map((category) => category.destroy()));
 };
 
 // directory services
 
 const createDirectory = async (body, files) => {
-  try {
-    let { title, description, category_ids } = body;
+  let { title, description, category_ids } = body;
 
-    let directoryObj = {
-      title,
-      description,
-    };
+  let directoryObj = {
+    title,
+    description,
+  };
 
-    // save image
-    if (files?.images?.length) {
-      directoryObj.images = files.images[0].filename;
-    }
-
-    const directory = await Directory.create(directoryObj);
-
-    if (!directory) {
-      throw new ApiError(500, "Failed to create directory");
-    }
-
-    /* ---------- ADD CATEGORY MAPPING ---------- */
-
-    if (category_ids) {
-      // handle string from form-data
-      if (typeof category_ids === "string") {
-        category_ids = JSON.parse(category_ids);
-      }
-
-      if (Array.isArray(category_ids) && category_ids.length) {
-        const mappings = category_ids.map((catId) => ({
-          directory_id: directory.id,
-          category_id: catId,
-        }));
-
-        await DirectoryCategory.bulkCreate(mappings);
-      }
-    }
-
-    return directory;
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+  // save image
+  if (files?.images?.length) {
+    directoryObj.images = files.images[0].filename;
   }
+
+  const directory = await Directory.create(directoryObj);
+
+  if (!directory) {
+    throw new ApiError(500, "Failed to create directory");
+  }
+
+  /* ---------- ADD CATEGORY MAPPING ---------- */
+
+  if (category_ids) {
+    // handle string from form-data
+    if (typeof category_ids === "string") {
+      category_ids = JSON.parse(category_ids);
+    }
+
+    if (Array.isArray(category_ids) && category_ids.length) {
+      const mappings = category_ids.map((catId) => ({
+        directory_id: directory.id,
+        category_id: catId,
+      }));
+
+      await DirectoryCategory.bulkCreate(mappings);
+    }
+  }
+
+  return directory;
 };
 
 const updateDirectory = async (id, body, files) => {
@@ -3892,100 +3767,86 @@ const updateDirectory = async (id, body, files) => {
 };
 
 const deleteDirectory = async (body) => {
-  try {
-    if (!Array.isArray(body.category_id) || body.category_id.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category_id");
-    }
-
-    // Ensure all IDs are trimmed and filtered
-    const categoryIds = body.category_id
-      .map((id) => String(id).trim())
-      .filter(Boolean);
-
-    if (categoryIds.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "No valid blog IDs provided");
-    }
-
-    // Find all categories with the given IDs
-    const categories = await Directory.findAll({
-      where: {
-        id: categoryIds,
-      },
-    });
-
-    if (categories.length === 0) {
-      throw new ApiError(httpStatus.NOT_FOUND, "No categories found");
-    }
-
-    // Delete the category themselves
-    await Promise.all(categories.map((category) => category.destroy()));
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!Array.isArray(body.category_id) || body.category_id.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category_id");
   }
+
+  // Ensure all IDs are trimmed and filtered
+  const categoryIds = body.category_id
+    .map((id) => String(id).trim())
+    .filter(Boolean);
+
+  if (categoryIds.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No valid blog IDs provided");
+  }
+
+  // Find all categories with the given IDs
+  const categories = await Directory.findAll({
+    where: {
+      id: categoryIds,
+    },
+  });
+
+  if (categories.length === 0) {
+    throw new ApiError(httpStatus.NOT_FOUND, "No categories found");
+  }
+
+  // Delete the category themselves
+  await Promise.all(categories.map((category) => category.destroy()));
 };
 
 const getAllDirectories = async () => {
-  try {
-    const directories = await Directory.findAndCountAll({
-      where: { is_active: true },
+  const directories = await Directory.findAndCountAll({
+    where: { is_active: true },
 
-      attributes: ["id", "title", "description", "images", "created_at"],
+    attributes: ["id", "title", "description", "images", "created_at"],
 
-      include: [
-        {
-          model: DirectoryCategory,
-          as: "directory_categories",
-          attributes: ["category_id"],
+    include: [
+      {
+        model: DirectoryCategory,
+        as: "directory_categories",
+        attributes: ["category_id"],
 
-          include: [
-            {
-              model: BusinessCardCategory,
-              as: "category",
-              attributes: ["id", "title", "slug"],
-            },
-          ],
-        },
-      ],
+        include: [
+          {
+            model: BusinessCardCategory,
+            as: "category",
+            attributes: ["id", "title", "slug"],
+          },
+        ],
+      },
+    ],
 
-      order: [["title", "ASC"]],
-    });
+    order: [["title", "ASC"]],
+  });
 
-    if (!directories) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to get directories",
-      );
-    }
-
-    /* ---------- FORMAT RESPONSE ---------- */
-
-    const formattedRows = directories.rows.map((dir) => ({
-      id: dir.id,
-      title: dir.title,
-      description: dir.description,
-      images: dir.images,
-      created_at: dir.created_at,
-
-      categories: dir.directory_categories.map((item) => ({
-        category_id: item.category.id,
-        title: item.category.title,
-        slug: item.category.slug,
-      })),
-    }));
-
-    return {
-      count: directories.count,
-      rows: formattedRows,
-    };
-  } catch (error) {
+  if (!directories) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to get directories",
     );
   }
+
+  /* ---------- FORMAT RESPONSE ---------- */
+
+  const formattedRows = directories.rows.map((dir) => ({
+    id: dir.id,
+    title: dir.title,
+    description: dir.description,
+    images: dir.images,
+    created_at: dir.created_at,
+
+    categories: dir.directory_categories.map((item) => ({
+      category_id: item.category.id,
+      title: item.category.title,
+      slug: item.category.slug,
+    })),
+  }));
+
+  return {
+    count: directories.count,
+    rows: formattedRows,
+  };
 };
 
 const getProfilesByDirectory = async (directory_id) => {
@@ -4023,1142 +3884,971 @@ const getProfilesByDirectory = async (directory_id) => {
 };
 
 const selectBusinessCardAddress = async (body) => {
-  try {
-    const { user, business_card_id, user_address_id } = body;
+  const { user, business_card_id, user_address_id } = body;
 
-    if (!business_card_id || !user_address_id) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "business_card_id and user_address_id are required",
-      );
-    }
-
-    const businessCard = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        user_id: user.id,
-        is_active: true,
-      },
-    });
-
-    if (!businessCard) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
-
-    const address = await UserAddress.findOne({
-      where: {
-        id: user_address_id,
-        user_id: user.id,
-        is_active: true,
-      },
-    });
-
-    if (!address) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Address not found");
-    }
-
-    await businessCard.update({
-      user_address_id: address.id,
-      address_verified: true,
-      shipping_amount: 0,
-    });
-
-    return businessCard;
-  } catch (error) {
+  if (!business_card_id || !user_address_id) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Something went wrong",
+      httpStatus.BAD_REQUEST,
+      "business_card_id and user_address_id are required",
     );
   }
+
+  const businessCard = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      user_id: user.id,
+      is_active: true,
+    },
+  });
+
+  if (!businessCard) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
+
+  const address = await UserAddress.findOne({
+    where: {
+      id: user_address_id,
+      user_id: user.id,
+      is_active: true,
+    },
+  });
+
+  if (!address) {
+    throw ApiError.withCode(httpStatus.NOT_FOUND, "Address not found", "ADDRESS_NOT_FOUND");
+  }
+
+  await businessCard.update({
+    user_address_id: address.id,
+    address_verified: true,
+    shipping_amount: 0,
+  });
+
+  return businessCard;
 };
 
 const getBusinessCardShippingRate = async (body) => {
-  try {
-    const { business_card_id, plan_type } = body;
+  const { business_card_id, plan_type } = body;
 
-    const card = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
-    });
+  const card = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
 
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
 
-    const NFC_PRICE = 39.99;
-    const SUBSCRIPTION_PRICE = 4.99;
+  const NFC_PRICE = 39.99;
+  const SUBSCRIPTION_PRICE = 4.99;
 
-    // ================= SUBSCRIPTION ONLY =================
-    if (plan_type === "subscription_only") {
-      return {
-        nfc_price: 0,
-        subscription_price: SUBSCRIPTION_PRICE,
-        shipping_amount: 0,
-        carrier: null,
-        service: null,
-        total_due_today: SUBSCRIPTION_PRICE,
-      };
-    }
-
-    // ================= ADDRESS VALIDATION =================
-
-    if (!card.address_verified) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Please verify address first");
-    }
-
-    if (!card.user_address_id) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Address not linked to business card",
-      );
-    }
-
-    const address = await UserAddress.findOne({
-      where: {
-        id: card.user_address_id,
-        is_active: true,
-      },
-      include: [
-        {
-          model: State,
-          as: "user_state",
-        },
-        {
-          model: City,
-          as: "user_city",
-        },
-      ],
-    });
-
-    if (!address) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Address not found");
-    }
-
-    // ================= GLAMLINK WAREHOUSE =================
-
-    const addressFrom = {
-      name: "Glamlink",
-      company: "Glamlink",
-      street1: "8616 Isla Vista Valley Ct",
-      city: "Las Vegas",
-      state: "NV",
-      zip: "89178",
-      country: "US",
-      phone: "(310)-412-4124",
-    };
-
-    // ================= CUSTOMER ADDRESS =================
-
-    const addressTo = {
-      name: card.name || "Customer",
-      street1: address.address_line_1,
-      city: address.user_city.name,
-      state: address.user_state.iso2,
-      zip: address.postal_code,
-      country: "US",
-    };
-
-    // ================= NFC KEYCHAIN PACKAGE =================
-
-    const parcel = {
-      length: "4",
-      width: "4",
-      height: "1",
-      distance_unit: "in",
-      weight: "0.2",
-      mass_unit: "lb",
-    };
-
-    // ================= GET SHIPPO RATES =================
-
-    const shipmentResponse = await httpClient.post(
-      "https://api.goshippo.com/shipments/",
-      {
-        address_from: addressFrom,
-        address_to: addressTo,
-        parcels: [parcel],
-        async: false,
-      },
-      {
-        headers: {
-          Authorization: `ShippoToken ${config.SHIPPO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    const shipment = shipmentResponse.data;
-
-    if (!shipment.rates?.length) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "No shipping rates available");
-    }
-
-    // ================= CHEAPEST RATE =================
-
-    // ================= ALL SHIPPO RATES =================
-
-    const allRates = shipment.rates.map((rate) => ({
-      amount: Number(rate.amount),
-      currency: rate.currency,
-      provider: rate.provider,
-      service: rate.servicelevel?.name || null,
-      service_code: rate.servicelevel?.token || null,
-      estimated_days: rate.estimated_days || null,
-      duration_terms: rate.duration_terms || null,
-      rate_id: rate.object_id || null,
-    }));
-
-    console.log("ALL SHIPPO RATES =", allRates);
-
-    // ================= CHEAPEST RATE =================
-
-    const cheapestRate = shipment.rates.reduce((prev, curr) =>
-      parseFloat(prev.amount) < parseFloat(curr.amount) ? prev : curr,
-    );
-
-    const shippingAmount = Number(cheapestRate.amount);
-
-    console.log("SELECTED CHEAPEST RATE =", {
-      amount: cheapestRate.amount,
-      provider: cheapestRate.provider,
-      service: cheapestRate.servicelevel?.name,
-    });
-
-    // Save shipping amount for payment
-    await card.update({
-      shipping_amount: shippingAmount,
-    });
-
-    // ================= CALCULATE TOTAL =================
-
-    let nfcPrice = 0;
-    let subscriptionPrice = 0;
-    let totalDueToday = shippingAmount;
-
-    switch (plan_type) {
-      case "nfc_only":
-        nfcPrice = NFC_PRICE;
-        totalDueToday += NFC_PRICE;
-        break;
-
-      case "nfc_with_subscription":
-        nfcPrice = NFC_PRICE;
-        subscriptionPrice = SUBSCRIPTION_PRICE;
-        totalDueToday += NFC_PRICE + SUBSCRIPTION_PRICE;
-        break;
-
-      default:
-        throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
-    }
-
+  // ================= SUBSCRIPTION ONLY =================
+  if (plan_type === "subscription_only") {
     return {
-      nfc_price: nfcPrice,
-      subscription_price: subscriptionPrice,
-      shipping_amount: shippingAmount,
-      carrier: cheapestRate.provider,
-      service: cheapestRate.servicelevel?.name,
-      total_due_today: Number(totalDueToday.toFixed(2)),
-
-      // Temporary - all rates returned by Shippo
-      rates: allRates,
+      nfc_price: 0,
+      subscription_price: SUBSCRIPTION_PRICE,
+      shipping_amount: 0,
+      carrier: null,
+      service: null,
+      total_due_today: SUBSCRIPTION_PRICE,
     };
-  } catch (error) {
-    console.error("GET SHIPPING RATE ERROR", error.response?.data || error);
+  }
 
+  // ================= ADDRESS VALIDATION =================
+
+  if (!card.address_verified) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, "Please verify address first", "ADDRESS_NOT_VERIFIED");
+  }
+
+  if (!card.user_address_id) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to calculate shipping",
+      httpStatus.BAD_REQUEST,
+      "Address not linked to business card",
     );
   }
+
+  const address = await UserAddress.findOne({
+    where: {
+      id: card.user_address_id,
+      is_active: true,
+    },
+    include: [
+      {
+        model: State,
+        as: "user_state",
+      },
+      {
+        model: City,
+        as: "user_city",
+      },
+    ],
+  });
+
+  if (!address) {
+    throw ApiError.withCode(httpStatus.NOT_FOUND, "Address not found", "ADDRESS_NOT_FOUND");
+  }
+
+  // ================= GLAMLINK WAREHOUSE =================
+
+  const addressFrom = {
+    name: "Glamlink",
+    company: "Glamlink",
+    street1: "8616 Isla Vista Valley Ct",
+    city: "Las Vegas",
+    state: "NV",
+    zip: "89178",
+    country: "US",
+    phone: "(310)-412-4124",
+  };
+
+  // ================= CUSTOMER ADDRESS =================
+
+  const addressTo = {
+    name: card.name || "Customer",
+    street1: address.address_line_1,
+    city: address.user_city.name,
+    state: address.user_state.iso2,
+    zip: address.postal_code,
+    country: "US",
+  };
+
+  // ================= NFC KEYCHAIN PACKAGE =================
+
+  const parcel = {
+    length: "4",
+    width: "4",
+    height: "1",
+    distance_unit: "in",
+    weight: "0.2",
+    mass_unit: "lb",
+  };
+
+  // ================= GET SHIPPO RATES =================
+
+  const shipmentResponse = await httpClient.post(
+    "https://api.goshippo.com/shipments/",
+    {
+      address_from: addressFrom,
+      address_to: addressTo,
+      parcels: [parcel],
+      async: false,
+    },
+    {
+      headers: {
+        Authorization: `ShippoToken ${config.SHIPPO_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const shipment = shipmentResponse.data;
+
+  if (!shipment.rates?.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No shipping rates available");
+  }
+
+  // ================= CHEAPEST RATE =================
+
+  // ================= ALL SHIPPO RATES =================
+
+  const allRates = shipment.rates.map((rate) => ({
+    amount: Number(rate.amount),
+    currency: rate.currency,
+    provider: rate.provider,
+    service: rate.servicelevel?.name || null,
+    service_code: rate.servicelevel?.token || null,
+    estimated_days: rate.estimated_days || null,
+    duration_terms: rate.duration_terms || null,
+    rate_id: rate.object_id || null,
+  }));
+
+  console.log("ALL SHIPPO RATES =", allRates);
+
+  // ================= CHEAPEST RATE =================
+
+  const cheapestRate = shipment.rates.reduce((prev, curr) =>
+    parseFloat(prev.amount) < parseFloat(curr.amount) ? prev : curr,
+  );
+
+  const shippingAmount = Number(cheapestRate.amount);
+
+  console.log("SELECTED CHEAPEST RATE =", {
+    amount: cheapestRate.amount,
+    provider: cheapestRate.provider,
+    service: cheapestRate.servicelevel?.name,
+  });
+
+  // Save shipping amount for payment
+  await card.update({
+    shipping_amount: shippingAmount,
+  });
+
+  // ================= CALCULATE TOTAL =================
+
+  let nfcPrice = 0;
+  let subscriptionPrice = 0;
+  let totalDueToday = shippingAmount;
+
+  switch (plan_type) {
+    case "nfc_only":
+      nfcPrice = NFC_PRICE;
+      totalDueToday += NFC_PRICE;
+      break;
+
+    case "nfc_with_subscription":
+      nfcPrice = NFC_PRICE;
+      subscriptionPrice = SUBSCRIPTION_PRICE;
+      totalDueToday += NFC_PRICE + SUBSCRIPTION_PRICE;
+      break;
+
+    default:
+      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
+  }
+
+  return {
+    nfc_price: nfcPrice,
+    subscription_price: subscriptionPrice,
+    shipping_amount: shippingAmount,
+    carrier: cheapestRate.provider,
+    service: cheapestRate.servicelevel?.name,
+    total_due_today: Number(totalDueToday.toFixed(2)),
+
+    // Temporary - all rates returned by Shippo
+    rates: allRates,
+  };
 };
 
 const getBusinessCardShippingRatePublic = async (body) => {
-  try {
-    const { business_card_id, plan_type } = body;
+  const { business_card_id, plan_type } = body;
 
-    console.log("========================================");
-    console.log("GET PUBLIC SHIPPING RATE");
-    console.log("business_card_id =", business_card_id);
-    console.log("plan_type =", plan_type);
-    console.log("typeof plan_type =", typeof plan_type);
+  console.log("========================================");
+  console.log("GET PUBLIC SHIPPING RATE");
+  console.log("business_card_id =", business_card_id);
+  console.log("plan_type =", plan_type);
+  console.log("typeof plan_type =", typeof plan_type);
 
-    const card = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
-    });
+  const card = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
 
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
 
-    console.log("card.plan_type =", card.plan_type);
-    console.log("request.plan_type =", plan_type);
-    console.log("address_verified =", card.address_verified);
-    console.log("user_address_id =", card.user_address_id);
+  console.log("card.plan_type =", card.plan_type);
+  console.log("request.plan_type =", plan_type);
+  console.log("address_verified =", card.address_verified);
+  console.log("user_address_id =", card.user_address_id);
 
-    const NFC_PRICE = 39.99;
-    const SUBSCRIPTION_PRICE = 4.99;
+  const NFC_PRICE = 39.99;
+  const SUBSCRIPTION_PRICE = 4.99;
 
-    // =========================================================
-    // VALIDATE PLAN TYPE
-    // =========================================================
+  // =========================================================
+  // VALIDATE PLAN TYPE
+  // =========================================================
 
-    if (
-      ![
-        "free",
-        "nfc_only",
-        "subscription_only",
-        "nfc_with_subscription",
-      ].includes(plan_type)
-    ) {
-      console.log("Invalid plan_type =", plan_type);
+  if (
+    ![
+      "free",
+      "nfc_only",
+      "subscription_only",
+      "nfc_with_subscription",
+    ].includes(plan_type)
+  ) {
+    console.log("Invalid plan_type =", plan_type);
 
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
-    }
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
+  }
 
-    // =========================================================
-    // FREE
-    // =========================================================
+  // =========================================================
+  // FREE
+  // =========================================================
 
-    if (plan_type === "free") {
-      console.log("Matched FREE");
-
-      return {
-        nfc_price: 0,
-        subscription_price: 0,
-        shipping_amount: 0,
-        carrier: null,
-        service: null,
-        total_due_today: 0,
-      };
-    }
-
-    // =========================================================
-    // SUBSCRIPTION ONLY
-    // No physical NFC item = no shipping
-    // =========================================================
-
-    if (plan_type === "subscription_only") {
-      console.log("Matched SUBSCRIPTION ONLY");
-
-      return {
-        nfc_price: 0,
-        subscription_price: SUBSCRIPTION_PRICE,
-        shipping_amount: 0,
-        carrier: null,
-        service: null,
-        total_due_today: SUBSCRIPTION_PRICE,
-      };
-    }
-
-    // =========================================================
-    // NFC PLANS
-    // =========================================================
-
-    if (!card.address_verified) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Please verify address first");
-    }
-
-    if (!card.user_address_id) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Address not linked to business card",
-      );
-    }
-
-    const address = await UserAddress.findOne({
-      where: {
-        id: card.user_address_id,
-        is_active: true,
-      },
-      include: [
-        {
-          model: State,
-          as: "user_state",
-        },
-        {
-          model: City,
-          as: "user_city",
-        },
-      ],
-    });
-
-    if (!address) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Address not found");
-    }
-
-    console.log("Customer address =", {
-      street: address.address_line_1,
-      city: address.user_city?.name,
-      state: address.user_state?.iso2,
-      zip: address.postal_code,
-    });
-
-    // =========================================================
-    // GLAMLINK WAREHOUSE
-    // =========================================================
-
-    const addressFrom = {
-      name: "Glamlink",
-      company: "Glamlink",
-      street1: "8616 Isla Vista Valley Ct",
-      city: "Las Vegas",
-      state: "NV",
-      zip: "89178",
-      country: "US",
-      phone: "(310)-412-4124",
-    };
-
-    console.log("Ship From =", addressFrom);
-
-    // =========================================================
-    // CUSTOMER ADDRESS
-    // =========================================================
-
-    const addressTo = {
-      name: card.name || "Customer",
-      street1: address.address_line_1,
-      city: address.user_city.name,
-      state: address.user_state.iso2,
-      zip: address.postal_code,
-      country: "US",
-    };
-
-    console.log("Ship To =", addressTo);
-
-    // =========================================================
-    // NFC KEYCHAIN PACKAGE
-    // =========================================================
-
-    const parcel = {
-      length: "4",
-      width: "4",
-      height: "1",
-      distance_unit: "in",
-      weight: "0.2",
-      mass_unit: "lb",
-    };
-
-    console.log("Parcel =", parcel);
-
-    // =========================================================
-    // GET SHIPPO RATES
-    // =========================================================
-
-    const shipmentResponse = await httpClient.post(
-      "https://api.goshippo.com/shipments/",
-      {
-        address_from: addressFrom,
-        address_to: addressTo,
-        parcels: [parcel],
-        async: false,
-      },
-      {
-        headers: {
-          Authorization: `ShippoToken ${config.SHIPPO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    const shipment = shipmentResponse.data;
-
-    console.log("Shippo shipment id =", shipment.object_id);
-    console.log("Shippo rates count =", shipment.rates?.length);
-
-    if (!shipment.rates?.length) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "No shipping rates available");
-    }
-
-    // =========================================================
-    // CHEAPEST SHIPPING RATE
-    // =========================================================
-
-    const allRates = shipment.rates.map((rate) => ({
-      amount: Number(rate.amount),
-      currency: rate.currency,
-      provider: rate.provider,
-      service: rate.servicelevel?.name || null,
-      service_code: rate.servicelevel?.token || null,
-      estimated_days: rate.estimated_days || null,
-      duration_terms: rate.duration_terms || null,
-      rate_id: rate.object_id || null,
-    }));
-
-    console.log("ALL SHIPPO RATES =", allRates);
-
-    const cheapestRate = shipment.rates.reduce((prev, curr) =>
-      parseFloat(prev.amount) < parseFloat(curr.amount) ? prev : curr,
-    );
-
-    const shippingAmount = Number(cheapestRate.amount);
-
-    console.log("CHEAPEST RATE =", {
-      amount: cheapestRate.amount,
-      provider: cheapestRate.provider,
-      service: cheapestRate.servicelevel?.name,
-    });
-
-    console.log("Cheapest Rate =", {
-      amount: cheapestRate.amount,
-      provider: cheapestRate.provider,
-      service: cheapestRate.servicelevel?.name,
-    });
-
-    console.log("shippingAmount =", shippingAmount);
-
-    // Save shipping amount for payment
-    await card.update({
-      shipping_amount: shippingAmount,
-    });
-
-    // =========================================================
-    // CALCULATE TOTAL
-    // =========================================================
-
-    let nfcPrice = 0;
-    let subscriptionPrice = 0;
-    let totalDueToday = shippingAmount;
-
-    switch (plan_type) {
-      case "nfc_only":
-        console.log("Matched NFC ONLY");
-
-        nfcPrice = NFC_PRICE;
-        totalDueToday += NFC_PRICE;
-
-        break;
-
-      case "nfc_with_subscription":
-        console.log("Matched NFC + SUBSCRIPTION");
-
-        nfcPrice = NFC_PRICE;
-        subscriptionPrice = SUBSCRIPTION_PRICE;
-        totalDueToday += NFC_PRICE + SUBSCRIPTION_PRICE;
-
-        break;
-
-      default:
-        console.log("DEFAULT CASE =", plan_type);
-
-        throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
-    }
-
-    console.log("Final pricing =", {
-      nfcPrice,
-      subscriptionPrice,
-      shippingAmount,
-      totalDueToday,
-    });
+  if (plan_type === "free") {
+    console.log("Matched FREE");
 
     return {
-      nfc_price: nfcPrice,
-      subscription_price: subscriptionPrice,
-      shipping_amount: shippingAmount,
-      carrier: cheapestRate.provider,
-      service: cheapestRate.servicelevel?.name,
-      total_due_today: Number(totalDueToday.toFixed(2)),
-
-      // TEMPORARY: show all Shippo rates for debugging
-      rates: allRates,
+      nfc_price: 0,
+      subscription_price: 0,
+      shipping_amount: 0,
+      carrier: null,
+      service: null,
+      total_due_today: 0,
     };
-  } catch (error) {
-    console.error(
-      "GET PUBLIC SHIPPING RATE ERROR",
-      error.response?.data || error,
-    );
+  }
 
+  // =========================================================
+  // SUBSCRIPTION ONLY
+  // No physical NFC item = no shipping
+  // =========================================================
+
+  if (plan_type === "subscription_only") {
+    console.log("Matched SUBSCRIPTION ONLY");
+
+    return {
+      nfc_price: 0,
+      subscription_price: SUBSCRIPTION_PRICE,
+      shipping_amount: 0,
+      carrier: null,
+      service: null,
+      total_due_today: SUBSCRIPTION_PRICE,
+    };
+  }
+
+  // =========================================================
+  // NFC PLANS
+  // =========================================================
+
+  if (!card.address_verified) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, "Please verify address first", "ADDRESS_NOT_VERIFIED");
+  }
+
+  if (!card.user_address_id) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to calculate shipping",
+      httpStatus.BAD_REQUEST,
+      "Address not linked to business card",
     );
   }
+
+  const address = await UserAddress.findOne({
+    where: {
+      id: card.user_address_id,
+      is_active: true,
+    },
+    include: [
+      {
+        model: State,
+        as: "user_state",
+      },
+      {
+        model: City,
+        as: "user_city",
+      },
+    ],
+  });
+
+  if (!address) {
+    throw ApiError.withCode(httpStatus.NOT_FOUND, "Address not found", "ADDRESS_NOT_FOUND");
+  }
+
+  console.log("Customer address =", {
+    street: address.address_line_1,
+    city: address.user_city?.name,
+    state: address.user_state?.iso2,
+    zip: address.postal_code,
+  });
+
+  // =========================================================
+  // GLAMLINK WAREHOUSE
+  // =========================================================
+
+  const addressFrom = {
+    name: "Glamlink",
+    company: "Glamlink",
+    street1: "8616 Isla Vista Valley Ct",
+    city: "Las Vegas",
+    state: "NV",
+    zip: "89178",
+    country: "US",
+    phone: "(310)-412-4124",
+  };
+
+  console.log("Ship From =", addressFrom);
+
+  // =========================================================
+  // CUSTOMER ADDRESS
+  // =========================================================
+
+  const addressTo = {
+    name: card.name || "Customer",
+    street1: address.address_line_1,
+    city: address.user_city.name,
+    state: address.user_state.iso2,
+    zip: address.postal_code,
+    country: "US",
+  };
+
+  console.log("Ship To =", addressTo);
+
+  // =========================================================
+  // NFC KEYCHAIN PACKAGE
+  // =========================================================
+
+  const parcel = {
+    length: "4",
+    width: "4",
+    height: "1",
+    distance_unit: "in",
+    weight: "0.2",
+    mass_unit: "lb",
+  };
+
+  console.log("Parcel =", parcel);
+
+  // =========================================================
+  // GET SHIPPO RATES
+  // =========================================================
+
+  const shipmentResponse = await httpClient.post(
+    "https://api.goshippo.com/shipments/",
+    {
+      address_from: addressFrom,
+      address_to: addressTo,
+      parcels: [parcel],
+      async: false,
+    },
+    {
+      headers: {
+        Authorization: `ShippoToken ${config.SHIPPO_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const shipment = shipmentResponse.data;
+
+  console.log("Shippo shipment id =", shipment.object_id);
+  console.log("Shippo rates count =", shipment.rates?.length);
+
+  if (!shipment.rates?.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No shipping rates available");
+  }
+
+  // =========================================================
+  // CHEAPEST SHIPPING RATE
+  // =========================================================
+
+  const allRates = shipment.rates.map((rate) => ({
+    amount: Number(rate.amount),
+    currency: rate.currency,
+    provider: rate.provider,
+    service: rate.servicelevel?.name || null,
+    service_code: rate.servicelevel?.token || null,
+    estimated_days: rate.estimated_days || null,
+    duration_terms: rate.duration_terms || null,
+    rate_id: rate.object_id || null,
+  }));
+
+  console.log("ALL SHIPPO RATES =", allRates);
+
+  const cheapestRate = shipment.rates.reduce((prev, curr) =>
+    parseFloat(prev.amount) < parseFloat(curr.amount) ? prev : curr,
+  );
+
+  const shippingAmount = Number(cheapestRate.amount);
+
+  console.log("CHEAPEST RATE =", {
+    amount: cheapestRate.amount,
+    provider: cheapestRate.provider,
+    service: cheapestRate.servicelevel?.name,
+  });
+
+  console.log("Cheapest Rate =", {
+    amount: cheapestRate.amount,
+    provider: cheapestRate.provider,
+    service: cheapestRate.servicelevel?.name,
+  });
+
+  console.log("shippingAmount =", shippingAmount);
+
+  // Save shipping amount for payment
+  await card.update({
+    shipping_amount: shippingAmount,
+  });
+
+  // =========================================================
+  // CALCULATE TOTAL
+  // =========================================================
+
+  let nfcPrice = 0;
+  let subscriptionPrice = 0;
+  let totalDueToday = shippingAmount;
+
+  switch (plan_type) {
+    case "nfc_only":
+      console.log("Matched NFC ONLY");
+
+      nfcPrice = NFC_PRICE;
+      totalDueToday += NFC_PRICE;
+
+      break;
+
+    case "nfc_with_subscription":
+      console.log("Matched NFC + SUBSCRIPTION");
+
+      nfcPrice = NFC_PRICE;
+      subscriptionPrice = SUBSCRIPTION_PRICE;
+      totalDueToday += NFC_PRICE + SUBSCRIPTION_PRICE;
+
+      break;
+
+    default:
+      console.log("DEFAULT CASE =", plan_type);
+
+      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan type");
+  }
+
+  console.log("Final pricing =", {
+    nfcPrice,
+    subscriptionPrice,
+    shippingAmount,
+    totalDueToday,
+  });
+
+  return {
+    nfc_price: nfcPrice,
+    subscription_price: subscriptionPrice,
+    shipping_amount: shippingAmount,
+    carrier: cheapestRate.provider,
+    service: cheapestRate.servicelevel?.name,
+    total_due_today: Number(totalDueToday.toFixed(2)),
+
+    // TEMPORARY: show all Shippo rates for debugging
+    rates: allRates,
+  };
 };
 
 const createBusinessCardSubscriptionPublic = async (body) => {
-  try {
-    const { business_card_id, plan_type } = body;
+  const { business_card_id, plan_type } = body;
 
-    const card = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
-    });
+  const card = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
 
-    if (!card) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
+  if (!card) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
 
-    if (
-      !["nfc_only", "nfc_with_subscription", "subscription_only"].includes(
-        plan_type,
-      )
-    ) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan selected");
-    }
+  if (
+    !["nfc_only", "nfc_with_subscription", "subscription_only"].includes(
+      plan_type,
+    )
+  ) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid plan selected");
+  }
 
-    if (
-      (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
-      !card.address_verified
-    ) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Please verify shipping address first",
-      );
-    }
-
-    if (
-      (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
-      !card.user_address_id
-    ) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Shipping address not linked");
-    }
-
-    if (
-      (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
-      card.nfc_status === "paid"
-    ) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "NFC card already purchased");
-    }
-
-    const shippingAmount =
-      plan_type === "subscription_only" ? 0 : Number(card.shipping_amount || 0);
-
-    let setupFee = 0;
-    let monthlyFee = 0;
-
-    switch (plan_type) {
-      case "nfc_only":
-        setupFee = 39.99;
-        break;
-
-      case "nfc_with_subscription":
-        setupFee = 39.99;
-        monthlyFee = 4.99;
-        break;
-
-      case "subscription_only":
-        monthlyFee = 4.99;
-        break;
-    }
-
-    const totalAmount = setupFee + monthlyFee + shippingAmount;
-
-    const customer = await stripe.customers.create({
-      name: card.name,
-      email: card.email,
-      phone: card.phone,
-    });
-
-    const customerId = customer.id;
-
-    let paymentIntent;
-    let subscription = null;
-
-    switch (plan_type) {
-      case "nfc_only": {
-        paymentIntent = await stripe.paymentIntents.create({
-          amount: Math.round(totalAmount * 100),
-          currency: "usd",
-          customer: customerId,
-          automatic_payment_methods: {
-            enabled: true,
-          },
-          metadata: {
-            business_card_id: card.id,
-            payment_type: "NFC_ONLY",
-          },
-        });
-
-        break;
-      }
-
-      case "nfc_with_subscription": {
-        const invoiceItems = [
-          {
-            price: process.env.STRIPE_GLAMLINK_SETUP_PRICE_ID,
-          },
-        ];
-
-        if (shippingAmount > 0) {
-          invoiceItems.push({
-            price: process.env.STRIPE_SHIPPING_PRICE_ID,
-            quantity: Math.round(shippingAmount * 100),
-          });
-        }
-
-        subscription = await stripe.subscriptions.create({
-          customer: customerId,
-
-          items: [
-            {
-              price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
-            },
-          ],
-
-          add_invoice_items: invoiceItems,
-
-          payment_behavior: "default_incomplete",
-
-          payment_settings: {
-            save_default_payment_method: "on_subscription",
-          },
-
-          expand: ["latest_invoice.payment_intent"],
-
-          metadata: {
-            business_card_id: card.id,
-            payment_type: "NFC_WITH_SUBSCRIPTION",
-          },
-        });
-
-        paymentIntent = subscription.latest_invoice.payment_intent;
-
-        if (!paymentIntent) {
-          throw new ApiError(
-            httpStatus.BAD_REQUEST,
-            "Stripe did not return a payment intent",
-          );
-        }
-
-        break;
-      }
-
-      case "subscription_only": {
-        subscription = await stripe.subscriptions.create({
-          customer: customerId,
-
-          items: [
-            {
-              price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
-            },
-          ],
-
-          payment_behavior: "default_incomplete",
-
-          payment_settings: {
-            save_default_payment_method: "on_subscription",
-          },
-
-          expand: ["latest_invoice.payment_intent"],
-
-          metadata: {
-            business_card_id: card.id,
-            payment_type: "SUBSCRIPTION_ONLY",
-          },
-        });
-
-        paymentIntent = subscription.latest_invoice.payment_intent;
-
-        if (!paymentIntent) {
-          throw new ApiError(
-            httpStatus.BAD_REQUEST,
-            "Stripe did not return a payment intent",
-          );
-        }
-
-        break;
-      }
-    }
-
-    let description = "";
-
-    switch (plan_type) {
-      case "nfc_only":
-        description = "NFC Card Purchase";
-        break;
-
-      case "nfc_with_subscription":
-        description = "NFC Card Purchase + Subscription";
-        break;
-
-      case "subscription_only":
-        description = "Monthly Subscription";
-        break;
-    }
-
-    await Payment.create({
-      transaction_id: paymentIntent.id,
-
-      user_id: null,
-
-      business_card_id: card.id,
-
-      stripe_customer_id: customerId,
-
-      stripe_subscription_id: subscription?.id || null,
-
-      amount: totalAmount.toFixed(2),
-
-      payment_type:
-        plan_type === "nfc_only"
-          ? "NFC_ONLY"
-          : plan_type === "subscription_only"
-            ? "SUBSCRIPTION_ONLY"
-            : "NFC_WITH_SUBSCRIPTION",
-
-      description,
-
-      payment_status: "PENDING",
-    });
-
-    return {
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      customerId,
-      subscriptionId: subscription?.id || null,
-      amount: totalAmount.toFixed(2),
-      publishableKey: config.STRIPE_PUBLISHABLE_KEY,
-    };
-  } catch (error) {
+  if (
+    (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
+    !card.address_verified
+  ) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.BAD_REQUEST,
+      "Please verify shipping address first",
     );
   }
+
+  if (
+    (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
+    !card.user_address_id
+  ) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Shipping address not linked");
+  }
+
+  if (
+    (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
+    card.nfc_status === "paid"
+  ) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, "NFC card already purchased", "NFC_ALREADY_PURCHASED");
+  }
+
+  const shippingAmount =
+    plan_type === "subscription_only" ? 0 : Number(card.shipping_amount || 0);
+
+  let setupFee = 0;
+  let monthlyFee = 0;
+
+  switch (plan_type) {
+    case "nfc_only":
+      setupFee = 39.99;
+      break;
+
+    case "nfc_with_subscription":
+      setupFee = 39.99;
+      monthlyFee = 4.99;
+      break;
+
+    case "subscription_only":
+      monthlyFee = 4.99;
+      break;
+  }
+
+  const totalAmount = setupFee + monthlyFee + shippingAmount;
+
+  const customer = await stripe.customers.create({
+    name: card.name,
+    email: card.email,
+    phone: card.phone,
+  });
+
+  const customerId = customer.id;
+
+  let paymentIntent;
+  let subscription = null;
+
+  switch (plan_type) {
+    case "nfc_only": {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100),
+        currency: "usd",
+        customer: customerId,
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          business_card_id: card.id,
+          payment_type: "NFC_ONLY",
+        },
+      });
+
+      break;
+    }
+
+    case "nfc_with_subscription": {
+      const invoiceItems = [
+        {
+          price: process.env.STRIPE_GLAMLINK_SETUP_PRICE_ID,
+        },
+      ];
+
+      if (shippingAmount > 0) {
+        invoiceItems.push({
+          price: process.env.STRIPE_SHIPPING_PRICE_ID,
+          quantity: Math.round(shippingAmount * 100),
+        });
+      }
+
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+
+        items: [
+          {
+            price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
+          },
+        ],
+
+        add_invoice_items: invoiceItems,
+
+        payment_behavior: "default_incomplete",
+
+        payment_settings: {
+          save_default_payment_method: "on_subscription",
+        },
+
+        expand: ["latest_invoice.payment_intent"],
+
+        metadata: {
+          business_card_id: card.id,
+          payment_type: "NFC_WITH_SUBSCRIPTION",
+        },
+      });
+
+      paymentIntent = subscription.latest_invoice.payment_intent;
+
+      if (!paymentIntent) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Stripe did not return a payment intent",
+        );
+      }
+
+      break;
+    }
+
+    case "subscription_only": {
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+
+        items: [
+          {
+            price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
+          },
+        ],
+
+        payment_behavior: "default_incomplete",
+
+        payment_settings: {
+          save_default_payment_method: "on_subscription",
+        },
+
+        expand: ["latest_invoice.payment_intent"],
+
+        metadata: {
+          business_card_id: card.id,
+          payment_type: "SUBSCRIPTION_ONLY",
+        },
+      });
+
+      paymentIntent = subscription.latest_invoice.payment_intent;
+
+      if (!paymentIntent) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Stripe did not return a payment intent",
+        );
+      }
+
+      break;
+    }
+  }
+
+  let description = "";
+
+  switch (plan_type) {
+    case "nfc_only":
+      description = "NFC Card Purchase";
+      break;
+
+    case "nfc_with_subscription":
+      description = "NFC Card Purchase + Subscription";
+      break;
+
+    case "subscription_only":
+      description = "Monthly Subscription";
+      break;
+  }
+
+  await Payment.create({
+    transaction_id: paymentIntent.id,
+
+    user_id: null,
+
+    business_card_id: card.id,
+
+    stripe_customer_id: customerId,
+
+    stripe_subscription_id: subscription?.id || null,
+
+    amount: totalAmount.toFixed(2),
+
+    payment_type:
+      plan_type === "nfc_only"
+        ? "NFC_ONLY"
+        : plan_type === "subscription_only"
+          ? "SUBSCRIPTION_ONLY"
+          : "NFC_WITH_SUBSCRIPTION",
+
+    description,
+
+    payment_status: "PENDING",
+  });
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    amount: totalAmount.toFixed(2),
+    publishableKey: config.STRIPE_PUBLISHABLE_KEY,
+  };
 };
 
 const createBusinessCardSubscription = async (body) => {
+  const { user, business_card_id, plan_type } = body;
 
-  try {
-    const { user, business_card_id, plan_type } = body;
-
-    const card = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        user_id: user.id,
-      },
-    });
-
-    console.log("card", card);
-
-    if (!card) {
-      throw new ApiError(404, "Business card not found");
-    }
-
-    if (
-      !["nfc_only", "nfc_with_subscription", "subscription_only"].includes(
-        plan_type,
-      )
-    ) {
-      throw new ApiError(400, "Invalid plan selected");
-    }
-
-    if (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") {
-      if (!card.address_verified) {
-        throw new ApiError(400, "Please verify shipping address first");
-      }
-
-      if (!card.user_address_id) {
-        throw new ApiError(400, "Shipping address not linked");
-      }
-    }
-
-    if (
-      (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
-      card.nfc_status === "paid"
-    ) {
-      throw new ApiError(400, "NFC card already purchased");
-    }
-
-    if (
-      ["subscription_only", "nfc_with_subscription"].includes(plan_type) &&
-      user.subscription_status === "ACTIVE"
-    ) {
-      throw new ApiError(400, "You already have an active subscription.");
-    }
-
-    const shippingAmount =
-      plan_type === "subscription_only" ? 0 : Number(card.shipping_amount || 0);
-
-    let setupFee = 0;
-    let monthlyFee = 0;
-
-    switch (plan_type) {
-      case "nfc_only":
-        setupFee = 39.99;
-        break;
-
-      case "nfc_with_subscription":
-        setupFee = 39.99;
-        monthlyFee = 4.99;
-        break;
-
-      case "subscription_only":
-        monthlyFee = 4.99;
-        break;
-    }
-
-    const totalAmount = setupFee + monthlyFee + shippingAmount;
-
-    console.log({
-      shippingAmount,
-      setupFee,
-      monthlyFee,
-      totalAmount,
-    });
-
-    const customer = await getCustomer(user, "");
-    const customerId = customer.id;
-
-    console.log(customerId, "customerId");
-
-    let paymentIntent;
-    let subscription = null;
-
-    switch (plan_type) {
-      case "nfc_only": {
-        paymentIntent = await stripe.paymentIntents.create({
-          amount: Math.round(totalAmount * 100),
-          currency: "usd",
-          customer: customerId,
-          automatic_payment_methods: {
-            enabled: true,
-          },
-          metadata: {
-            user_id: user.id,
-            business_card_id: card.id,
-            payment_type: plan_type,
-          },
-        });
-
-        break;
-      }
-
-      case "nfc_with_subscription": {
-        const invoiceItems = [
-          {
-            price: process.env.STRIPE_GLAMLINK_SETUP_PRICE_ID,
-          },
-        ];
-
-        if (shippingAmount > 0) {
-          invoiceItems.push({
-            price: process.env.STRIPE_SHIPPING_PRICE_ID,
-            quantity: Math.round(shippingAmount * 100),
-          });
-        }
-
-        subscription = await stripe.subscriptions.create({
-          customer: customerId,
-
-          items: [
-            {
-              price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
-            },
-          ],
-
-          add_invoice_items: invoiceItems,
-
-          payment_behavior: "default_incomplete",
-
-          payment_settings: {
-            save_default_payment_method: "on_subscription",
-          },
-
-          expand: ["latest_invoice.payment_intent"],
-
-          metadata: {
-            user_id: user.id,
-            business_card_id: card.id,
-            payment_type: plan_type,
-          },
-        });
-
-        const latestInvoice = subscription.latest_invoice;
-
-        if (!latestInvoice?.payment_intent) {
-          throw new ApiError(400, "Stripe did not return a payment intent");
-        }
-
-        paymentIntent = latestInvoice.payment_intent;
-
-        if (!paymentIntent) {
-          throw new ApiError(400, "Stripe did not return a payment intent");
-        }
-
-        break;
-      }
-
-      case "subscription_only": {
-        subscription = await stripe.subscriptions.create({
-          customer: customerId,
-
-          items: [
-            {
-              price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
-            },
-          ],
-
-          payment_behavior: "default_incomplete",
-
-          payment_settings: {
-            save_default_payment_method: "on_subscription",
-          },
-
-          expand: ["latest_invoice.payment_intent"],
-
-          metadata: {
-            user_id: user.id,
-            business_card_id: card.id,
-            payment_type: plan_type,
-          },
-        });
-
-        paymentIntent = subscription.latest_invoice.payment_intent;
-
-        if (!paymentIntent) {
-          throw new ApiError(400, "Stripe did not return a payment intent");
-        }
-
-        break;
-      }
-    }
-
-    if (subscription) {
-      await User.update(
-        {
-          stripe_subscription_id: subscription.id,
-          subscription_status: "PENDING",
-        },
-        {
-          where: {
-            id: user.id,
-          },
-        },
-      );
-    }
-
-    let description = "";
-
-    switch (plan_type) {
-      case "nfc_only":
-        description = "NFC Card Purchase";
-        break;
-
-      case "nfc_with_subscription":
-        description = "NFC Card Purchase + Subscription";
-        break;
-
-      case "subscription_only":
-        description = "Monthly Subscription";
-        break;
-    }
-
-    await Payment.create({
-      transaction_id: paymentIntent.id,
-
+  const card = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
       user_id: user.id,
+    },
+  });
 
-      business_card_id: card.id,
+  console.log("card", card);
 
-      stripe_customer_id: customerId,
-
-      stripe_subscription_id: subscription?.id || null,
-
-      amount: totalAmount.toFixed(2),
-
-      payment_type: plan_type,
-
-      description,
-
-      payment_status: "PENDING",
-    });
-
-    return {
-      clientSecret: paymentIntent.client_secret,
-
-      paymentIntentId: paymentIntent.id,
-
-      customerId,
-
-      subscriptionId: subscription?.id || null,
-
-      amount: totalAmount.toFixed(2),
-
-      publishableKey: config.STRIPE_PUBLISHABLE_KEY,
-    };
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+  if (!card) {
+    throw new ApiError(404, "Business card not found");
   }
-};
 
-const cancelBusinessCardSubscription = async (body) => {
-  try {
-    const { user } = body;
+  if (
+    !["nfc_only", "nfc_with_subscription", "subscription_only"].includes(
+      plan_type,
+    )
+  ) {
+    throw new ApiError(400, "Invalid plan selected");
+  }
 
-    if (!user.stripe_subscription_id) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "No active subscription found.",
-      );
+  if (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") {
+    if (!card.address_verified) {
+      throw new ApiError(400, "Please verify shipping address first");
     }
 
-    const subscription = await stripe.subscriptions.retrieve(
-      user.stripe_subscription_id,
-    );
-
-    if (
-      subscription.status === "canceled" ||
-      subscription.status === "incomplete_expired"
-    ) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Subscription is already cancelled.",
-      );
+    if (!card.user_address_id) {
+      throw new ApiError(400, "Shipping address not linked");
     }
+  }
 
-    const cancelledSubscription = await stripe.subscriptions.cancel(
-      user.stripe_subscription_id,
-    );
+  if (
+    (plan_type === "nfc_only" || plan_type === "nfc_with_subscription") &&
+    card.nfc_status === "paid"
+  ) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, "NFC card already purchased", "NFC_ALREADY_PURCHASED");
+  }
 
-    // ================= UPDATE PAYMENT STATUS =================
-    await Payment.update(
-      {
-        payment_status: "CANCELLED",
-      },
-      {
-        where: {
-          stripe_subscription_id: user.stripe_subscription_id,
+  if (
+    ["subscription_only", "nfc_with_subscription"].includes(plan_type) &&
+    user.subscription_status === "ACTIVE"
+  ) {
+    throw new ApiError(400, "You already have an active subscription.");
+  }
+
+  const shippingAmount =
+    plan_type === "subscription_only" ? 0 : Number(card.shipping_amount || 0);
+
+  let setupFee = 0;
+  let monthlyFee = 0;
+
+  switch (plan_type) {
+    case "nfc_only":
+      setupFee = 39.99;
+      break;
+
+    case "nfc_with_subscription":
+      setupFee = 39.99;
+      monthlyFee = 4.99;
+      break;
+
+    case "subscription_only":
+      monthlyFee = 4.99;
+      break;
+  }
+
+  const totalAmount = setupFee + monthlyFee + shippingAmount;
+
+  console.log({
+    shippingAmount,
+    setupFee,
+    monthlyFee,
+    totalAmount,
+  });
+
+  const customer = await getCustomer(user, "");
+  const customerId = customer.id;
+
+  console.log(customerId, "customerId");
+
+  let paymentIntent;
+  let subscription = null;
+
+  switch (plan_type) {
+    case "nfc_only": {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100),
+        currency: "usd",
+        customer: customerId,
+        automatic_payment_methods: {
+          enabled: true,
         },
-      },
-    );
+        metadata: {
+          user_id: user.id,
+          business_card_id: card.id,
+          payment_type: plan_type,
+        },
+      });
 
-    // ================= UPDATE BUSINESS CARD PLAN =================
-    const businessCard = await BusinessCard.findOne({
-      where: {
-        user_id: user.id,
-        is_active: true,
-      },
-    });
+      break;
+    }
 
-    if (businessCard) {
-      let updatedPlanType = businessCard.plan_type;
+    case "nfc_with_subscription": {
+      const invoiceItems = [
+        {
+          price: process.env.STRIPE_GLAMLINK_SETUP_PRICE_ID,
+        },
+      ];
 
-      if (businessCard.plan_type === "nfc_with_subscription") {
-        updatedPlanType = "nfc_only";
-      } else if (businessCard.plan_type === "subscription_only") {
-        updatedPlanType = "free";
+      if (shippingAmount > 0) {
+        invoiceItems.push({
+          price: process.env.STRIPE_SHIPPING_PRICE_ID,
+          quantity: Math.round(shippingAmount * 100),
+        });
       }
 
-      await businessCard.update({
-        plan_type: updatedPlanType,
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+
+        items: [
+          {
+            price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
+          },
+        ],
+
+        add_invoice_items: invoiceItems,
+
+        payment_behavior: "default_incomplete",
+
+        payment_settings: {
+          save_default_payment_method: "on_subscription",
+        },
+
+        expand: ["latest_invoice.payment_intent"],
+
+        metadata: {
+          user_id: user.id,
+          business_card_id: card.id,
+          payment_type: plan_type,
+        },
       });
+
+      const latestInvoice = subscription.latest_invoice;
+
+      if (!latestInvoice?.payment_intent) {
+        throw new ApiError(400, "Stripe did not return a payment intent");
+      }
+
+      paymentIntent = latestInvoice.payment_intent;
+
+      if (!paymentIntent) {
+        throw new ApiError(400, "Stripe did not return a payment intent");
+      }
+
+      break;
     }
 
-    // ================= UPDATE USER =================
+    case "subscription_only": {
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+
+        items: [
+          {
+            price: process.env.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
+          },
+        ],
+
+        payment_behavior: "default_incomplete",
+
+        payment_settings: {
+          save_default_payment_method: "on_subscription",
+        },
+
+        expand: ["latest_invoice.payment_intent"],
+
+        metadata: {
+          user_id: user.id,
+          business_card_id: card.id,
+          payment_type: plan_type,
+        },
+      });
+
+      paymentIntent = subscription.latest_invoice.payment_intent;
+
+      if (!paymentIntent) {
+        throw new ApiError(400, "Stripe did not return a payment intent");
+      }
+
+      break;
+    }
+  }
+
+  if (subscription) {
     await User.update(
       {
-        subscription_status: "CANCELLED",
-        stripe_subscription_id: null,
-        subscription_started_at: null,
-        subscription_renewal_at: null,
-        subscription_cancelled_at: new Date(),
+        stripe_subscription_id: subscription.id,
+        subscription_status: "PENDING",
       },
       {
         where: {
@@ -5166,226 +4856,325 @@ const cancelBusinessCardSubscription = async (body) => {
         },
       },
     );
+  }
 
-    await sendBusinessCardSubscriptionCancelledEmail({
-      to: user.email,
-      name: user.user_profile?.name || user.user_name,
-    });
+  let description = "";
 
-    return {
-      subscriptionId: cancelledSubscription.id,
-      status: cancelledSubscription.status,
-      cancelledAt: cancelledSubscription.canceled_at,
-    };
-  } catch (error) {
+  switch (plan_type) {
+    case "nfc_only":
+      description = "NFC Card Purchase";
+      break;
+
+    case "nfc_with_subscription":
+      description = "NFC Card Purchase + Subscription";
+      break;
+
+    case "subscription_only":
+      description = "Monthly Subscription";
+      break;
+  }
+
+  await Payment.create({
+    transaction_id: paymentIntent.id,
+
+    user_id: user.id,
+
+    business_card_id: card.id,
+
+    stripe_customer_id: customerId,
+
+    stripe_subscription_id: subscription?.id || null,
+
+    amount: totalAmount.toFixed(2),
+
+    payment_type: plan_type,
+
+    description,
+
+    payment_status: "PENDING",
+  });
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+
+    paymentIntentId: paymentIntent.id,
+
+    customerId,
+
+    subscriptionId: subscription?.id || null,
+
+    amount: totalAmount.toFixed(2),
+
+    publishableKey: config.STRIPE_PUBLISHABLE_KEY,
+  };
+};
+
+const cancelBusinessCardSubscription = async (body) => {
+  const { user } = body;
+
+  if (!user.stripe_subscription_id) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.BAD_REQUEST,
+      "No active subscription found.",
     );
   }
+
+  const subscription = await stripe.subscriptions.retrieve(
+    user.stripe_subscription_id,
+  );
+
+  if (
+    subscription.status === "canceled" ||
+    subscription.status === "incomplete_expired"
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Subscription is already cancelled.",
+    );
+  }
+
+  const cancelledSubscription = await stripe.subscriptions.cancel(
+    user.stripe_subscription_id,
+  );
+
+  // ================= UPDATE PAYMENT STATUS =================
+  await Payment.update(
+    {
+      payment_status: "CANCELLED",
+    },
+    {
+      where: {
+        stripe_subscription_id: user.stripe_subscription_id,
+      },
+    },
+  );
+
+  // ================= UPDATE BUSINESS CARD PLAN =================
+  const businessCard = await BusinessCard.findOne({
+    where: {
+      user_id: user.id,
+      is_active: true,
+    },
+  });
+
+  if (businessCard) {
+    let updatedPlanType = businessCard.plan_type;
+
+    if (businessCard.plan_type === "nfc_with_subscription") {
+      updatedPlanType = "nfc_only";
+    } else if (businessCard.plan_type === "subscription_only") {
+      updatedPlanType = "free";
+    }
+
+    await businessCard.update({
+      plan_type: updatedPlanType,
+    });
+  }
+
+  // ================= UPDATE USER =================
+  await User.update(
+    {
+      subscription_status: "CANCELLED",
+      stripe_subscription_id: null,
+      subscription_started_at: null,
+      subscription_renewal_at: null,
+      subscription_cancelled_at: new Date(),
+    },
+    {
+      where: {
+        id: user.id,
+      },
+    },
+  );
+
+  await sendBusinessCardSubscriptionCancelledEmail({
+    to: user.email,
+    name: user.user_profile?.name || user.user_name,
+  });
+
+  return {
+    subscriptionId: cancelledSubscription.id,
+    status: cancelledSubscription.status,
+    cancelledAt: cancelledSubscription.canceled_at,
+  };
 };
 
 const getPaymentHistory = async (user) => {
-  try {
-    const payments = await Payment.findAll({
-      where: {
-        user_id: user.id,
-        is_active: true,
+  const payments = await Payment.findAll({
+    where: {
+      user_id: user.id,
+      is_active: true,
+    },
+    include: [
+      {
+        model: BusinessCard,
+        as: "business_card",
+        attributes: ["id", "name", "business_name", "business_card_link"],
       },
-      include: [
-        {
-          model: BusinessCard,
-          as: "business_card",
-          attributes: ["id", "name", "business_name", "business_card_link"],
-        },
-      ],
-      order: [["created_at", "DESC"]],
-    });
+    ],
+    order: [["created_at", "DESC"]],
+  });
 
-    return payments;
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
-  }
+  return payments;
 };
 
 const getAllAccessOrders = async (body) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      search = "",
-      payment_status,
-      fulfillment_status,
-    } = body;
+  const {
+    page = 1,
+    limit = 10,
+    search = "",
+    payment_status,
+    fulfillment_status,
+  } = body;
 
-    const offset = (page - 1) * limit;
+  const offset = (page - 1) * limit;
 
-    const where = {
-      is_active: true,
-    };
+  const where = {
+    is_active: true,
+  };
 
-    if (payment_status) {
-      where.payment_status = payment_status;
-    }
-
-    if (fulfillment_status) {
-      where.fulfillment_status = fulfillment_status;
-    }
-
-    if (search) {
-      where[Op.or] = [
-        {
-          order_number: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-        {
-          customer_name: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-        {
-          customer_email: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-      ];
-    }
-
-    const { rows, count } = await AccessOrder.findAndCountAll({
-      where,
-
-      include: [
-        {
-          model: BusinessCard,
-          as: "business_card",
-          attributes: ["id", "name", "business_name", "business_card_link"],
-        },
-      ],
-
-      order: [["created_at", "DESC"]],
-
-      limit: Number(limit),
-      offset: Number(offset),
-    });
-
-    return {
-      data: rows,
-      pagination: {
-        total: count,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(count / limit),
-      },
-    };
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to fetch access orders",
-    );
+  if (payment_status) {
+    where.payment_status = payment_status;
   }
+
+  if (fulfillment_status) {
+    where.fulfillment_status = fulfillment_status;
+  }
+
+  if (search) {
+    where[Op.or] = [
+      {
+        order_number: {
+          [Op.like]: `%${search}%`,
+        },
+      },
+      {
+        customer_name: {
+          [Op.like]: `%${search}%`,
+        },
+      },
+      {
+        customer_email: {
+          [Op.like]: `%${search}%`,
+        },
+      },
+    ];
+  }
+
+  const { rows, count } = await AccessOrder.findAndCountAll({
+    where,
+
+    include: [
+      {
+        model: BusinessCard,
+        as: "business_card",
+        attributes: ["id", "name", "business_name", "business_card_link"],
+      },
+    ],
+
+    order: [["created_at", "DESC"]],
+
+    limit: Number(limit),
+    offset: Number(offset),
+  });
+
+  return {
+    data: rows,
+    pagination: {
+      total: count,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(count / limit),
+    },
+  };
 };
 
 const getAccessOrderById = async (id) => {
-  try {
-    const order = await AccessOrder.findOne({
-      where: {
-        id,
-        is_active: true,
+  const order = await AccessOrder.findOne({
+    where: {
+      id,
+      is_active: true,
+    },
+
+    include: [
+      {
+        model: BusinessCard,
+        as: "business_card",
+        attributes: [
+          "id",
+          "name",
+          "business_name",
+          "email",
+          "business_card_link",
+          "business_card_qr",
+        ],
       },
 
-      include: [
-        {
-          model: BusinessCard,
-          as: "business_card",
-          attributes: [
-            "id",
-            "name",
-            "business_name",
-            "email",
-            "business_card_link",
-            "business_card_qr",
-          ],
-        },
+      {
+        model: Payment,
+        as: "payment",
+        attributes: [
+          "id",
+          "transaction_id",
+          "amount",
+          "payment_status",
+          "payment_type",
+          "receipt_url",
+        ],
+      },
+    ],
+  });
 
-        {
-          model: Payment,
-          as: "payment",
-          attributes: [
-            "id",
-            "transaction_id",
-            "amount",
-            "payment_status",
-            "payment_type",
-            "receipt_url",
-          ],
-        },
-      ],
-    });
-
-    if (!order) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
-    }
-
-    return order;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to fetch access order",
-    );
+  if (!order) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
   }
+
+  return order;
 };
 
 const updateAccessOrderFulfillment = async (id, body) => {
-  try {
-    const { fulfillment_status, tracking_number, tracking_link } = body;
+  const { fulfillment_status, tracking_number, tracking_link } = body;
 
-    const allowedStatuses = ["pending", "processing", "shipped", "delivered"];
+  const allowedStatuses = ["pending", "processing", "shipped", "delivered"];
 
-    if (!allowedStatuses.includes(fulfillment_status)) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid fulfillment status");
-    }
+  if (!allowedStatuses.includes(fulfillment_status)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid fulfillment status");
+  }
 
-    const order = await AccessOrder.findOne({
-      where: {
-        id,
-        is_active: true,
-      },
-    });
+  const order = await AccessOrder.findOne({
+    where: {
+      id,
+      is_active: true,
+    },
+  });
 
-    if (!order) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
-    }
+  if (!order) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
+  }
 
-    // Subscription-only orders have no fulfillment.
-    if (order.fulfillment_status === null && fulfillment_status !== null) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Subscription-only order does not require fulfillment",
-      );
-    }
-
-    const updateObj = {
-      fulfillment_status,
-    };
-
-    if (tracking_number !== undefined) {
-      updateObj.tracking_number = tracking_number || null;
-    }
-
-    if (tracking_link !== undefined) {
-      updateObj.tracking_link = tracking_link || null;
-    }
-
-    await order.update(updateObj);
-
-    return order;
-  } catch (error) {
+  // Subscription-only orders have no fulfillment.
+  if (order.fulfillment_status === null && fulfillment_status !== null) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message || "Failed to update fulfillment",
+      httpStatus.BAD_REQUEST,
+      "Subscription-only order does not require fulfillment",
     );
   }
+
+  const updateObj = {
+    fulfillment_status,
+  };
+
+  if (tracking_number !== undefined) {
+    updateObj.tracking_number = tracking_number || null;
+  }
+
+  if (tracking_link !== undefined) {
+    updateObj.tracking_link = tracking_link || null;
+  }
+
+  await order.update(updateObj);
+
+  return order;
 };
 
 module.exports = {

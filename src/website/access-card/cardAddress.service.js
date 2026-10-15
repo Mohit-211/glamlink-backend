@@ -4,331 +4,309 @@ const ApiError = require("../../core/http/ApiError");
 const { createAddressInShippo, saveAddressToDatabase, validateAddressInShippo } = require("../../integrations/shippo");
 
 const addNewAddressPublic = async (reqBody) => {
-  try {
-    const { business_card_id } = reqBody;
+  const { business_card_id } = reqBody;
 
-    if (!business_card_id) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "business_card_id is required.",
-      );
-    }
-
-    if (
-      !reqBody.address_line_1 ||
-      !reqBody.state_id ||
-      !reqBody.city_id ||
-      !reqBody.postal_code
-    ) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Missing required address fields.",
-      );
-    }
-
-    const businessCard = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
-    });
-
-    if (!businessCard) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
-    }
-
-    const stateData = await State.findOne({
-      where: {
-        id: reqBody.state_id,
-      },
-    });
-
-    if (!stateData) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
-    }
-
-    const cityData = await City.findOne({
-      where: {
-        id: reqBody.city_id,
-      },
-    });
-
-    if (!cityData) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
-    }
-
-    const shippoAddress = {
-      name: businessCard.name,
-      street1: reqBody.address_line_1,
-      city: cityData.name,
-      state: stateData.iso2,
-      zip: reqBody.postal_code,
-      country: "US",
-    };
-
-    const shippoResponse = await createAddressInShippo(shippoAddress);
-
-    const validationResult = await validateAddressInShippo(
-      shippoResponse.object_id,
+  if (!business_card_id) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "business_card_id is required.",
     );
+  }
 
-    const isValid = validationResult?.validation_results?.is_valid;
-
-    const messages = validationResult?.validation_results?.messages || [];
-
-    if (!isValid) {
-      const errorMessage =
-        messages.map((m) => m.text).join(", ") || "Invalid address";
-
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Address validation failed: ${errorMessage}`,
-      );
-    }
-
-    const userAddress = await saveAddressToDatabase(
-      null,
-      7,
-      shippoResponse.object_id,
-      reqBody,
-      stateData,
+  if (
+    !reqBody.address_line_1 ||
+    !reqBody.state_id ||
+    !reqBody.city_id ||
+    !reqBody.postal_code
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Missing required address fields.",
     );
+  }
 
-    await businessCard.update({
-      user_address_id: userAddress.id,
-      address_verified: true,
-      shipping_amount: 0,
-    });
+  const businessCard = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
 
-    return {
-      address_id: userAddress.id,
-      address: userAddress,
-    };
-  } catch (error) {
-  console.log("FULL ERROR =>", error);
-  console.log("STATUS =>", error.statusCode);
+  if (!businessCard) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+  }
 
-  throw new ApiError(
-    error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-    error.message,
+  const stateData = await State.findOne({
+    where: {
+      id: reqBody.state_id,
+    },
+  });
+
+  if (!stateData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
+  }
+
+  const cityData = await City.findOne({
+    where: {
+      id: reqBody.city_id,
+    },
+  });
+
+  if (!cityData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
+  }
+
+  const shippoAddress = {
+    name: businessCard.name,
+    street1: reqBody.address_line_1,
+    city: cityData.name,
+    state: stateData.iso2,
+    zip: reqBody.postal_code,
+    country: "US",
+  };
+
+  const shippoResponse = await createAddressInShippo(shippoAddress);
+
+  const validationResult = await validateAddressInShippo(
+    shippoResponse.object_id,
   );
-}
+
+  const isValid = validationResult?.validation_results?.is_valid;
+
+  const messages = validationResult?.validation_results?.messages || [];
+
+  if (!isValid) {
+    const errorMessage =
+      messages.map((m) => m.text).join(", ") || "Invalid address";
+
+    throw ApiError.withCode(
+      httpStatus.BAD_REQUEST,
+      `Address validation failed: ${errorMessage}`,
+      "ADDRESS_INVALID",
+    );
+  }
+
+  const userAddress = await saveAddressToDatabase(
+    null,
+    7,
+    shippoResponse.object_id,
+    reqBody,
+    stateData,
+  );
+
+  await businessCard.update({
+    user_address_id: userAddress.id,
+    address_verified: true,
+    shipping_amount: 0,
+  });
+
+  return {
+    address_id: userAddress.id,
+    address: userAddress,
+  };
 };
 
 const editAddressPublic = async (body, id) => {
-  try {
-    const {
-      business_card_id,
-      address_line_1,
-      state_id,
-      city_id,
-      address_lat,
-      address_long,
-      postal_code,
-    } = body;
+  const {
+    business_card_id,
+    address_line_1,
+    state_id,
+    city_id,
+    address_lat,
+    address_long,
+    postal_code,
+  } = body;
 
-    const businessCard = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
+  const businessCard = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
+
+  if (!businessCard) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
+
+  const addressDoc = await UserAddress.findOne({
+    where: {
+      id,
+      is_active: true,
+    },
+    include: [
+      {
+        model: State,
+        as: "user_state",
       },
-    });
-
-    if (!businessCard) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
-    }
-
-    const addressDoc = await UserAddress.findOne({
-      where: {
-        id,
-        is_active: true,
+      {
+        model: City,
+        as: "user_city",
       },
-      include: [
-        {
-          model: State,
-          as: "user_state",
+    ],
+  });
+
+  if (!addressDoc) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Address Id doesn't exist");
+  }
+
+  // Only the card's own address can be edited through the card.
+  if (String(businessCard.user_address_id) !== String(addressDoc.id)) {
+    throw new ApiError(httpStatus.FORBIDDEN, "This address does not belong to this card.");
+  }
+
+  const stateData = state_id
+    ? await State.findOne({
+        where: {
+          id: state_id,
         },
-        {
-          model: City,
-          as: "user_city",
+      })
+    : addressDoc.user_state;
+
+  if (state_id && !stateData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
+  }
+
+  const cityData = city_id
+    ? await City.findOne({
+        where: {
+          id: city_id,
         },
-      ],
-    });
+      })
+    : addressDoc.user_city;
 
-    if (!addressDoc) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Address Id doesn't exist");
-    }
+  if (city_id && !cityData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
+  }
 
-    // Only the card's own address can be edited through the card.
-    if (String(businessCard.user_address_id) !== String(addressDoc.id)) {
-      throw new ApiError(httpStatus.FORBIDDEN, "This address does not belong to this card.");
-    }
+  const shippoAddress = {
+    name: businessCard.name,
+    street1: address_line_1 || addressDoc.address_line_1,
+    city: cityData.name,
+    state: stateData.iso2,
+    zip: postal_code || addressDoc.postal_code,
+    country: "US",
+  };
 
-    const stateData = state_id
-      ? await State.findOne({
-          where: {
-            id: state_id,
-          },
-        })
-      : addressDoc.user_state;
+  const shippoResponse = await createAddressInShippo(shippoAddress);
 
-    if (state_id && !stateData) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
-    }
+  const validationResult = await validateAddressInShippo(
+    shippoResponse.object_id,
+  );
 
-    const cityData = city_id
-      ? await City.findOne({
-          where: {
-            id: city_id,
-          },
-        })
-      : addressDoc.user_city;
+  const isValid = validationResult?.validation_results?.is_valid;
 
-    if (city_id && !cityData) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
-    }
+  const messages = validationResult?.validation_results?.messages || [];
 
-    const shippoAddress = {
-      name: businessCard.name,
-      street1: address_line_1 || addressDoc.address_line_1,
-      city: cityData.name,
-      state: stateData.iso2,
-      zip: postal_code || addressDoc.postal_code,
-      country: "US",
-    };
+  const warnings = messages.map((m) => m.text.toLowerCase());
 
-    const shippoResponse = await createAddressInShippo(shippoAddress);
+  const hasCriticalError = warnings.some(
+    (msg) =>
+      msg.includes("zip mismatch") ||
+      msg.includes("city mismatch") ||
+      msg.includes("invalid") ||
+      msg.includes("not found"),
+  );
 
-    const validationResult = await validateAddressInShippo(
-      shippoResponse.object_id,
-    );
+  if (!isValid || hasCriticalError) {
+    const errorMessage =
+      messages.map((m) => m.text).join(", ") || "Invalid address";
 
-    const isValid = validationResult?.validation_results?.is_valid;
-
-    const messages = validationResult?.validation_results?.messages || [];
-
-    const warnings = messages.map((m) => m.text.toLowerCase());
-
-    const hasCriticalError = warnings.some(
-      (msg) =>
-        msg.includes("zip mismatch") ||
-        msg.includes("city mismatch") ||
-        msg.includes("invalid") ||
-        msg.includes("not found"),
-    );
-
-    if (!isValid || hasCriticalError) {
-      const errorMessage =
-        messages.map((m) => m.text).join(", ") || "Invalid address";
-
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Address validation failed: ${errorMessage}`,
-      );
-    }
-
-    if (address_line_1) {
-      addressDoc.address_line_1 = address_line_1;
-    }
-
-    if (state_id) {
-      addressDoc.state_id = state_id;
-      addressDoc.province_code = stateData.iso2;
-    }
-
-    if (city_id) {
-      addressDoc.city_id = city_id;
-    }
-
-    if (postal_code) {
-      addressDoc.postal_code = postal_code;
-    }
-
-    if (address_lat) {
-      addressDoc.address_lat = address_lat;
-    }
-
-    if (address_long) {
-      addressDoc.address_long = address_long;
-    }
-
-    addressDoc.shippo_address_id = shippoResponse.object_id;
-
-    await addressDoc.save();
-
-    await businessCard.update({
-      user_address_id: addressDoc.id,
-      address_verified: true,
-      shipping_amount: 0,
-    });
-
-    return {
-      address_id: addressDoc.id,
-      address: addressDoc,
-    };
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+    throw ApiError.withCode(
+      httpStatus.BAD_REQUEST,
+      `Address validation failed: ${errorMessage}`,
+      "ADDRESS_INVALID",
     );
   }
+
+  if (address_line_1) {
+    addressDoc.address_line_1 = address_line_1;
+  }
+
+  if (state_id) {
+    addressDoc.state_id = state_id;
+    addressDoc.province_code = stateData.iso2;
+  }
+
+  if (city_id) {
+    addressDoc.city_id = city_id;
+  }
+
+  if (postal_code) {
+    addressDoc.postal_code = postal_code;
+  }
+
+  if (address_lat) {
+    addressDoc.address_lat = address_lat;
+  }
+
+  if (address_long) {
+    addressDoc.address_long = address_long;
+  }
+
+  addressDoc.shippo_address_id = shippoResponse.object_id;
+
+  await addressDoc.save();
+
+  await businessCard.update({
+    user_address_id: addressDoc.id,
+    address_verified: true,
+    shipping_amount: 0,
+  });
+
+  return {
+    address_id: addressDoc.id,
+    address: addressDoc,
+  };
 };
 
 const getAddressByBusinessCardIdPublic = async (business_card_id) => {
-  try {
-    const businessCard = await BusinessCard.findOne({
-      where: {
-        id: business_card_id,
-        is_active: true,
-      },
-    });
+  const businessCard = await BusinessCard.findOne({
+    where: {
+      id: business_card_id,
+      is_active: true,
+    },
+  });
 
-    if (!businessCard) {
-      throw new ApiError(
-        httpStatus.NOT_FOUND,
-        "Business card not found",
-      );
-    }
-
-    if (!businessCard.user_address_id) {
-      return null;
-    }
-
-    const addressDoc = await UserAddress.findOne({
-      where: {
-        id: businessCard.user_address_id,
-        is_active: true,
-      },
-      include: [
-        {
-          model: Country,
-          as: "user_country",
-          attributes: ["id", "name", "iso3"],
-        },
-        {
-          model: State,
-          as: "user_state",
-          attributes: ["id", "name", "country_id", "iso2"],
-        },
-        {
-          model: City,
-          as: "user_city",
-          attributes: ["id", "name", "country_id", "state_id"],
-        },
-      ],
-    });
-
-    if (!addressDoc) {
-      return null;
-    }
-
-    return addressDoc;
-  } catch (error) {
+  if (!businessCard) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.NOT_FOUND,
+      "Business card not found",
     );
   }
+
+  if (!businessCard.user_address_id) {
+    return null;
+  }
+
+  const addressDoc = await UserAddress.findOne({
+    where: {
+      id: businessCard.user_address_id,
+      is_active: true,
+    },
+    include: [
+      {
+        model: Country,
+        as: "user_country",
+        attributes: ["id", "name", "iso3"],
+      },
+      {
+        model: State,
+        as: "user_state",
+        attributes: ["id", "name", "country_id", "iso2"],
+      },
+      {
+        model: City,
+        as: "user_city",
+        attributes: ["id", "name", "country_id", "state_id"],
+      },
+    ],
+  });
+
+  if (!addressDoc) {
+    return null;
+  }
+
+  return addressDoc;
 };
 
 module.exports = {

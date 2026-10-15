@@ -25,9 +25,9 @@ const verifyAdminToken = async (token) => {
 // Only an active admin may pass.
 const requireAdmin = catchAsync(async (req, res, next) => {
     const token = tokenFromRequest(req);
-    if (!token) throw new ApiError(httpStatus.UNAUTHORIZED, 'Admin authentication required');
+    if (!token) throw ApiError.withCode(httpStatus.UNAUTHORIZED, 'Admin authentication required', 'ADMIN_SIGN_IN_REQUIRED');
     const admin = await verifyAdminToken(token);
-    if (!admin) throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired admin token');
+    if (!admin) throw ApiError.withCode(httpStatus.UNAUTHORIZED, 'Invalid or expired admin token', 'ADMIN_SESSION_EXPIRED');
     req.user = admin;
     req.isAdmin = true;
     req.body.user = admin;

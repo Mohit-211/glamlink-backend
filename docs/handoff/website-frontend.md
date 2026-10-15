@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | Errors: unexpected failures answer a generic 500 (database and library messages no longer reach the client); Stripe payment errors keep Stripe's status and message with `code: "PAYMENT_FAILED"`; the address and NFC messages gain codes (section 4), messages unchanged | **Can:** branch on `code` instead of message text |
 | Oct 16 | Logged-out card purchase needs the card token (section 8). The public calls used to accept any card id, so anyone could change any card's plan or read its address. `editAddress-public` now edits only the card's own address | **Must:** keep the `card_token` from `POST /businessCard` and send it on the purchase calls; send the access token when a signed-in owner calls them |
 | Oct 16 | Internal restructure (code grouped by product). No API change | Nothing |
 | Oct 14–15 | Identity, sign-in and route changes in the sections below | See the checklist |
@@ -152,8 +153,19 @@ Error responses: `{ success: false, status, message, code, data: "" }`. `code` i
 | `INVALID_LINK` | 400 | Email link expired or already used |
 | `INVALID_INPUT` | 400 | Missing name or invalid email |
 | `CAPTCHA_REQUIRED` / `CAPTCHA_FAILED` | 400 | Turnstile token missing or rejected |
+| `CARD_TOKEN_REQUIRED` | 401 | A purchase call without the card's token (section 8) |
+| `ADDRESS_INVALID` | 400 | Shipping address rejected by the carrier (message: "Address validation failed: …") |
+| `ADDRESS_NOT_FOUND` | 404 | No address on the card or account (message: "Address not found") |
+| `ADDRESS_NOT_VERIFIED` | 400 | Shipping rate asked before the address was saved (message: "Please verify address first") |
+| `NFC_ALREADY_PURCHASED` | 400 | The card already has its NFC keychain (message: "NFC card already purchased") |
+| `PAYMENT_FAILED` | 4xx | Stripe refused the payment; the message is Stripe's, written for the payer ("Your card was declined.") |
 
-Older errors elsewhere in the API still have no `code`; branch on `status` there.
+Older errors elsewhere in the API still have no `code`; branch on `status` there. Messages the website matches today
+("Address not found", "Please verify address first", "NFC card already purchased", "Address validation failed: …")
+are unchanged; switch to the codes when convenient.
+
+An unexpected error answers `500` with `message: "An internal server error occurred."`; the details are only in the
+server log. Before, database and library messages reached the client.
 
 ## 5. Renamed endpoints and fields
 

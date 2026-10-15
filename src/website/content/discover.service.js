@@ -27,254 +27,205 @@ const getModel = (type) => {
 };
 
 const createDiscover = async (type, reqBody, files) => {
-  try {
-    console.log("files", files);
-    const Model = getModel(type);
+  console.log("files", files);
+  const Model = getModel(type);
 
-    const isPublished = reqBody.status === "published";
+  const isPublished = reqBody.status === "published";
 
-    const obj = {
-      title: reqBody.title,
-      short_description: reqBody.short_description,
-      category: reqBody.category,
-      status: isPublished ? "published" : "draft",
-      created_at: new Date(),
-    };
+  const obj = {
+    title: reqBody.title,
+    short_description: reqBody.short_description,
+    category: reqBody.category,
+    status: isPublished ? "published" : "draft",
+    created_at: new Date(),
+  };
 
-    if (type === "education") {
-      obj.link = reqBody.link;
-    }
-
-    if (type === "event") {
-      obj.event_date = reqBody.event_date || null;
-      obj.location = reqBody.location;
-      obj.link = reqBody.link;
-    }
-
-    if (type === "shop") {
-      obj.brand = reqBody.brand;
-      obj.price =
-        reqBody.price !== undefined &&
-        reqBody.price !== null &&
-        reqBody.price !== ""
-          ? reqBody.price
-          : null;
-      obj.link = reqBody.link;
-    }
-
-    if (files?.images?.length) {
-      obj.cover_image = files.images[0].filename;
-    }
-
-    return await Model.create(obj);
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (type === "education") {
+    obj.link = reqBody.link;
   }
+
+  if (type === "event") {
+    obj.event_date = reqBody.event_date || null;
+    obj.location = reqBody.location;
+    obj.link = reqBody.link;
+  }
+
+  if (type === "shop") {
+    obj.brand = reqBody.brand;
+    obj.price =
+      reqBody.price !== undefined &&
+      reqBody.price !== null &&
+      reqBody.price !== ""
+        ? reqBody.price
+        : null;
+    obj.link = reqBody.link;
+  }
+
+  if (files?.images?.length) {
+    obj.cover_image = files.images[0].filename;
+  }
+
+  return await Model.create(obj);
 };
 
 const getAllDiscover = async (type) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    return await Model.findAndCountAll({
-      where: {
-        is_active: true,
-        status: "published",
-      },
-       order: [["title", "ASC"]],
-    });
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
+  return await Model.findAndCountAll({
+    where: {
+      is_active: true,
+      status: "published",
+    },
+     order: [["title", "ASC"]],
+  });
 };
 
 const getAllDiscoverByAdmin = async (type) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    return await Model.findAndCountAll({
-      where: {
-        is_active: true,
-      },
-      order: [["sort_order", "ASC"]],
-    });
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
+  return await Model.findAndCountAll({
+    where: {
+      is_active: true,
+    },
+    order: [["sort_order", "ASC"]],
+  });
 };
 
 const findDiscoverById = async (type, id) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    const query = {
-      where: {
-        id,
-        is_active: true,
-      },
-    };
+  const query = {
+    where: {
+      id,
+      is_active: true,
+    },
+  };
 
-    if (type === "shop") {
-      query.include = [
-        {
-          model: JournalTopic,
-          as: "journal_topics",
-          attributes: ["id", "name", "slug"],
-          through: {
-            attributes: ["id", "sort_order"],
-          },
-          required: false,
+  if (type === "shop") {
+    query.include = [
+      {
+        model: JournalTopic,
+        as: "journal_topics",
+        attributes: ["id", "name", "slug"],
+        through: {
+          attributes: ["id", "sort_order"],
         },
-      ];
-    }
-
-    const doc = await Model.findOne(query);
-
-    return doc ? doc : "No Record Found";
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+        required: false,
+      },
+    ];
   }
+
+  const doc = await Model.findOne(query);
+
+  return doc ? doc : "No Record Found";
 };
 
 const updateDiscover = async (type, reqBody, id, files) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    const doc = await Model.findByPk(id);
+  const doc = await Model.findByPk(id);
 
-    if (!doc) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Record not found");
-    }
-
-    if (reqBody.title) doc.title = reqBody.title;
-    if (reqBody.short_description)
-      doc.short_description = reqBody.short_description;
-    if (reqBody.category) doc.category = reqBody.category;
-    if (reqBody.status) doc.status = reqBody.status;
-
-    if (type === "education") {
-      if (reqBody.link) doc.link = reqBody.link;
-    }
-
-    if (type === "event") {
-      if (reqBody.event_date) doc.event_date = reqBody.event_date;
-      if (reqBody.location) doc.location = reqBody.location;
-      if (reqBody.link) doc.link = reqBody.link;
-    }
-
-    if (type === "shop") {
-      if (reqBody.brand !== undefined) {
-        doc.brand = reqBody.brand || null;
-      }
-
-      if (reqBody.price !== undefined) {
-        doc.price =
-          reqBody.price !== null && reqBody.price !== "" ? reqBody.price : null;
-      }
-
-      if (reqBody.link !== undefined) {
-        doc.link = reqBody.link || null;
-      }
-    }
-
-    if (files?.images?.length) {
-      doc.cover_image = files.images[0].filename;
-    }
-
-    await doc.save();
-
-    return doc;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!doc) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Record not found");
   }
+
+  if (reqBody.title) doc.title = reqBody.title;
+  if (reqBody.short_description)
+    doc.short_description = reqBody.short_description;
+  if (reqBody.category) doc.category = reqBody.category;
+  if (reqBody.status) doc.status = reqBody.status;
+
+  if (type === "education") {
+    if (reqBody.link) doc.link = reqBody.link;
+  }
+
+  if (type === "event") {
+    if (reqBody.event_date) doc.event_date = reqBody.event_date;
+    if (reqBody.location) doc.location = reqBody.location;
+    if (reqBody.link) doc.link = reqBody.link;
+  }
+
+  if (type === "shop") {
+    if (reqBody.brand !== undefined) {
+      doc.brand = reqBody.brand || null;
+    }
+
+    if (reqBody.price !== undefined) {
+      doc.price =
+        reqBody.price !== null && reqBody.price !== "" ? reqBody.price : null;
+    }
+
+    if (reqBody.link !== undefined) {
+      doc.link = reqBody.link || null;
+    }
+  }
+
+  if (files?.images?.length) {
+    doc.cover_image = files.images[0].filename;
+  }
+
+  await doc.save();
+
+  return doc;
 };
 
 const deleteDiscover = async (type, body) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    if (!Array.isArray(body.ids) || body.ids.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid ids");
-    }
-
-    const ids = body.ids.map(Number).filter(Boolean);
-
-    const records = await Model.findAll({
-      where: {
-        id: ids,
-        is_active: true,
-      },
-    });
-
-    if (!records.length) {
-      throw new ApiError(httpStatus.NOT_FOUND, "No records found");
-    }
-
-    await Promise.all(
-      records.map(async (item) => {
-        item.is_active = false;
-        await item.save();
-        await item.destroy();
-      }),
-    );
-
-    return true;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!Array.isArray(body.ids) || body.ids.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid ids");
   }
+
+  const ids = body.ids.map(Number).filter(Boolean);
+
+  const records = await Model.findAll({
+    where: {
+      id: ids,
+      is_active: true,
+    },
+  });
+
+  if (!records.length) {
+    throw new ApiError(httpStatus.NOT_FOUND, "No records found");
+  }
+
+  await Promise.all(
+    records.map(async (item) => {
+      item.is_active = false;
+      await item.save();
+      await item.destroy();
+    }),
+  );
+
+  return true;
 };
 
 const updateDiscoverSortOrder = async (type, body) => {
-  try {
-    const Model = getModel(type);
+  const Model = getModel(type);
 
-    const { items } = body;
+  const { items } = body;
 
-    if (!Array.isArray(items) || items.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid items array");
-    }
-
-    await Promise.all(
-      items.map((item, index) =>
-        Model.update(
-          {
-            sort_order: index + 1,
-          },
-          {
-            where: {
-              id: item.id,
-              is_active: true,
-            },
-          },
-        ),
-      ),
-    );
-
-    return true;
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid items array");
   }
+
+  await Promise.all(
+    items.map((item, index) =>
+      Model.update(
+        {
+          sort_order: index + 1,
+        },
+        {
+          where: {
+            id: item.id,
+            is_active: true,
+          },
+        },
+      ),
+    ),
+  );
+
+  return true;
 };
 
 // ======================= SHOP CSV BULK UPLOAD =======================
@@ -408,11 +359,6 @@ const bulkUploadShopCsv = async (filePath) => {
     const created = await Shop.bulkCreate(rowsToInsert, { validate: true });
 
     return { totalRows: records.length, inserted: created.length, skipped };
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
   } finally {
     fs.unlink(filePath, () => {});
   }

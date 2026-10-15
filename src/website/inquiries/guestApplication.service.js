@@ -4,52 +4,45 @@ const { GuestApplication } = require("../../models");
 const { sendGuestApplicationEmail } = require("../../integrations/mailer/email.service");
 
 const createGuestApplication = async (reqBody) => {
-  try {
-    const {
-      name,
-      business_name,
-      website,
-      instagram_handle,
-      email,
-      phone,
-    } = reqBody;
+  const {
+    name,
+    business_name,
+    website,
+    instagram_handle,
+    email,
+    phone,
+  } = reqBody;
 
-    if (!name || !email) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "Name and Email are required"
-      );
-    }
-
-    const guestObj = {
-      name,
-      business_name,
-      website,
-      instagram_handle,
-      email,
-      phone,
-      created_at: new Date(),
-    };
-
-    const guestDoc = await GuestApplication.create(guestObj);
-
-    if (!guestDoc) {
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to submit application"
-      );
-    }
-
-    // ✅ SEND EMAIL
-    await sendGuestApplicationEmail(guestObj);
-
-    return guestDoc;
-  } catch (error) {
+  if (!name || !email) {
     throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message
+      httpStatus.BAD_REQUEST,
+      "Name and Email are required"
     );
   }
+
+  const guestObj = {
+    name,
+    business_name,
+    website,
+    instagram_handle,
+    email,
+    phone,
+    created_at: new Date(),
+  };
+
+  const guestDoc = await GuestApplication.create(guestObj);
+
+  if (!guestDoc) {
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to submit application"
+    );
+  }
+
+  // ✅ SEND EMAIL
+  await sendGuestApplicationEmail(guestObj);
+
+  return guestDoc;
 };
 
 const getAllGuestApplications = async () => {
@@ -84,20 +77,13 @@ const getGuestApplicationById = async (id) => {
 };
 
 const deleteGuestApplication = async (body) => {
-  try {
-    if (!Array.isArray(body.ids) || body.ids.length === 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid IDs");
-    }
-
-    await GuestApplication.destroy({
-      where: { id: body.ids },
-    });
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-      error.message
-    );
+  if (!Array.isArray(body.ids) || body.ids.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid IDs");
   }
+
+  await GuestApplication.destroy({
+    where: { id: body.ids },
+  });
 };
 
 

@@ -30,15 +30,8 @@ const stripeWebhookSecretInvoiceCustomer =
   config.STRIPE_WEBHOOK_SECRET_CUSTOMER_INVOICE_PRICE || "";
 
 const geStripeKeys = catchAsync(async (req, res) => {
-  try {
-    const { publishable_key, secret_key } = getKeys(req.query.paymentMethod);
-    return responseWrapper(res, { publishable_key }, "");
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
-    );
-  }
+  const { publishable_key, secret_key } = getKeys(req.query.paymentMethod);
+  return responseWrapper(res, { publishable_key }, "");
 });
 
 const createAccessOrder = async ({ paymentRecord, card }) => {
@@ -841,58 +834,44 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
 });
 
 const getNewPaymentCount = catchAsync(async (req, res) => {
-  try {
-    const today = todayDate();
-    const paymentDoc = await Payment.findAll({
-      attributes: ["id"],
-      where: {
-        created_at: {
-          [Op.between]: [`${today} 00:00:00`, `${today} 23:59:59`],
-        },
-        payment_status: "SUCCESS",
+  const today = todayDate();
+  const paymentDoc = await Payment.findAll({
+    attributes: ["id"],
+    where: {
+      created_at: {
+        [Op.between]: [`${today} 00:00:00`, `${today} 23:59:59`],
       },
-    });
-    if (!paymentDoc)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to Fetch Count",
-      );
-    return responseWrapper(res, paymentDoc.length ? paymentDoc.length : 0, "");
-  } catch (error) {
+      payment_status: "SUCCESS",
+    },
+  });
+  if (!paymentDoc)
     throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to Fetch Count",
     );
-  }
+  return responseWrapper(res, paymentDoc.length ? paymentDoc.length : 0, "");
 });
 
 const getNewPaymentTotal = catchAsync(async (req, res) => {
-  try {
-    const today = todayDate();
-    const paymentDoc = await Payment.findAll({
-      attributes: ["id", "amount"],
-      where: {
-        created_at: {
-          [Op.between]: [`${today} 00:00:00`, `${today} 23:59:59`],
-        },
-        payment_status: "SUCCESS",
+  const today = todayDate();
+  const paymentDoc = await Payment.findAll({
+    attributes: ["id", "amount"],
+    where: {
+      created_at: {
+        [Op.between]: [`${today} 00:00:00`, `${today} 23:59:59`],
       },
-    });
-    if (!paymentDoc)
-      throw new ApiError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Failed to Fetch Count",
-      );
-    let totalPayment = paymentDoc
-      .map((obj) => obj.amount)
-      .reduce((a, b) => a + b, 0);
-    return responseWrapper(res, totalPayment ? totalPayment : 0, "");
-  } catch (error) {
+      payment_status: "SUCCESS",
+    },
+  });
+  if (!paymentDoc)
     throw new ApiError(
-      error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR,
-      error.message,
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to Fetch Count",
     );
-  }
+  let totalPayment = paymentDoc
+    .map((obj) => obj.amount)
+    .reduce((a, b) => a + b, 0);
+  return responseWrapper(res, totalPayment ? totalPayment : 0, "");
 });
 
 module.exports = {
