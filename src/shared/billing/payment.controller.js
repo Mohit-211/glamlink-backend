@@ -9,6 +9,7 @@ const ApiError = require("../../core/http/ApiError");
 const responseWrapper = require("../../core/http/responseWrapper");
 const config = require("../../core/config/config");
 const { getKeys } = require("./stripeCustomer.service");
+const { claimStripeEvent, releaseUnlessProcessed } = require("./stripeEvents");
 const {
   createNotification,
 } = require("../notifications");
@@ -200,6 +201,12 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
         .status(400)
         .json({ error: "Webhook signature verification failed" });
     }
+
+    // Each event is processed once (stripeEvents.js): Stripe retries deliveries, and events are resent after the switch.
+    if (!(await claimStripeEvent(event))) {
+      return res.status(200).json({ received: true, duplicate: true });
+    }
+    releaseUnlessProcessed(res, event.id);
 
     console.log("======================event==========", event.type);
 
