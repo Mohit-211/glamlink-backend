@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **Plans and prices from the API:** `GET /access/plans` (section 9.3): the four plans with name, label, badge, tagline, features (`soon`, `highlight`), and prices in cents for whoever asks (signed in: their personal prices and what they already own; a guest: `?business_card_id=` with the card token, for a personal price on their email; anyone: list prices and a running sale). Admins can now change prices, run a sale and give one client a personal price | **Must (before prices change):** build the plan cards and the "Continue" button from `/access/plans` instead of `plans.ts` (`PRO_PRICE`, `KEYCHAIN_PRICE`, the feature lists). **Can:** show the sale and its end date |
 | Oct 16 | **Guest cards are drafts; one card per person** (section 9.2). `POST /businessCard` makes a draft (not public, not in the directory) and no longer attaches the card to an existing account with that email; it answers `status: "draft"`, `account_exists`, and `next_step: "sign_in"` or `"plan_selection"`. For a draft whose email has an account, `select-plan`, `shipping-rate-public` and `create-subscription-public` answer 409 `ACCOUNT_EXISTS`. New: `POST /access/cards/:id/claim` (signed in, with the card token) and `DELETE /access/cards/:id` (the owner). `createBusinessCard` (signed in) answers 409 `CARD_EXISTS` while the person has a card (`replace: true` swaps it) | **Must:** after `POST /businessCard`, when `next_step` is `sign_in` (or a purchase call answers `ACCOUNT_EXISTS`), send the person to sign in and then claim the draft with its card token. **Must:** handle `CARD_EXISTS` on create (offer edit, or replace). **Can:** a "Delete my card" action |
 | Oct 16 | **The card form's fields and checks are now the API's** (section 9.1). Creating and editing a card (guest, signed in, owner edit) checks the same fields the form checks, and a refusal names the field: 400 `INVALID_CARD` with `details: { field }` (the form's keys: `name`, `phone`, `bio`, `booking_link`, `instagram`, `images`, …). Read now: `isPrimary` on locations (it was dropped, so no location was primary), `new_images_gallery_meta` captions and cover, video thumbnails. Limits: 4 photos and 1 video (the form allows 5 media in any mix), MP4 under 21 MB, bio up to 80 characters of text (a stored longer bio can stay until it is changed). Ignored: `custom_handle`, `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`; `primary_specialty` is the first specialty. Public card responses (`getBusinessCard/:slug`, `getAllProfiles`, `getProfilesByDirectory/:id`, `getBusinessCardById/:id` without the owner's or an admin's token) leave out the owner's account and plan fields (`user_id`, `business_user`, `plan_type`, `nfc_status`, address and shipping fields, the marketing answers) and return `phone: null` when the phone is hidden; `getBusinessCardById` of a card that is not live is 404 for them | **Must:** cap the gallery at 4 photos and 1 video. **Can:** show `details.field` errors under the field. The dashboard reads `getMyBusinessCard`, which still returns everything |
 | Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 9 lists what it will mean for the website; each part gets its own entry here when it lands | Nothing yet |
@@ -368,3 +369,42 @@ only the fields it sends.
   subscription goes on; the person's next card takes over the deleted card's link and QR code (printed codes and the
   keychain keep working), their keychain and their plan.
 - Choosing Free for a card whose owner subscribes changes nothing (the subscription is the person's).
+
+### 9.3 Plans and prices (done Oct 16)
+
+`GET /access/plans` (no sign-in needed). Send the access token when signed in; a guest sends
+`?business_card_id=<draft id>` with `x-card-token`, so a personal price set for their email shows. Amounts are in
+cents (USD).
+
+```json
+{
+  "currency": "usd",
+  "sale": { "name": "Launch", "percent_off": 20, "amount_off_cents": null, "applies_to": ["pro"],
+            "duration": "repeating", "duration_in_months": 3, "starts_at": "…", "ends_at": "…" },
+  "owned": { "subscription": false, "keychain": false },
+  "plans": [
+    { "code": "nfc_with_subscription", "name": "Pro + keychain", "label": "Pro", "badge": "Most popular",
+      "tagline": "Full Pro plan with the NFC keychain included.",
+      "features": [{ "text": "Swap your featured video anytime" }, { "text": "Performance analytics", "soon": true },
+                   { "text": "NFC keychain — tap to share your profile", "highlight": "keychain" }],
+      "includes": { "subscription": true, "keychain": true },
+      "lines": [
+        { "product": "pro", "name": "Access Pro", "kind": "subscription", "interval": "month",
+          "list": 499, "amount": 399, "recurring": 499, "personal": false, "discount": { "name": "Launch", "…": "…" } },
+        { "product": "keychain", "name": "NFC keychain", "kind": "one_time", "interval": null,
+          "list": 3999, "amount": 3999, "recurring": null, "personal": false, "discount": null }
+      ],
+      "due_today": 4398, "monthly": 499 }
+  ]
+}
+```
+
+- `code` is the `plan_type` the purchase calls take. Plans are in display order; an admin can rename them, change
+  their features and badge, or switch one off.
+- `lines[].amount` is what the first payment charges for that product, `recurring` what later monthly payments
+  charge (after a sale's months run out); `list` is the price before any discount, for showing it struck through.
+  `personal: true` marks the client's own price.
+- `due_today` is before shipping (the keychain's shipping is quoted at checkout). `monthly` is the subscription's
+  later monthly amount.
+- `owned` (signed in): what the person already has; buying Pro again or a second keychain is refused, so grey those
+  out (as `SubscriptionPlansTab` does for the keychain today).

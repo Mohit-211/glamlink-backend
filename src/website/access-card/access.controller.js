@@ -2,8 +2,11 @@ const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
+const { identify } = require('../../shared/identity');
+const { BusinessCard } = require('../../models');
 const { verifyCardToken, cardTokenFromRequest } = require('./cardToken');
 const { claimCard, deleteOwnCard } = require('./cardOwnership');
+const catalog = require('./catalog');
 
 // The Access purchase and card endpoints under /access (docs/access.md).
 
@@ -30,4 +33,43 @@ const remove = catchAsync(async (req, res) => {
     return responseWrapper(res, result, 'Card deleted.');
 });
 
-module.exports = { claim, remove };
+// The plans priced for whoever asks: a signed-in person, a guest with their draft's card token
+// (?business_card_id= and the token), or anyone. A stale sign-in counts as no sign-in here.
+const plans = catchAsync(async (req, res) => {
+    req.body = req.body || {};
+    let user = null;
+    try {
+        await identify(req);
+        user = req.user || null;
+    } catch {
+        user = null;
+    }
+    let email = null;
+    const cardId = req.query.business_card_id;
+    if (!user && cardId && verifyCardToken(cardTokenFromRequest(req), cardId)) {
+        email = (await BusinessCard.findByPk(cardId, { attributes: ['email'] }))?.email || null;
+    }
+    return responseWrapper(res, await catalog.listPlans({ user, email }), '');
+});
+
+// ---- Admin: plans, prices, discounts, personal prices, settings ------------------------------------------
+
+const adminId = (req) => req.user?.id || null;
+const respond = (fn, message = '') => catchAsync(async (req, res) => responseWrapper(res, await fn(req), message));
+
+const admin = {
+    catalog: respond(() => catalog.adminCatalog()),
+    updatePlan: respond((req) => catalog.updatePlan(req.params.code, req.body), 'Plan updated.'),
+    changePrice: respond((req) => catalog.changePrice(req.params.code, req.body, adminId(req)), 'Price changed.'),
+    priceChanges: respond(() => catalog.priceChanges()),
+    discounts: respond(() => catalog.listDiscounts()),
+    createDiscount: respond((req) => catalog.createDiscount(req.body, adminId(req)), 'Discount created.'),
+    updateDiscount: respond((req) => catalog.updateDiscount(req.params.id, req.body), 'Discount updated.'),
+    endDiscount: respond((req) => catalog.endDiscount(req.params.id), 'Discount ended.'),
+    overrides: respond((req) => catalog.listOverrides(req.query)),
+    createOverride: respond((req) => catalog.createOverride(req.body, adminId(req)), 'Personal price set.'),
+    endOverride: respond((req) => catalog.endOverride(req.params.id), 'Personal price ended.'),
+    updateSettings: respond((req) => catalog.updateSettings(req.body, adminId(req)), 'Settings saved.'),
+};
+
+module.exports = { claim, remove, plans, admin };

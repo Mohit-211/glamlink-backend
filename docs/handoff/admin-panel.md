@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | **Access pricing screens** (section 7.1): plans, prices (with history), site-wide discounts, personal prices for one client, and settings (what Free and Pro may do, shipping), under `/access/admin/…` | **New screens** (none exist): see section 7.1 |
 | Oct 16 | **Guest drafts and one card per person.** A card a guest makes on the website is a draft until a plan is chosen or paid. `GET /businessCard/getAllBusinessCards` leaves drafts out; `?status=draft` lists them (`?status=pending`, `accepted` or `rejected` filters too). `createBusinessCardByAdmin` for an email whose account already has a card answers 409 `CARD_EXISTS` (`details.card_id`); send `replace=true` to replace it (the old card is deleted but kept, and the new one takes its link and QR code). The card's `status` can be `draft` | **Can:** a "Drafts" view (`?status=draft`). **Must:** handle `CARD_EXISTS` on "Create card" (offer replace) |
 | Oct 16 | **Card create and edit use the website form's fields and checks** (the backend's `docs/access.md` section 1; the website handoff note's section 9.1 lists every rule). A refusal is 400 `INVALID_CARD` with `details: { field }`. Up to 4 photos and 1 MP4 video, a thumbnail per video; bio up to 80 characters of text; phone 10 digits while shown. No longer saved: `custom_handle`, `primary_specialty` (the first specialty is used), `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`, per-location phone and description. Business hours: lines of text (`[{ note }]`). `getBusinessCardById/:id` returns the whole card only with an admin token (or the owner's); without one, the public card | **Must:** limit the gallery to 4 photos and 1 video (it allows 20), drop the removed fields from the form, show `details.field` errors. Captions: send `new_images_gallery_meta` (one per new photo) and `existing_images_gallery_meta` (one per kept photo, in `existing_image_ids` order); `gallery_meta` is read only for new photos |
 | Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 7 lists the new screens and changes; each part gets its own entry here when it lands | Nothing yet |
@@ -146,6 +147,26 @@ Designed Oct 16 in the backend's `docs/access.md` (section 8); each part is logg
 - **Access orders:** buy and void the shipping label, tracking status from Shippo.
 - **Cards:** guest drafts listed apart from live cards; creating a card for an email whose account already has a
   card answers `CARD_EXISTS` (or replaces it when asked).
+
+### 7.1 Pricing (done Oct 16)
+
+All under `/api/v1/access/admin`, admin token required. Amounts are whole cents (USD). Errors: 400 `INVALID_INPUT`
+with `details.field`, 404, 409 `DISCOUNT_OVERLAPS`.
+
+| Method | Path | Body / query | What it does |
+| --- | --- | --- | --- |
+| GET | `/catalog` | | Products (list prices), plans, settings, discounts, the running discount: everything the pricing screens show |
+| PUT | `/plans/:code` | any of `name`, `label`, `badge`, `tagline`, `features` (`[{ text, soon?, highlight? }]`), `products` (`["pro","keychain"]`), `sort_order`, `is_active` | Edits a plan as the website shows it |
+| PUT | `/products/:code/price` | `{ amount_cents }` (at least 50) | New list price for `pro` (monthly) or `keychain`. New purchases pay it; subscribers keep their price (moving them comes with the Stripe step) |
+| GET | `/price-changes` | | Price change history (who, when, before, after) |
+| GET | `/discounts` | | Discounts, newest first |
+| POST | `/discounts` | `name`, `percent_off` or `amount_off_cents`, `applies_to` (`["pro"]`, `["keychain"]` or both), `duration` (`once`, `repeating` with `duration_in_months`, `forever`: how long it lasts on Access Pro), `starts_at` (default now), `ends_at` (optional) | A site-wide sale. Only one runs at a time (409 `DISCOUNT_OVERLAPS`) |
+| PATCH | `/discounts/:id` | `name`, `ends_at` | Rename, or move the end. To change what it takes off, end it and make a new one |
+| POST | `/discounts/:id/end` | | Ends it now |
+| GET | `/custom-prices` | `?user_id=`, `?email=`, `?active=true` | Personal prices |
+| POST | `/custom-prices` | `user_id` or `email`, `product_code`, `amount_cents`, `note`, `ends_at` (optional) | A price for one client (an email works before they have an account). Replaces their earlier one for that product; beats a running sale |
+| POST | `/custom-prices/:id/end` | | Ends it |
+| PUT | `/settings` | any of `entitlements` (`{ free, pro }` each with `photos`, `videos`, `edit_details`, `edit_media`, `special_offers`, `analytics`, `priority_search`), `keychains_per_person`, `shipping` (`mode` live/flat/free, `flat_amount_cents`, `countries` US/CA, `parcel` dimensions and weight) | Each setting sent replaces the stored one whole; answers all settings |
 
 ## Appendix: every admin endpoint
 
