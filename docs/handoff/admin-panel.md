@@ -35,6 +35,10 @@ Found by reviewing the admin panel code (Oct 16) against the new backend. Detail
       don't treat a 401 from the login call as an ended session. Sign-out: call `POST /admin/auth/logout` with the
       token, then clear it. Sessions last 12 hours.
 - [ ] Card gallery: up to 20 photos and 1 video for admins (not 4: that is the owners' limit).
+- [ ] No template words left in the panel: read `appointment_professional` instead of `appointment_counselor`
+      (Appointments, ProfessionalBooking, UserBookings, Dashboard), rename `GetBookingsByCounsellorId` and
+      `GetAllReferralByBeauticianId` with their endpoints (above), and say "Professional" in the founder messages
+      ("Beautician is marked as Founder.").
 
 ## Changelog
 
@@ -42,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | **Template names gone from the data:** the admin permissions of the professionals section are now `professional`, `create-professional`, `view-professional`, `update-professional`, `delete-professional` ("Professional", was "Esthetician"); GlamCoin rules 11 and 12 are titled "Follow a Professional/User" and "Unfollow a Professional/User" (rules are still found by `action`) | **Must:** if the panel matches a permission slug, use the new ones (it does not today). Also the checklist's item on template words |
 | Oct 16 | **Admin sign-in** (the panel's security questions, answered in that doc): a failed login is 401 `INVALID_CREDENTIALS` "Invalid email or password." for an unknown email, a wrong password and a deactivated admin alike (it was 400 "User not found." or another message). Tokens last 12 hours (`ADMIN_TOKEN_HOURS`; it was 5 days). New `POST /admin/auth/logout` ends every session of that admin; changing or resetting the password does too (the next call answers 401 `ADMIN_SESSION_EXPIRED`). `POST /admin/auth/otp` answers the same for any email. The app's admin screens (`/admin/posts`, `/admin/reels`, `/admin/services`, `/admin/home/appointments/all`, `/admin/user/promoted`, `/admin/service-list`, `/category` writes) now use the same check as every admin route: Bearer accepted, a deactivated admin refused, 401 with a code instead of 400 or 500 (`jwt expired`) | **Must:** show the login error; call logout on sign-out; after a password change, show sign-in |
 | Oct 16 | **For the panel as it is:** a URL with a double slash (`/api/v1//journal/topic`) reaches its route; "Add admin" needs no `department_id` (`ADM_DEPT_ID` is used); the card gallery takes up to 20 photos from an admin (owners stay at their plan's 4; an owner can't add to a card over that). Uploads take up to 20 `images` per request | **Must:** cap the gallery at 20 photos and 1 video (the 4-photo entry below was for owners) |
 | Oct 16 | **Plan features enforced for owners** (the website note's section 9.6): on a live card, Free owners cannot change photos, video or the profile image or run offers; admins are not limited. What each plan allows is the `entitlements` setting (section 7.1) | **Can:** show the settings' entitlements on the pricing screen so they can be changed |

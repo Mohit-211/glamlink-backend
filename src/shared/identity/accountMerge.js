@@ -102,7 +102,7 @@ const mergeGroup = async (sequelize, [kept, ...merged], transaction) => {
             { replacements: [kept.id], transaction },
         );
         for (const [table, column] of REFERENCES) {
-            // A later migration may have dropped the table (the counselling template's fee and scheduler tables).
+            // A later migration may have dropped the table (the template's fee and scheduler tables, 20261015-0600).
             if (!(await columnsOf(sequelize, table, transaction)).has(column)) continue;
             const roleSet = ROLE_TABLES.has(table) ? ', role_id = ?' : '';
             const keepPhoto = table === 'user_attachments' && keptPhotos ? " AND title <> 'Profile Image'" : '';

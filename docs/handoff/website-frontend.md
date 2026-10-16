@@ -21,7 +21,9 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
 - [ ] Pages `/verify-email` and `/reset-password` (section 3); remove `/verify-otp` and the OTP steps of
       forgot-password; logout is `POST`; change password moved to `/user/auth/change-password`.
 - [ ] Drop the `role_id` header everywhere (sign-in, card create/update).
-- [ ] `user/nearby/map/beautician/list` is now `user/nearby/map/professional/list` (section 5).
+- [ ] `user/nearby/map/beautician/list` is now `user/nearby/map/professional/list` (section 5); rename
+      `GetBeauticianListApi` and `GetBeauticianListDetailsApi` with it, and say "professionals" on the CSAM
+      policy page, so no template word is left.
 - [ ] The `/directory` featured carousel calls `businessCard/getAllBusinessCards`, which is admin-only: use the public
       `businessCard/getAllProfiles` (accepted cards only).
 - [ ] Ad tracking posts to the relative `/api/ads/track` (the website itself, always 404); it will point at the API
