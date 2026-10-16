@@ -4,6 +4,7 @@ const { identifyAdmin } = require("../../shared/admin");
 const { identify } = require("../../shared/identity");
 const { issueCardToken } = require("./cardToken");
 const { toPublicCard } = require("./cardPublic");
+const { hideOffersOffPlan } = require("./entitlements");
 const catchAsync = require("../../core/http/catchAsync");
 const businessCardService = require("./businessCard.service");
 const responseWrapper = require("../../core/http/responseWrapper");
@@ -88,6 +89,7 @@ const getBusinessCardById = catchAsync(async (req, res) => {
   if (card.status !== "accepted") {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
   }
+  await hideOffersOffPlan([card]);
   return responseWrapper(res, toPublicCard(card), "", httpStatus.OK);
 });
 
@@ -96,6 +98,7 @@ const updateBusinessCard = catchAsync(async (req, res) => {
     req.params.id,
     req.body,
     req.files,
+    { admin: Boolean(req.isAdmin) },
   );
   return responseWrapper(res, response, "", httpStatus.OK);
 });
@@ -104,6 +107,7 @@ const reorderFeaturedLinks = catchAsync(async (req, res) => {
   const directoryDoc = await businessCardService.reorderFeaturedLinks(
     req.params.id,
     req.body,
+    { admin: Boolean(req.isAdmin) },
   );
 
   return responseWrapper(

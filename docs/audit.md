@@ -79,7 +79,8 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 | Tokens in localStorage | Fixed on the backend: refresh token in an httpOnly cookie (Phase 3); the website must adopt it |
 | Auth errors answered 200 | Fixed: real statuses and codes (Phase 3) |
 | Captcha skipped when the key is missing | Fixed: Turnstile required in production (Phase 3) |
-| Hard-coded prices, ad selection in the browser, ad tracking 404, journal paging in the browser, mock directory, YouTube key in the browser, four forms that send nothing, analytics counts easy to inflate, edit lock only in the UI | Open (Phase 2b). Prices, plans and the edit lock: designed in access.md |
+| Hard-coded prices, edit lock only in the UI | Fixed: plans and prices from `GET /access/plans`, plan features enforced by the API (Phase 2b, access.md) |
+| Ad selection in the browser, ad tracking 404, journal paging in the browser, mock directory, YouTube key in the browser, four forms that send nothing, analytics counts easy to inflate | Open (Phase 2b) |
 | Password rules differ between sign-up and reset | Fixed: one rule (Phase 3) |
 
 Found during the work (not in the audits):

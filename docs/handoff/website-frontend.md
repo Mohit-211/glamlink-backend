@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **The plan's features are enforced by the API** (section 9.6): once a card is live, its owner on Free can still change the details (text, links, hours, locations) but not the photos, the video or the profile image, and cannot run a special offer: 403 `UPGRADE_REQUIRED` with `details.feature` (`edit_media`, `special_offers`, or `edit_details` if an admin turns Free editing off). Pro may do all of it. Public cards show an offer only while the owner is Pro. Drafts, cards waiting for review and rejected cards can always be edited | **Should:** let Free owners edit their details (today the Edit button sends them to the plans), keep photos, video and offers behind Pro; show the offer fields to Pro owners; on `UPGRADE_REQUIRED`, offer the upgrade |
 | Oct 16 | **Delivery addresses checked with Shippo in one step** (section 9.5): `order/addNewAddress-public`, `editAddress-public`, `order/addNewAddress` and `editAddress` save the address as Shippo corrected it and answer it, with `corrected: true` and `original_address` when Shippo changed it. New optional fields: `address_line_2`, `recipient_name`, `phone`. Refusals: 400 `ADDRESS_INVALID` (message unchanged: "Address validation failed: …"), 502 `ADDRESS_CHECK_UNAVAILABLE`. `editAddress` edits only the signed-in person's own addresses (it edited any address by id). The keychain ships to the US only unless an admin adds Canada | **Should:** show "We corrected your address to …" when `corrected`, and add an apartment/suite field (`address_line_2`) |
 | Oct 16 | **Payments on the new Stripe integration** (section 9.4): a checkout quotes and stores what a plan costs for a card (`POST /access/checkout/quote`), then `POST /access/checkout/:id/pay` returns the Stripe client secret; `GET /access/checkout/:id` says when it is paid. The old calls (`shipping-rate[-public]`, `create-subscription[-public]`) now run on it: same requests and answers, plus `checkout_id`; prices come from the plans and sales, not from the browser. `cancel-subscription` now ends Access Pro at the end of the paid month (it ended it at once); `/access/subscription` shows the seat, `/access/subscription/cancel` and `/resume`. New refusals: 409 `ALREADY_OWNED` (buying Pro again), `NFC_ALREADY_PURCHASED` is now per person, 400 `SHIPPING_COUNTRY_UNSUPPORTED`, `CHECKOUT_EXPIRED` | **Nothing required:** `confirmCardPayment(clientSecret)` keeps working. **Should:** say "Your Pro plan ends on <date>" after cancelling, and offer resume; after paying, poll `GET /access/checkout/:id` until `paid` before showing the dashboard. **Can:** the Payment Element (`confirmPayment`) for Apple Pay, Google Pay and Link |
 | Oct 16 | **Plans and prices from the API:** `GET /access/plans` (section 9.3): the four plans with name, label, badge, tagline, features (`soon`, `highlight`), and prices in cents for whoever asks (signed in: their personal prices and what they already own; a guest: `?business_card_id=` with the card token, for a personal price on their email; anyone: list prices and a running sale). Admins can now change prices, run a sale and give one client a personal price | **Must (before prices change):** build the plan cards and the "Continue" button from `/access/plans` instead of `plans.ts` (`PRO_PRICE`, `KEYCHAIN_PRICE`, the feature lists). **Can:** show the sale and its end date |
@@ -172,6 +173,11 @@ Error responses: `{ success: false, status, message, code, data: "" }`. `code` i
 | `ACCOUNT_EXISTS` | 409 | A guest's draft whose email already has an account: sign in, then claim it (section 9.2) |
 | `CARD_EXISTS` | 409 | The person already has a card; `details.card_id` is theirs. Send `replace: true` to swap it (section 9.2) |
 | `CARD_NOT_CLAIMABLE` | 409 | Claiming a card that is no longer a draft, or is someone else's |
+| `UPGRADE_REQUIRED` | 403 | The owner's plan does not include this change; `details.feature` is `edit_media`, `special_offers` or `edit_details` (section 9.6) |
+| `ALREADY_OWNED` | 409 | The person already has what the plan sells (Access Pro) |
+| `SHIPPING_COUNTRY_UNSUPPORTED` | 400 | The keychain does not ship to the address's country |
+| `ADDRESS_CHECK_UNAVAILABLE` | 502 | Shippo did not answer; try again |
+| `CHECKOUT_EXPIRED` | 409 | The quote is over 24 hours old or its payment lapsed: quote again |
 
 Older errors elsewhere in the API still have no `code`; branch on `status` there. Messages the website matches today
 ("Address not found", "Please verify address first", "NFC card already purchased", "Address validation failed: …")
@@ -463,3 +469,19 @@ Shippo's corrected one (standard abbreviations, ZIP+4). The answer:
 An address Shippo cannot deliver to: 400 `ADDRESS_INVALID`, "Address validation failed: <Shippo's reasons>".
 Shippo not answering: 502 `ADDRESS_CHECK_UNAVAILABLE` (try again). A checkout for a country the keychain does not
 ship to: 400 `SHIPPING_COUNTRY_UNSUPPORTED` (US only until an admin adds Canada).
+
+### 9.6 What each plan may change (done Oct 16)
+
+From the pricing page; admins can change these per plan (settings `entitlements`).
+
+| Once the card is live | Free | Pro |
+| --- | --- | --- |
+| Details: name, title, bio, contact, specialties, booking, links, hours, locations | yes | yes |
+| Photos, video, profile image (add, remove, replace, captions, cover) | no: `edit_media` | yes |
+| Special offer (`offer_promotion`, `promotion_details`) | no: `special_offers` | yes |
+| Photos / videos on the card | 4 / 1 | 4 / 1 |
+
+Refused edits answer 403 `UPGRADE_REQUIRED` with `details.feature`. Sending the whole form back with the photos
+unchanged (as the edit page does) is fine; only real changes count. A draft, a card waiting for review and a
+rejected card can always be edited, and an admin can change anything. A public card shows its offer only while
+its owner is Pro (the offer is kept, and shows again if they subscribe again).

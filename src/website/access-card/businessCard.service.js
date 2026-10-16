@@ -19,6 +19,11 @@ const { readCard } = require("./cardFields");
 const { makeRoomFor, lockPerson, assertNoAccountFor } = require("./cardOwnership");
 const { planFieldsFor } = require("./seats");
 const { toPublicCard } = require("./cardPublic");
+const { entitlementsFor, checkOwnerEdit, hideOffersOffPlan } = require("./entitlements");
+const { getSettings } = require("./catalog");
+
+// What an admin may do on any card: everything Pro may, and special offers.
+const adminRights = async () => ({ ...(await getSettings()).entitlements.pro, special_offers: true });
 const logger = require("../../core/logger");
 const {
   sendBusinessCardApprovedEmail,
@@ -136,6 +141,7 @@ const createBusinessCard = async (body, files) => {
     body,
     files,
     attributes: { user_id: null, status: "draft", plan_type: "free", nfc_status: "not_purchased" },
+    rights: await entitlementsFor(null),
   });
   const accountExists = Boolean(
     await User.findOne({ where: { email: normalizeEmail(cardDoc.email) }, attributes: ["id"] }),
@@ -191,6 +197,7 @@ const createBusinessCardByAdmin = async (body, files) => {
         : { plan_type: "free", nfc_status: "not_purchased" }),
     },
     prepare: existingUser ? roomFor(existingUser.id, body) : undefined,
+    rights: await adminRights(),
   });
 
   if (existingUser) {
@@ -233,6 +240,7 @@ const createBusinessCardWithToken = async (body, files) => {
       ...(await planFieldsFor(user)),
     },
     prepare: roomFor(user.id, body),
+    rights: await entitlementsFor(user.id),
   });
 
   sendAccessCardCreatedAdminEmail({
@@ -472,14 +480,17 @@ const getBusinessCardById = async (id) => {
   return data;
 };
 
-const updateBusinessCard = async (id, body, files) => {
+// An edit by an admin, the owner, or a guest with the draft's card token (the route checks which). The owner's plan
+// decides what may change once the card is live (entitlements.js); an admin may change anything.
+const updateBusinessCard = async (id, body, files, { admin = false } = {}) => {
   const cardDoc = await BusinessCard.findByPk(id);
 
   if (!cardDoc) {
     throw new ApiError(404, "Business card not found");
   }
 
-  return updateCard(cardDoc, { body, files });
+  const rights = admin ? await adminRights() : await entitlementsFor(cardDoc.user_id);
+  return updateCard(cardDoc, { body, files, rights, byOwner: !admin && Boolean(cardDoc.user_id) });
 };
 
 const deleteBusinessCard = async (body) => {
@@ -647,6 +658,7 @@ const getBusinessCard = async (slug) => {
     }
   }
 
+  await hideOffersOffPlan([data]);
   return toPublicCard(data);
 };
 
@@ -728,10 +740,11 @@ const getAllProfiles = async () => {
             },
           ];
 
-    return toPublicCard(data);
+    return data;
   });
 
-  return cards;
+  await hideOffersOffPlan(cards);
+  return cards.map(toPublicCard);
 };
 
 const filterBusinessCards = async ({ primary_specialty, location }) => {
@@ -1013,7 +1026,7 @@ const updateBusinessCardStatus = async (reqBody) => {
   return card;
 };
 
-const reorderFeaturedLinks = async (businessCardId, body) => {
+const reorderFeaturedLinks = async (businessCardId, body, { admin = false } = {}) => {
   if (!Array.isArray(body.featured_links)) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -1037,6 +1050,10 @@ const reorderFeaturedLinks = async (businessCardId, body) => {
     { featured_links: body.featured_links },
     { current: card.get({ plain: true }) },
   );
+  if (!admin && card.user_id) {
+    const empty = { profileImage: undefined, add: [], removeIds: [], update: [] };
+    await checkOwnerEdit(card, { card: changes, media: empty }, await entitlementsFor(card.user_id));
+  }
   await card.update({ featured_links: changes.featured_links });
 
   return card;
@@ -1337,7 +1354,9 @@ const getProfilesByDirectory = async (directory_id) => {
     ],
   });
 
-  return profiles.map((profile) => toPublicCard(profile.toJSON()));
+  const shown = profiles.map((profile) => profile.toJSON());
+  await hideOffersOffPlan(shown);
+  return shown.map(toPublicCard);
 };
 
 const selectBusinessCardAddress = async (body) => {
