@@ -1,6 +1,7 @@
 # Access: the card, plans, pricing, payments and shipping
 
-The design for Phase 2b's Access work (Oct 16, 2026). What Mohit asked for:
+The design for Phase 2b's Access work (Oct 16, 2026), now built (steps 1 to 6 in progress.md; what each frontend
+does with it is in the handoff notes). What Mohit asked for:
 
 - The card has precisely the fields of the website's card form, and the admin panel edits the same fields.
 - The plans work as the website lists them (Free, Keychain, Access Pro, Pro + keychain), and plans can change later.
@@ -207,4 +208,37 @@ for the website until it reads the new endpoints.
 6. Entitlements and the edit rules.
 7. Handoff notes for the website and the admin panel, the runbook's Stripe and Shippo steps.
 
-Not covered: sales tax (Stripe Tax), as today.
+Not covered: sales tax (Stripe Tax), as today; refunds (made in Stripe's dashboard; the order is not marked
+refunded yet); emails to the buyer when the keychain ships.
+
+## 11. Setting up (for the deploy runbook)
+
+1. `.env`: `ADMIN_URL`; the warehouse `SHIP_FROM_NAME`, `SHIP_FROM_COMPANY`, `SHIP_FROM_STREET1`, `SHIP_FROM_STREET2`,
+   `SHIP_FROM_CITY`, `SHIP_FROM_STATE`, `SHIP_FROM_ZIP`, `SHIP_FROM_PHONE`, `SHIP_FROM_EMAIL` (the address the
+   old code had written in); `SHIPPO_WEBHOOK_TOKEN` (a long random string); `SHIPPO_ADDRESS_VALIDATION=legacy`
+   (`v2` once Shippo enables its newer check for the account).
+2. `npm run stripe:setup`: makes (or adopts from the old price IDs in `.env`) the Stripe products and list prices,
+   and prints the webhook to create.
+3. Stripe webhook endpoint `https://api.glamlink.net/api/v1/payment/stripe/charge-intent/webhooks` on API version
+   `2026-09-30.endive`, with the events `stripe:setup` lists; its signing secret in
+   `STRIPE_WEBHOOK_SECRET_INTENT_CHARGE`. Turn the old endpoint off at the switch.
+4. Shippo webhook (API portal > Webhooks): `track_updated` to
+   `https://api.glamlink.net/api/v1/access/shippo/webhook?token=<SHIPPO_WEBHOOK_TOKEN>`. Ask Shippo for HMAC signing
+   when convenient, then set `SHIPPO_WEBHOOK_HMAC_SECRET`.
+5. `npm run stripe:reconcile` (then `-- --apply`) after restoring the live data: seats take Stripe's status and
+   renewal dates, and Stripe subscriptions without a seat are listed.
+
+## 12. Decisions taken with defaults (Oct 16)
+
+Each can be changed: most are settings an admin changes.
+
+- Free owners can keep their details current; photos, video and offers need Pro (`entitlements` setting).
+- A price change applies to new purchases; subscribers keep theirs unless the admin moves them.
+- A personal price replaces the site-wide discount for that product.
+- Cancelling ends Access Pro at the end of the paid month; a failed renewal keeps Pro while Stripe retries.
+- One keychain per person (`keychains_per_person`); the keychain ships to the US (Canada in `shipping.countries`).
+- Guest drafts are kept, hidden, never erased. On the live copy, two old unpaid guest cards (14 "Polished Nails &
+  Spa", accepted, and 59 "Jessica Leigh", pending) became drafts; their old status is in
+  `business_card_status_backup`.
+- Kate Sibley (account 194) has two live cards ("Kate Sibley" and "Tiffany Adison Menzione"): waiting for Mohit.
+- 23 accounts have Pro without a Stripe subscription (bulk-set on Oct 8): they are complimentary seats.

@@ -28,6 +28,12 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
       once the backend adds the endpoint (see the changelog).
 - [ ] Logged-out card purchase: keep the `card_token` from `POST /businessCard` and send it on every purchase call;
       signed-in owners send their access token instead (section 8).
+- [ ] A guest whose email has an account (`next_step: "sign_in"` or `ACCOUNT_EXISTS`): sign in, then claim the
+      draft (section 9.2). `CARD_EXISTS` on create: offer edit or replace.
+- [ ] The card form: at most 4 photos and 1 video; show `INVALID_CARD` errors under `details.field` (section 9.1).
+- [ ] Plans and prices from `GET /access/plans` before any admin price change or sale (section 9.3).
+- [ ] Free owners may edit details; photos, video and offers stay behind Pro (`UPGRADE_REQUIRED`, section 9.6).
+- [ ] After cancelling, Access Pro runs to the end of the paid month: say so, offer resume (section 9.4).
 
 ## Changelog
 
