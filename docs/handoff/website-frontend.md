@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **The card form's fields and checks are now the API's** (section 9.1). Creating and editing a card (guest, signed in, owner edit) checks the same fields the form checks, and a refusal names the field: 400 `INVALID_CARD` with `details: { field }` (the form's keys: `name`, `phone`, `bio`, `booking_link`, `instagram`, `images`, …). Read now: `isPrimary` on locations (it was dropped, so no location was primary), `new_images_gallery_meta` captions and cover, video thumbnails. Limits: 4 photos and 1 video (the form allows 5 media in any mix), MP4 under 21 MB, bio up to 80 characters of text (a stored longer bio can stay until it is changed). Ignored: `custom_handle`, `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`; `primary_specialty` is the first specialty. Public card responses (`getBusinessCard/:slug`, `getAllProfiles`, `getProfilesByDirectory/:id`, `getBusinessCardById/:id` without the owner's or an admin's token) leave out the owner's account and plan fields (`user_id`, `business_user`, `plan_type`, `nfc_status`, address and shipping fields, the marketing answers) and return `phone: null` when the phone is hidden; `getBusinessCardById` of a card that is not live is 404 for them | **Must:** cap the gallery at 4 photos and 1 video. **Can:** show `details.field` errors under the field. The dashboard reads `getMyBusinessCard`, which still returns everything |
 | Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 9 lists what it will mean for the website; each part gets its own entry here when it lands | Nothing yet |
 | Oct 16 | The card bio is cleaned on save: only the bio editor's formatting stays (paragraphs, bold, italic, underline, strike, h3, lists, quotes, and links over http, https, mailto or tel, which get `target="_blank" rel="noopener noreferrer nofollow"`). The directory filter's `location` is matched as a value (it was written into the SQL) | Nothing: the bio editor only produces these |
 | Oct 16 | CORS: the API no longer answers `Access-Control-Allow-Origin: *`; only the origins in its `ACCESSDOMAINS` setting get CORS headers, and a browser on any other origin gets 403 `ORIGIN_NOT_ALLOWED`. The production setting must list `https://glamlink.net` (and `https://www.glamlink.net` if used) | Nothing, as long as the site runs on a listed origin. For local development, ask for `http://localhost:3000` to be listed |
@@ -163,6 +164,7 @@ Error responses: `{ success: false, status, message, code, data: "" }`. `code` i
 | `ADDRESS_NOT_VERIFIED` | 400 | Shipping rate asked before the address was saved (message: "Please verify address first") |
 | `NFC_ALREADY_PURCHASED` | 400 | The card already has its NFC keychain (message: "NFC card already purchased") |
 | `PAYMENT_FAILED` | 4xx | Stripe refused the payment; the message is Stripe's, written for the payer ("Your card was declined.") |
+| `INVALID_CARD` | 400 | A card field fails the form's rules; `details.field` names it (section 9.1) |
 
 Older errors elsewhere in the API still have no `code`; branch on `status` there. Messages the website matches today
 ("Address not found", "Please verify address first", "NFC card already purchased", "Address validation failed: …")
@@ -307,3 +309,29 @@ with exactly what to change. What the website should expect:
 - **What Free and Pro can change** (pricing page features): Free owners can keep their details current; photos,
   video and special offers need Pro (`UPGRADE_REQUIRED`). Today the website locks all editing for Free cards.
 - **Special offers:** the form gains the offer fields for Pro cards.
+
+### 9.1 The card's fields (done Oct 16)
+
+Creating (`POST /businessCard`, `POST /businessCard/createBusinessCard`) and editing (`PUT /businessCard/updateBusinessCard/:id`)
+accept exactly these fields, as the form sends them (multipart; lists and objects as JSON strings). An edit changes
+only the fields it sends.
+
+| Field | Rule (refusal: 400 `INVALID_CARD`, `details.field` in brackets) |
+| --- | --- |
+| `name`, `professional_title`, `business_name` | Required, at most 100 / 100 / 150 characters |
+| `email` | Required, valid |
+| `phone`, `is_phone_visible` | Digits (other characters are removed); exactly 10 while visible (default visible) |
+| `bio` | Required; cleaned to the editor's formatting; at most 80 characters of text |
+| `color_code` | `#RRGGBB` |
+| `specialties` | 1 to 5, at most 60 characters each; the first is the card's `primary_specialty` |
+| `locations` | At least 1, at most 10: `location_type` `exact_address` (with `address`) or `city_only` (with `city` and `state`), `label`, `latitude`, `longitude`, `isPrimary` (or `is_primary`; one primary, the first if none) |
+| `business_hour` | `[{ note }]`, at most 14 lines |
+| `preferred_booking_method` | 1 or more of `GO_TO_BOOKING_LINK` (any case, so `GO_tO_BOOKING_LINK` works), `CALL_TEXT`, `DM_INSTAGRAM`; the first needs `booking_link` or `website` [`booking_link`], the last `social_media.instagram` [`instagram`] |
+| `website`, `booking_link` | Web links; `example.com` is saved as `https://example.com` |
+| `social_media` | `instagram`, `instagram1`, `instagram2`, `tiktok`, `linkedin`, `youtube`, `facebook` |
+| `other_links`, `featured_links` | At most 10 each; one featured link at most |
+| `important_info` | At most 10 lines of 200 characters |
+| `profile_image` | Required on create [`profile_image`] |
+| `images`, `videos` + `video_thumbnails` | At least one item on create; up to 4 photos and 1 MP4 video (21 MB), a thumbnail per video [`images`]. Edit: `existing_image_ids` / `existing_video_ids` list what stays; a card that already has more keeps them but cannot add |
+| `new_images_gallery_meta`, `existing_images_gallery_meta` | Caption and cover (`is_thumbnail`) per new / kept photo, in order |
+| `offer_promotion`, `promotion_details` | Special offer (Pro only, once plans are enforced) |

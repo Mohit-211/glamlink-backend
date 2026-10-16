@@ -8,7 +8,7 @@ Access design: access.md (Oct 16). Build order and status:
 
 | Step | Status |
 | --- | --- |
-| 1. The card's fields (one create and one edit path, the website's checks, media limits, phone privacy) | Next |
+| 1. The card's fields (one create and one edit path, the website's checks, media limits, phone privacy) | Done: `cardFields.js` (the form's fields and checks, `INVALID_CARD` with the field), `cardMedia.js` (4 photos, 1 video, thumbnails, captions), `cardWriter.js` (one transaction for card, locations, hours, media; links of deleted cards stay reserved), `cardPublic.js` (no account, plan or hidden phone in public responses); the three create functions and the edit (2,460 lines) replaced. Contract: only the four public card reads change, as intended. Tests: `test/cardFields.test.js` |
 | 2. Drafts, one card per person, claim, owner delete and re-create on the same link | Planned |
 | 3. Plans, products, prices, discounts, personal prices, settings | Planned |
 | 4. Stripe: stripe-node 23, checkouts, seats, webhook handlers, setup and reconcile scripts | Planned |

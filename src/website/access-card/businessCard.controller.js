@@ -1,5 +1,9 @@
-const httpStatus = require("../../core/http/status");
+const httpStatus = require("../../core/http/status");
+const ApiError = require("../../core/http/ApiError");
+const { identifyAdmin } = require("../../shared/admin");
+const { identify } = require("../../shared/identity");
 const { issueCardToken } = require("./cardToken");
+const { toPublicCard } = require("./cardPublic");
 const catchAsync = require("../../core/http/catchAsync");
 const businessCardService = require("./businessCard.service");
 const responseWrapper = require("../../core/http/responseWrapper");
@@ -64,9 +68,27 @@ const getMyBusinessCard = catchAsync(async (req, res) => {
   return responseWrapper(res, response, "", httpStatus.OK);
 });
 
+// An admin or the card's owner may see the whole card; a stale or missing sign-in counts as the public.
+const seesWholeCard = async (req, card) => {
+  if (await identifyAdmin(req)) return true;
+  try {
+    await identify(req);
+  } catch {
+    return false;
+  }
+  return Boolean(req.user && card.user_id && String(req.user.id) === String(card.user_id));
+};
+
 const getBusinessCardById = catchAsync(async (req, res) => {
-  const response = await businessCardService.getBusinessCardById(req.params.id);
-  return responseWrapper(res, response, "", httpStatus.OK);
+  const card = await businessCardService.getBusinessCardById(req.params.id);
+  if (await seesWholeCard(req, card)) {
+    return responseWrapper(res, card, "", httpStatus.OK);
+  }
+  // Everyone else sees a live card as the public card page shows it.
+  if (card.status !== "accepted") {
+    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
+  }
+  return responseWrapper(res, toPublicCard(card), "", httpStatus.OK);
 });
 
 const updateBusinessCard = catchAsync(async (req, res) => {

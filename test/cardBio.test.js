@@ -3,6 +3,7 @@
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { startApp } = require('./helpers');
+const { cardFields, cardFiles } = require('./cardFixtures');
 const { sanitizeBio, bioMarkupRemoved } = require('../src/website/access-card');
 
 const ATTACK = '<p onclick="steal()">Hi<script>alert(1)</script><img src=x onerror="alert(2)"> <a href="javascript:alert(3)">x</a> '
@@ -46,7 +47,7 @@ describe('saving a card', () => {
     let cardId, cardToken;
 
     test('a new card stores its bio cleaned', async () => {
-        const res = await app.request('POST', '/api/v1/businessCard', { body: { name: 'Bio Test', email: `bio-${stamp}@test.example`, bio: ATTACK } });
+        const res = await app.form('POST', '/api/v1/businessCard', { fields: cardFields({ bio: ATTACK }), files: cardFiles() });
         assert.equal(res.status, 201);
         ({ business_card_id: cardId, card_token: cardToken } = res.body.data);
         const [{ bio }] = await q('SELECT bio FROM business_cards WHERE id = ?', [cardId]);
@@ -55,8 +56,8 @@ describe('saving a card', () => {
     });
 
     test('an edit stores its bio cleaned', async () => {
-        const res = await app.request('PUT', `/api/v1/businessCard/updateBusinessCard/${cardId}`, {
-            body: { bio: '<p>New<script>x()</script></p>' }, headers: { 'x-card-token': cardToken },
+        const res = await app.form('PUT', `/api/v1/businessCard/updateBusinessCard/${cardId}`, {
+            fields: { bio: '<p>New<script>x()</script></p>' }, headers: { 'x-card-token': cardToken },
         });
         assert.equal(res.status, 200);
         const [{ bio }] = await q('SELECT bio FROM business_cards WHERE id = ?', [cardId]);
