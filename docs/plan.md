@@ -20,7 +20,8 @@ Approved Oct 16, 2026. Progress is in progress.md; finding-by-finding status in 
   logged in its handoff note with what the frontend must or can do, including logic the backend takes over.
 - Each change is verified: route table and route chains, model table, the 67-endpoint contract check against the
   local copy of production, the test suite, and `npm run lint` (with the module-boundary check).
-- New work continues on `phase5/security` (it holds every earlier phase); `main` and older commits stay as they are.
+- `master` holds the code that deploys (made from `phase5/security`, which holds every earlier phase, on Oct 16);
+  new work branches from it. `main` and older commits stay as they are.
 
 ## Phases
 

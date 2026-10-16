@@ -16,7 +16,7 @@ asks Stripe and Shippo whether the keys and the webhook work.
 
 ## 0. Before you start
 
-- On your machine: push the branch, `git push origin phase5/security`.
+- The code that deploys is the `master` branch on GitHub.
 - On the server: Node 24 (`node -v`), pm2 (`pm2 -v`), MariaDB 10.11, nginx, certbot. A user with sudo.
 - At hand: the old backend's `.env` (`/var/www/backend/.env`: SMTP, Stripe, Shippo, Google values to copy), the
   Stripe dashboard (test mode), Shippo, Cloudflare Turnstile, DNS for glamlink.net.
@@ -29,7 +29,7 @@ asks Stripe and Shippo whether the keys and the webhook work.
    ```bash
    sudo mkdir -p /var/www/api /var/www/storage/uploads /var/www/storage/logs
    sudo chown -R $USER:$USER /var/www/api /var/www/storage
-   git clone -b phase5/security https://github.com/Mohit-211/glamlink-backend.git /var/www/api
+   git clone -b master https://github.com/Mohit-211/glamlink-backend.git /var/www/api
    cd /var/www/api
    npm ci --omit=dev
    cp .env.example .env

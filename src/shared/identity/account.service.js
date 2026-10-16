@@ -62,7 +62,8 @@ const createAccount = async ({
             address: address || null,
             state_id: stateId || null,
             city_id: cityId || null,
-            profession: type === 'professional' ? (profession || 'Esthetician') : (profession || null),
+            // Empty unless the person gave one (it used to default to "Esthetician" for every professional).
+            profession: profession || null,
         }, { transaction });
 
         for (const photo of photos) {

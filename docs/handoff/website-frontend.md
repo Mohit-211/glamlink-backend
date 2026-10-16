@@ -1,7 +1,7 @@
 # Website frontend: backend API changes for the cutover
 
 For: the Claude working on the Glamlink website (glamlink.net) frontend.
-Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `phase5/security` (it holds every earlier phase).
+Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `master` (the code that deploys; it holds every earlier phase).
 
 The backend and the website ship together in one cutover. After it, every signed-in person has to sign in
 again (old tokens stop working). Everything below is what the website must change to work with the new
@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | A professional account made without a `profession` has none (`null`); it used to get "Esthetician". The website does not read it today | Nothing |
 | Oct 16 | **Ready to run on api.glamlink.net** (the backend's `docs/deploy.md`). Stored file links (card photos, QR codes, gallery, journal covers and bodies) point at `https://api.glamlink.net/images/…` and `/videos/…` instead of `node.glamlink.net`; the files are copied. Sign-up in production needs the Turnstile token (an API without its secret key answers 503 `CAPTCHA_NOT_CONFIGURED` rather than letting sign-ups through). One address may create 10 guest cards an hour (`POST /businessCard`; refused attempts don't count), then 429 `TOO_MANY_REQUESTS`. A URL with a double slash (`/api/v1//journal`) now reaches its route | **Must:** the Turnstile site key in the build, and the directory form's fields (checklist). Nothing else: image URLs come from the API as before |
 | Oct 16 | **The plan's features are enforced by the API** (section 9.6): once a card is live, its owner on Free can still change the details (text, links, hours, locations) but not the photos, the video or the profile image, and cannot run a special offer: 403 `UPGRADE_REQUIRED` with `details.feature` (`edit_media`, `special_offers`, or `edit_details` if an admin turns Free editing off). Pro may do all of it. Public cards show an offer only while the owner is Pro. Drafts, cards waiting for review and rejected cards can always be edited | **Should:** let Free owners edit their details (today the Edit button sends them to the plans), keep photos, video and offers behind Pro; show the offer fields to Pro owners; on `UPGRADE_REQUIRED`, offer the upgrade |
 | Oct 16 | **Delivery addresses checked with Shippo in one step** (section 9.5): `order/addNewAddress-public`, `editAddress-public`, `order/addNewAddress` and `editAddress` save the address as Shippo corrected it and answer it, with `corrected: true` and `original_address` when Shippo changed it. New optional fields: `address_line_2`, `recipient_name`, `phone`. Refusals: 400 `ADDRESS_INVALID` (message unchanged: "Address validation failed: …"), 502 `ADDRESS_CHECK_UNAVAILABLE`. `editAddress` edits only the signed-in person's own addresses (it edited any address by id). The keychain ships to the US only unless an admin adds Canada | **Should:** show "We corrected your address to …" when `corrected`, and add an apartment/suite field (`address_line_2`) |

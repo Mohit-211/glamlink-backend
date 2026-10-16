@@ -105,8 +105,8 @@ The server computes every amount; the browser never sends prices.
 - The keychain belongs to the person too: one per person (**Default**, admin setting).
 - Deleting a card is a soft delete; Access card data is never erased.
 - Existing data: Kate Sibley (account 194) has two cards on one email ("Kate Sibley", 16, accepted, and "Tiffany
-  Adison Menzione", 21, pending). Mohit: keep "Kate Sibley" (Oct 16). Removing card 21 waits for his go-ahead; until
-  then the API treats card 21, her newest, as her card.
+  Adison Menzione", 21, pending). Mohit: keep "Kate Sibley", delete card 21 (Oct 16): migration `20261016-1100`
+  soft-deletes it (the row stays).
 
 ## 5. Buying: the flow and every situation
 
@@ -242,7 +242,7 @@ Each can be changed: most are settings an admin changes. Mohit's answers (Oct 16
 - Guest drafts are kept, hidden, never erased. On the live copy, two old unpaid guest cards (14 "Polished Nails &
   Spa", accepted, and 59 "Jessica Leigh", pending) became drafts; their old status is in
   `business_card_status_backup`. **Mohit: fine.**
-- Kate Sibley (account 194): **Mohit: keep "Kate Sibley".** Her second card (21) is removed once he confirms.
+- Kate Sibley (account 194): **Mohit: keep "Kate Sibley", delete card 21** (soft, migration `20261016-1100`).
 - 23 accounts have Pro without a Stripe subscription (bulk-set on Oct 8): they are complimentary seats. **Mohit:
   keep them;** admins give or take back Pro with `PUT /access/admin/subscriptions/:userId/comp`.
 - **Mohit: admins may put up to 20 photos on a card** (the admin panel's gallery); owners keep their plan's count.
