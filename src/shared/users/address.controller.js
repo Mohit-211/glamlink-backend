@@ -4,20 +4,20 @@ const addressService = require("./address.service");
 const responseWrapper = require("../../core/http/responseWrapper");
 
 const addNewAddress = catchAsync(async (req, res) => {
-  await addressService.addNewAddress(req.body, req.headers);
+  const address = await addressService.addNewAddress(req.body);
   return responseWrapper(
     res,
-    "",
+    address,
     "New Address Added Successfully.",
     httpStatus.CREATED,
   );
 });
 
 const editAddress = catchAsync(async (req, res) => {
-  await addressService.editAddress(req.body, req.params.id);
+  const address = await addressService.editAddress(req.body, req.params.id);
   return responseWrapper(
     res,
-    "",
+    address,
     "Address Edited Successfully.",
     httpStatus.CREATED,
   );

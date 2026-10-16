@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **Delivery addresses checked with Shippo in one step** (section 9.5): `order/addNewAddress-public`, `editAddress-public`, `order/addNewAddress` and `editAddress` save the address as Shippo corrected it and answer it, with `corrected: true` and `original_address` when Shippo changed it. New optional fields: `address_line_2`, `recipient_name`, `phone`. Refusals: 400 `ADDRESS_INVALID` (message unchanged: "Address validation failed: …"), 502 `ADDRESS_CHECK_UNAVAILABLE`. `editAddress` edits only the signed-in person's own addresses (it edited any address by id). The keychain ships to the US only unless an admin adds Canada | **Should:** show "We corrected your address to …" when `corrected`, and add an apartment/suite field (`address_line_2`) |
 | Oct 16 | **Payments on the new Stripe integration** (section 9.4): a checkout quotes and stores what a plan costs for a card (`POST /access/checkout/quote`), then `POST /access/checkout/:id/pay` returns the Stripe client secret; `GET /access/checkout/:id` says when it is paid. The old calls (`shipping-rate[-public]`, `create-subscription[-public]`) now run on it: same requests and answers, plus `checkout_id`; prices come from the plans and sales, not from the browser. `cancel-subscription` now ends Access Pro at the end of the paid month (it ended it at once); `/access/subscription` shows the seat, `/access/subscription/cancel` and `/resume`. New refusals: 409 `ALREADY_OWNED` (buying Pro again), `NFC_ALREADY_PURCHASED` is now per person, 400 `SHIPPING_COUNTRY_UNSUPPORTED`, `CHECKOUT_EXPIRED` | **Nothing required:** `confirmCardPayment(clientSecret)` keeps working. **Should:** say "Your Pro plan ends on <date>" after cancelling, and offer resume; after paying, poll `GET /access/checkout/:id` until `paid` before showing the dashboard. **Can:** the Payment Element (`confirmPayment`) for Apple Pay, Google Pay and Link |
 | Oct 16 | **Plans and prices from the API:** `GET /access/plans` (section 9.3): the four plans with name, label, badge, tagline, features (`soon`, `highlight`), and prices in cents for whoever asks (signed in: their personal prices and what they already own; a guest: `?business_card_id=` with the card token, for a personal price on their email; anyone: list prices and a running sale). Admins can now change prices, run a sale and give one client a personal price | **Must (before prices change):** build the plan cards and the "Continue" button from `/access/plans` instead of `plans.ts` (`PRO_PRICE`, `KEYCHAIN_PRICE`, the feature lists). **Can:** show the sale and its end date |
 | Oct 16 | **Guest cards are drafts; one card per person** (section 9.2). `POST /businessCard` makes a draft (not public, not in the directory) and no longer attaches the card to an existing account with that email; it answers `status: "draft"`, `account_exists`, and `next_step: "sign_in"` or `"plan_selection"`. For a draft whose email has an account, `select-plan`, `shipping-rate-public` and `create-subscription-public` answer 409 `ACCOUNT_EXISTS`. New: `POST /access/cards/:id/claim` (signed in, with the card token) and `DELETE /access/cards/:id` (the owner). `createBusinessCard` (signed in) answers 409 `CARD_EXISTS` while the person has a card (`replace: true` swaps it) | **Must:** after `POST /businessCard`, when `next_step` is `sign_in` (or a purchase call answers `ACCOUNT_EXISTS`), send the person to sign in and then claim the draft with its card token. **Must:** handle `CARD_EXISTS` on create (offer edit, or replace). **Can:** a "Delete my card" action |
@@ -446,3 +447,19 @@ The old calls answer as before on top of this: `shipping-rate[-public]` quotes (
 cancel_at_period_end, … }` (null without one). `POST /access/subscription/cancel` ends it at the end of the paid
 month (`pro` stays true until then); `POST /access/subscription/resume` takes that back.
 `POST /businessCard/cancel-subscription` now does the same as cancel (it used to end Pro at once).
+
+### 9.5 Delivery addresses (done Oct 16)
+
+The address calls take `address_line_1`, `address_line_2` (apartment, suite), `state_id`, `city_id`, `postal_code`,
+and optionally `recipient_name` and `phone`. Shippo checks the address before it is saved, and the saved address is
+Shippo's corrected one (standard abbreviations, ZIP+4). The answer:
+
+```json
+{ "address_id": 812, "address": { "id": 812, "address_line_1": "1 MAIN ST", "address_line_2": "STE 5", "postal_code": "89101-1234", "…": "…" },
+  "corrected": true, "original_address": { "street1": "1 Main St", "street2": "Suite 5", "zip": "89101", "…": "…" } }
+```
+
+(`order/addNewAddress` and `editAddress` answer the address itself, with `corrected` and `original_address` in it.)
+An address Shippo cannot deliver to: 400 `ADDRESS_INVALID`, "Address validation failed: <Shippo's reasons>".
+Shippo not answering: 502 `ADDRESS_CHECK_UNAVAILABLE` (try again). A checkout for a country the keychain does not
+ship to: 400 `SHIPPING_COUNTRY_UNSUPPORTED` (US only until an admin adds Canada).

@@ -5,6 +5,7 @@ const { requireCardAccess } = require('./cardAccess.middleware');
 
 const { requireProfessional } = require('../../shared/identity');
 const businessCardController = require('./businessCard.controller');
+const { admin: accessAdmin } = require('./access.controller');
 
 router.post('/', businessCardController.createBusinessCard);
 router.post('/select-plan', requireCardAccess((req) => req.body.business_card_id), businessCardController.selectBusinessCardPlan);
@@ -74,6 +75,11 @@ router.patch(
   "/access-orders/:id/fulfillment", requireAdmin,
   businessCardController.updateAccessOrderFulfillment,
 );
+
+// The keychain's label with Shippo: today's rates, buy (rate_id optional), void.
+router.get("/access-orders/:id/rates", requireAdmin, accessAdmin.orderRates);
+router.post("/access-orders/:id/label", requireAdmin, accessAdmin.buyLabel);
+router.post("/access-orders/:id/label/void", requireAdmin, accessAdmin.voidLabel);
 
 
 

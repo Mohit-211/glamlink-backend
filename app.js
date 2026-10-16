@@ -55,6 +55,8 @@ app.use(
   '/api/v1/payment/stripe/charge-intent/webhooks',
   express.raw({ type: '*/*' })
 );
+// Shippo's webhook is checked against its raw body too (website/access-card/fulfillment.js).
+app.use('/api/v1/access/shippo/webhook', express.raw({ type: '*/*' }));
 app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));

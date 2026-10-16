@@ -1,201 +1,35 @@
 const httpStatus = require("../../core/http/status");
 const { UserAddress, Country, State, City } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
-const { createAddressInShippo, saveAddressToDatabase, validateAddressInShippo } = require("../../integrations/shippo");
+const { Op } = require("sequelize");
+const { saveShippingAddress } = require("./shippingAddress");
 
-const addNewAddress = async (reqBody, headers) => {
+// Shipping addresses are never served as business addresses.
+const notShipping = { [Op.or]: [{ purpose: null }, { purpose: { [Op.ne]: "shipping" } }] };
+const displayName = (user) => user.user_profile?.name || user.user_name || null;
+
+// A delivery address for the signed-in person, checked with Shippo (shippingAddress.js). Answers the saved
+// address, with `corrected` when Shippo changed it.
+const addNewAddress = async (reqBody) => {
   const { user } = reqBody;
-  const { role_id } = headers;
-
-  // Check required fields
-  if (
-    !reqBody.address_line_1 ||
-    !reqBody.state_id ||
-    !reqBody.city_id ||
-    !reqBody.postal_code
-  ) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Missing required address fields.",
-    );
-  }
-
-  // Fetch State and City Data
-  const stateData = await State.findOne({ where: { id: reqBody.state_id } });
-  if (!stateData) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
-  }
-
-  const cityData = await City.findOne({ where: { id: reqBody.city_id } });
-  if (!cityData) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
-  }
-
-  // Prepare address data for Shippo
-  const shippoAddress = {
-    name: user.user_profile?.name || user.user_name,
-    street1: reqBody.address_line_1,
-    city: cityData.name,
-    state: stateData.iso2,
-    zip: reqBody.postal_code,
-    country: "US",
-  };
-
-  // Step 1: Create the address in Shippo
-  const shippoResponse = await createAddressInShippo(shippoAddress);
-  console.log(shippoResponse, "shippoResponse");
-
-  // Step 2: Validate the address using the AddressId
-  const validationResult = await validateAddressInShippo(
-    shippoResponse.object_id,
-  );
-  console.log(validationResult, "validationResult");
-
-  // Step 3: Handle validation result
-  const isValid = validationResult?.validation_results?.is_valid;
-  const messages = validationResult?.validation_results?.messages || [];
-  const warnings = messages.map((m) => m.text.toLowerCase());
-
-  const hasMismatch = warnings.some(
-    (msg) =>
-      msg.includes("zip mismatch") ||
-      msg.includes("city mismatch") ||
-      msg.includes("invalid"),
-  );
-
-  if (!isValid) {
-    const errorMessage =
-      messages.map((m) => m.text).join(", ") || "Invalid address";
-
-    throw ApiError.withCode(
-      httpStatus.BAD_REQUEST,
-      `Address validation failed: ${errorMessage}`,
-      "ADDRESS_INVALID",
-    );
-  }
-
-  // Step 4: Save the address in your database
-
-  const userAddress = await saveAddressToDatabase(
-    user.id,
-    user.role_id,
-    shippoResponse.object_id,
-    reqBody,
-    stateData,
-  );
-
-  console.log(userAddress, "userAddress");
-
-  // Return the saved user address document
-  return userAddress;
+  const { address, corrected, original } = await saveShippingAddress({
+    body: reqBody,
+    name: displayName(user),
+    userId: user.id,
+    roleId: user.role_id,
+  });
+  return { ...address.toJSON(), corrected, ...(corrected && { original_address: original }) };
 };
 
+// Edits one of the signed-in person's own addresses (it used to edit any address by its id).
 const editAddress = async (body, id) => {
-  const {
-    user,
-    address_line_1,
-    state_id,
-    city_id,
-    address_lat,
-    address_long,
-    postal_code,
-  } = body;
-
-  console.log(body, "body");
-
-  // Find the existing address record
-  const addressDoc = await UserAddress.findOne({
-    where: { id: id, is_active: true },
-    include: [
-      { model: State, as: "user_state" },
-      { model: City, as: "user_city" },
-    ],
-  });
-
-  if (!addressDoc) {
+  const { user } = body;
+  const existing = await UserAddress.findOne({ where: { id, user_id: user.id, is_active: true } });
+  if (!existing) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Address Id doesn't exist");
   }
-
-  // Get updated state and city names
-  const stateData = state_id
-    ? await State.findOne({ where: { id: state_id } })
-    : addressDoc.user_state;
-
-  if (state_id && !stateData) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid state_id.");
-  }
-
-  const cityData = city_id
-    ? await City.findOne({ where: { id: city_id } })
-    : addressDoc.user_city;
-
-  if (city_id && !cityData) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid city_id.");
-  }
-
-  // Prepare address for validation
-  const shippoAddress = {
-    name: user.user_profile?.name || user.user_name,
-    street1: address_line_1 || addressDoc.address_line_1,
-    city: cityData.name,
-    state: stateData.iso2,
-    zip: postal_code || addressDoc.postal_code,
-    country: "US",
-  };
-
-  // Create and validate address in Shippo
-  const shippoResponse = await createAddressInShippo(shippoAddress);
-  const validationResult = await validateAddressInShippo(
-    shippoResponse.object_id,
-  );
-
-  const isValid = validationResult?.validation_results?.is_valid;
-  const messages = validationResult?.validation_results?.messages || [];
-  const warnings = messages.map((m) => m.text.toLowerCase());
-  const hasCriticalError = warnings.some(
-    (msg) =>
-      msg.includes("zip mismatch") ||
-      msg.includes("city mismatch") ||
-      msg.includes("invalid") ||
-      msg.includes("not found"),
-  );
-
-  if (!isValid || hasCriticalError) {
-    const errorMessage =
-      messages.map((m) => m.text).join(", ") || "Invalid address";
-
-    throw ApiError.withCode(
-      httpStatus.BAD_REQUEST,
-      `Address validation failed: ${errorMessage}`,
-      "ADDRESS_INVALID",
-    );
-  }
-
-  // ✅ Update address fields after validation passes
-  if (address_line_1 && address_line_1 !== addressDoc.address_line_1) {
-    addressDoc.address_line_1 = address_line_1;
-  }
-  if (state_id && state_id !== addressDoc.state_id) {
-    addressDoc.state_id = state_id;
-    addressDoc.province_code = stateData.iso2;
-  }
-  if (city_id && city_id !== addressDoc.city_id) {
-    addressDoc.city_id = city_id;
-  }
-  if (address_lat && address_lat !== addressDoc.address_lat) {
-    addressDoc.address_lat = address_lat;
-  }
-  if (address_long && address_long !== addressDoc.address_long) {
-    addressDoc.address_long = address_long;
-  }
-  if (postal_code && postal_code !== addressDoc.postal_code) {
-    addressDoc.postal_code = postal_code;
-  }
-
-  addressDoc.shippo_address_id = shippoResponse.object_id;
-  await addressDoc.save();
-
-  return addressDoc;
+  const { address, corrected, original } = await saveShippingAddress({ body, name: displayName(user), existing });
+  return { ...address.toJSON(), corrected, ...(corrected && { original_address: original }) };
 };
 
 const getAllUserAddress = async (reqBody) => {
@@ -263,7 +97,7 @@ const getAllBusinessAddress = async (reqBody) => {
   }
 
   const addressDoc = await UserAddress.findAll({
-    where: { user_id: user.id, is_active: true, role_id: "7" },
+    where: { user_id: user.id, is_active: true, role_id: "7", ...notShipping },
     include: [
       {
         model: Country,
@@ -292,7 +126,7 @@ const getAllBusinessAddress = async (reqBody) => {
 
 const getBusinessAddressById = async (id) => {
   const orderDoc = await UserAddress.findOne({
-    where: { id: id },
+    where: { id: id, ...notShipping },
     include: [
       {
         model: Country,

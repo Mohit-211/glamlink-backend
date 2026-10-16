@@ -22,6 +22,9 @@ router.get('/subscription', requireProfessional, accessController.mySubscription
 router.post('/subscription/cancel', requireProfessional, accessController.cancelMine);
 router.post('/subscription/resume', requireProfessional, accessController.resumeMine);
 
+// Shippo's tracking updates (the URL ends with ?token=SHIPPO_WEBHOOK_TOKEN).
+router.post('/shippo/webhook', accessController.shippoWebhook);
+
 const { admin } = accessController;
 router.get('/admin/catalog', requireAdmin, admin.catalog);
 router.put('/admin/plans/:code', requireAdmin, admin.updatePlan);

@@ -10,6 +10,7 @@ const catalog = require('./catalog');
 const checkoutService = require('./checkout');
 const subscriptions = require('./subscriptions');
 const { seatOf } = require('./seats');
+const fulfillment = require('./fulfillment');
 
 // The Access purchase and card endpoints under /access (docs/access.md).
 
@@ -85,6 +86,23 @@ const resumeMine = catchAsync(async (req, res) => {
     return responseWrapper(res, subscriptions.seatView(seat), 'Access Pro continues.');
 });
 
+// Shippo's webhook (tracking): verified by the token in its URL and, once set up, Shippo's signature over the
+// raw body (app.js keeps this path's body raw).
+const shippoWebhook = catchAsync(async (req, res) => {
+    const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : JSON.stringify(req.body || {});
+    if (!fulfillment.isShippoCall(req, raw)) {
+        throw ApiError.withCode(httpStatus.UNAUTHORIZED, 'This call is not from Shippo.', 'WEBHOOK_UNVERIFIED');
+    }
+    let event;
+    try {
+        event = JSON.parse(raw);
+    } catch {
+        throw ApiError.withCode(httpStatus.BAD_REQUEST, 'The body is not JSON.', 'INVALID_INPUT');
+    }
+    await fulfillment.handleShippoEvent(event);
+    return res.status(200).json({ received: true });
+});
+
 // ---- Admin: plans, prices, discounts, personal prices, settings, subscriptions ---------------------------
 
 const adminId = (req) => req.user?.id || null;
@@ -129,8 +147,13 @@ const admin = {
         (req) => subscriptions.setComp(req.params.userId, !(req.body.active === false || req.body.active === 'false')),
         'Saved.',
     ),
+    // An order's keychain parcel: today's rates, buying its label, voiding it.
+    orderRates: respond((req) => fulfillment.ratesForOrder(req.params.id)),
+    buyLabel: respond((req) => fulfillment.buyOrderLabel(req.params.id, { rateId: req.body.rate_id }), 'Label bought.'),
+    voidLabel: respond((req) => fulfillment.voidOrderLabel(req.params.id), 'Label voided.'),
 };
 
 module.exports = {
-    claim, remove, plans, loadCheckout, quoteCheckout, payCheckout, getCheckout, mySubscription, cancelMine, resumeMine, admin,
+    claim, remove, plans, loadCheckout, quoteCheckout, payCheckout, getCheckout, mySubscription, cancelMine, resumeMine,
+    shippoWebhook, admin,
 };

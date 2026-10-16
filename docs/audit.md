@@ -27,7 +27,7 @@ do not touch until the app or CRM phase).
 | 15 | Medium | "Login required" let guests through on 187 routes | Fixed: `authenticate` / `optionalAuth` / `requireProfessional` (Phase 3) |
 | 16 | Medium | Passwords and tokens written to logs | Fixed (Phase 0) |
 | 17 | Medium | Uploads accepted on every route, no size limit | Partly: 50 MB per file, files removed when a request fails (Phase 0). Upload parsing still runs on every `/api/v1` request because the admin panel sends multipart bodies to plain endpoints |
-| 18 | Medium | Shippo webhook not verified | App: Shippo serves app orders (`src/mobile/commerce`) |
+| 18 | Medium | Shippo webhook not verified | Website: the new keychain tracking webhook checks the secret token in its URL and Shippo's HMAC once set up (Phase 2b). App: its order shipping is unchanged (`src/mobile/commerce`) |
 | 19 | Medium | Admin tokens signed with `Buffer.from(JWT_SECRET, "hex")` | Open: production `JWT_SECRET` must be 64 hex characters (deploy checklist). User tokens use a derived key (Phase 3) |
 | 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a); Mohit rotated the key (Oct 16). The new key goes in the server `.env` |
 | 21 | Low | `.env.example` held real-looking credentials | Fixed: placeholders only (Phase 2b, `73092bc`) |
@@ -94,4 +94,6 @@ Found during the work (not in the audits):
 | A guest card is attached to any existing account whose email it uses (`POST /businessCard`) | Fixed: drafts, sign in and claim (Phase 2b step 2) |
 | `getAllProfiles` and the public card return the owner's subscription fields, and the phone even when hidden | Fixed (Phase 2b step 1) |
 | A subscription-only purchase could not make its access order (the model refused an empty fulfillment status) | Fixed (Phase 2b step 4) |
+| `PUT /order/editAddress/:id` edited any address by its id (any signed-in account) | Fixed: own addresses only (Phase 2b step 5) |
+| `GET /order/getBuinessAddressById/:id` (no sign-in) served any address, including Access card buyers' delivery addresses | Partly: delivery addresses are no longer served (Phase 2b step 5); the route stays public for the app's business addresses until the app phase |
 | The renewal webhook read `invoice.subscription` and the period fields Stripe moved (API 2025-03-31 onwards) | Fixed: Access payments rebuilt on API 2026-09-30 (Phase 2b step 4) |

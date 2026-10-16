@@ -67,6 +67,41 @@ UserAddress.init(
 			type: DataTypes.STRING(),
 			allowNull: false,
 		},
+		// Second street line, the city as Shippo checked it, who receives it (shippingAddress.js).
+		address_line_2: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		city_name: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		recipient_name: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		phone: {
+			type: DataTypes.STRING(50),
+			allowNull: true,
+		},
+		// 'shipping' for a delivery address (never served as a business address).
+		purpose: {
+			type: DataTypes.STRING(20),
+			allowNull: true,
+		},
+		// Shippo's check: residential, commercial…; valid or partially_valid (corrected); when.
+		address_type: {
+			type: DataTypes.STRING(20),
+			allowNull: true,
+		},
+		validation_result: {
+			type: DataTypes.STRING(20),
+			allowNull: true,
+		},
+		validated_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
 		is_active: {
 			type: DataTypes.BOOLEAN,
 			defaultValue: true,

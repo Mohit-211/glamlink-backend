@@ -121,6 +121,19 @@ AccessOrder.init(
       allowNull: true,
     },
 
+    // The rate chosen at checkout, the label bought with Shippo, and Shippo's tracking.
+    carrier: { type: DataTypes.STRING(100), allowNull: true },
+    service: { type: DataTypes.STRING(150), allowNull: true },
+    shippo_shipment_id: { type: DataTypes.STRING, allowNull: true },
+    shippo_rate_id: { type: DataTypes.STRING, allowNull: true },
+    shippo_transaction_id: { type: DataTypes.STRING, allowNull: true },
+    label_url: { type: DataTypes.TEXT, allowNull: true },
+    label_created_at: { type: DataTypes.DATE, allowNull: true },
+    tracking_status: { type: DataTypes.STRING(30), allowNull: true },
+    tracking_status_details: { type: DataTypes.TEXT, allowNull: true },
+    shipped_at: { type: DataTypes.DATE, allowNull: true },
+    delivered_at: { type: DataTypes.DATE, allowNull: true },
+
     // Empty for an order that ships nothing (Access Pro alone).
     fulfillment_status: {
       type: DataTypes.ENUM(

@@ -4,7 +4,6 @@ module.exports = [
     // Integrations that read data themselves: the mailer looks up people and records for its emails, Shippo
     // stores addresses. Fix: pass the data in from the calling module.
     'src/integrations/mailer/email.service.js imports src/models.js (integrations import only core)',
-    'src/integrations/shippo.js imports src/models.js (integrations import only core)',
 
     // App bookings and products point at CRM customers and vendors (bookings.customer_id, products.vendor_id).
     // Revisit when the CRM is rebuilt.

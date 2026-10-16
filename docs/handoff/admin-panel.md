@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | **Keychain labels and tracking with Shippo** (section 7.3): on an access order, `GET …/rates`, `POST …/label` (buys the label: the rate chosen at checkout, or today's), `POST …/label/void`. The order gains `carrier`, `service`, `label_url` (the PDF to print), `tracking_number`, `tracking_link`, `tracking_status`, `shipped_at`, `delivered_at`; Shippo's tracking moves it to shipped and delivered. Addresses gain `address_line_2`, `recipient_name`, `phone`, `city_name`, `purpose`, `address_type`, `validation_result` | **New on the order screen:** "Buy label" (and a rate picker from `…/rates`), "Print label" (`label_url`), "Void label", the tracking status. The manual fulfillment update still works |
 | Oct 16 | **Subscriptions and payments** (section 7.2): every Access Pro subscription is a seat, paid through Stripe or complimentary (given by an admin; 23 accounts on the live copy have Pro without paying). New: `GET /access/admin/subscriptions`, `POST /access/admin/subscriptions/:userId/cancel`, `PUT /access/admin/subscriptions/:userId/comp`. A price change can move paying subscribers (`move_subscribers`; it now answers `{ product, moved, failed }`), a personal price can go on a live subscription (`apply_now`). Every paid purchase now makes an access order (Access Pro alone too, with no fulfillment status); the admin's order email links to the order in the panel | **New screen:** subscriptions (list, cancel, give or take back complimentary Pro). **Must:** the access orders list shows orders whose `fulfillment_status` is null (nothing to ship) |
 | Oct 16 | **Access pricing screens** (section 7.1): plans, prices (with history), site-wide discounts, personal prices for one client, and settings (what Free and Pro may do, shipping), under `/access/admin/…` | **New screens** (none exist): see section 7.1 |
 | Oct 16 | **Guest drafts and one card per person.** A card a guest makes on the website is a draft until a plan is chosen or paid. `GET /businessCard/getAllBusinessCards` leaves drafts out; `?status=draft` lists them (`?status=pending`, `accepted` or `rejected` filters too). `createBusinessCardByAdmin` for an email whose account already has a card answers 409 `CARD_EXISTS` (`details.card_id`); send `replace=true` to replace it (the old card is deleted but kept, and the new one takes its link and QR code). The card's `status` can be `draft` | **Can:** a "Drafts" view (`?status=draft`). **Must:** handle `CARD_EXISTS` on "Create card" (offer replace) |
@@ -178,6 +179,17 @@ with `details.field`, 404, 409 `DISCOUNT_OVERLAPS`.
 | PUT | `/access/admin/subscriptions/:userId/comp` | `{ active: true\|false }` | Gives or takes back complimentary Pro (409 `SUBSCRIPTION_PAID` for someone who pays) |
 | PUT | `/access/admin/products/:code/price` | add `move_subscribers: true` | Also moves paying subscribers without a personal price to the new price from their next renewal |
 | POST | `/access/admin/custom-prices` | add `apply_now: true` | Also puts the personal price on the client's live subscription from their next renewal |
+
+### 7.3 Labels and tracking (done Oct 16)
+
+| Method | Path | Body | What it does |
+| --- | --- | --- | --- |
+| GET | `/businessCard/access-orders/:id/rates` | | Today's Shippo rates for the order's parcel: `[{ rate_id, amount_cents, provider, service, estimated_days }]` |
+| POST | `/businessCard/access-orders/:id/label` | `{ rate_id }` optional | Buys the label: `rate_id`, else the rate chosen at checkout, else today's rate for the same service (or the cheapest). The order moves to `processing` with its tracking number and `label_url`. 409 `LABEL_EXISTS`, 502 `LABEL_FAILED` (with Shippo's reasons), 400 `NOTHING_TO_SHIP` |
+| POST | `/businessCard/access-orders/:id/label/void` | | Voids an unused label (Shippo refunds it); the order goes back to `pending`. 409 `LABEL_IN_USE` once shipped |
+
+Shippo's webhook then updates `tracking_status` (PRE_TRANSIT, TRANSIT, DELIVERED, RETURNED, FAILURE) and moves
+the order to `shipped` and `delivered` (never backwards).
 
 ## Appendix: every admin endpoint
 
