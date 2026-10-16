@@ -6,8 +6,9 @@ const { requireCardAccess } = require('./cardAccess.middleware');
 const { requireProfessional } = require('../../shared/identity');
 const businessCardController = require('./businessCard.controller');
 const { admin: accessAdmin } = require('./access.controller');
+const { limitGuestCards } = require('../../core/http/rateLimiter');
 
-router.post('/', businessCardController.createBusinessCard);
+router.post('/', limitGuestCards, businessCardController.createBusinessCard);
 router.post('/select-plan', requireCardAccess((req) => req.body.business_card_id), businessCardController.selectBusinessCardPlan);
 router.post('/createBusinessCardByAdmin', requireAdmin, businessCardController.createBusinessCardByAdmin);
 router.post('/createBusinessCard',[requireProfessional], businessCardController.createBusinessCardWithToken);

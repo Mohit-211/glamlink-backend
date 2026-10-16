@@ -42,6 +42,12 @@ Admin.init({
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // Moves on when the admin signs out or changes the password; tokens carrying an older one are refused.
+    token_version: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+        defaultValue: 0,
+    },
     otp: {
         type: DataTypes.STRING,
         allowNull: true,

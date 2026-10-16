@@ -44,9 +44,14 @@ const contextOf = (req) => {
     };
 };
 
-// Cloudflare Turnstile on registration, when TURNSTILE_SECRET_KEY is set.
+// Cloudflare Turnstile on registration. Production refuses sign-ups while TURNSTILE_SECRET_KEY is missing, rather
+// than letting bots through; elsewhere the check is skipped without it.
 const verifyCaptcha = async (req) => {
-    if (!process.env.TURNSTILE_SECRET_KEY) return;
+    if (!process.env.TURNSTILE_SECRET_KEY) {
+        if (config.env !== 'production') return;
+        logger.error('Sign-up refused: TURNSTILE_SECRET_KEY is not set.');
+        throw ApiError.withCode(httpStatus.SERVICE_UNAVAILABLE, 'Sign-up is not available right now. Please try again later.', 'CAPTCHA_NOT_CONFIGURED');
+    }
     const token = req.body.turnstile_token;
     if (!token) throw ApiError.withCode(httpStatus.BAD_REQUEST, 'Captcha token is required', 'CAPTCHA_REQUIRED');
     let passed = false;

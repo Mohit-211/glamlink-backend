@@ -24,6 +24,7 @@
     "check:models": "node scripts/model-table.js",
     "check:boundaries": "node scripts/check-boundaries.js",
     "check:contract": "node scripts/contract-check.js compare",
+    "check:server": "node scripts/check-server.js",
     "stripe:setup": "node scripts/stripe-setup.js",
     "stripe:reconcile": "node scripts/stripe-reconcile.js",
     "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""

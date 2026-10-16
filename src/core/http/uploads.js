@@ -148,7 +148,7 @@ const upload = multer({
   { name: "video_thumbnails", maxCount: 10 },
   { name: "featured_link_images", maxCount: 20 },
   { name: "gifs", maxCount: 10 },
-  { name: "images", maxCount: 10 },
+  { name: "images", maxCount: 20 },
   { name: "videos", maxCount: 10 },
   { name: "docs", maxCount: 10 },
   { name: "audios", maxCount: 10 },

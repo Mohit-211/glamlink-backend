@@ -15,6 +15,11 @@ const loginAdminUser = catchAsync(async (req, res) => {
     responseWrapper(res, response, '', httpStatus.OK);
 });
 
+const logoutAdmin = catchAsync(async (req, res) => {
+    await adminAuthService.logoutAdmin(req.user.id);
+    responseWrapper(res, '', 'Signed out on every device.', httpStatus.OK);
+});
+
 const resetAdminPassword = catchAsync(async (req, res) => {
 
     const response = await adminAuthService.resetAdminPassword(req.body);
@@ -24,14 +29,14 @@ const resetAdminPassword = catchAsync(async (req, res) => {
 const sendOTP = catchAsync(async (req, res) => {
 
     await adminAuthService.sendOTP(req.body.email);
-    responseWrapper(res, '', 'OTP has been Sent To Your Email', httpStatus.OK);
+    responseWrapper(res, '', 'If this email belongs to an admin, an OTP has been sent to it.', httpStatus.OK);
 });
 
 const verifyOTP = catchAsync(async (req, res) => {
 
     const status = await adminAuthService.verifyOTP(req.body.email, req.body.otp, req.body.otp_type);
     if (!status) {
-        responseWrapper(res, '', 'Ineternal Server Error', httpStatus.INTERNAL_SERVER_ERROR);
+        return responseWrapper(res, '', 'Ineternal Server Error', httpStatus.INTERNAL_SERVER_ERROR);
     };
     responseWrapper(res, status, 'OTP has been verified', httpStatus.OK);
 });
@@ -45,6 +50,7 @@ const forgotAdminPassword = catchAsync(async (req, res) => {
 module.exports = {
     createAdminUser,
     loginAdminUser,
+    logoutAdmin,
     resetAdminPassword,
     sendOTP,
     verifyOTP,

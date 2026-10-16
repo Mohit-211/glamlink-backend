@@ -90,6 +90,21 @@ describe('a Free card once it is live', () => {
     });
 });
 
+describe('an admin-made gallery', () => {
+    test('an admin may put up to 20 photos on a card; its owner then cannot add more than the plan allows', async () => {
+        const pro = await owner({ pro: true });
+        const added = await editCard(pro, { existing_image_ids: JSON.stringify(pro.mediaIds) }, {
+            files: { images: ['p1', 'p2', 'p3', 'p4'].map((name) => photo(`${name}.png`)) }, token: tokens.admin,
+        });
+        assert.equal(added.status, 200, added.body.message);
+        const ids = (await q('SELECT id FROM business_gallery_media WHERE business_card_id = ? AND deleted_at IS NULL ORDER BY sort_order', [pro.cardId])).map((m) => m.id);
+        assert.equal(ids.length, 6);
+        const more = await editCard(pro, { existing_image_ids: JSON.stringify(ids) }, { files: { images: [photo('p5.png')] } });
+        assert.equal(more.status, 400);
+        assert.equal(more.body.message, 'Up to 4 photos.');
+    });
+});
+
 describe('a Pro card', () => {
     test('swaps photos and runs an offer, shown publicly; when Pro ends the offer is hidden, not deleted', async () => {
         const pro = await owner({ pro: true });

@@ -9,7 +9,9 @@ const ApiError = require('../../core/http/ApiError');
 const { authenticate, identify } = require('../identity');
 const { tokenFromRequest } = require('../identity');
 
-// Admin tokens are signed with the hex-decoded secret (see adminAuth.service.js loginAdminUser).
+// Admin tokens are signed with the hex-decoded secret (see adminAuth.service.js signAdminToken). A token is good
+// while its admin is active and it carries their current token_version (signing out or a new password moves it on;
+// tokens from before the version existed count as 0).
 const verifyAdminToken = async (token) => {
     let payload;
     try {
@@ -18,8 +20,9 @@ const verifyAdminToken = async (token) => {
         return null;
     }
     if (!payload || payload.is_backlisted || !payload.id) return null;
-    const admin = await Admin.findOne({ where: { id: payload.id, is_active: true }, attributes: ['id', 'role_id', 'department_id'] });
-    return admin ? payload : null;
+    const admin = await Admin.findOne({ where: { id: payload.id, is_active: true }, attributes: ['id', 'role_id', 'department_id', 'token_version'] });
+    if (!admin || (payload.tv ?? 0) !== admin.token_version) return null;
+    return payload;
 };
 
 // Only an active admin may pass.

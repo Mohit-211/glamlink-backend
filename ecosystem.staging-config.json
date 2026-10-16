@@ -1,9 +1,9 @@
 {
   "apps": [
     {
-      "name": "glamlink-backend",
+      "name": "glamlink-api-staging",
       "script": "index.js",
-      "cwd": "/var/www/backend",
+      "cwd": "/var/www/api-staging",
       "exec_mode": "fork",
       "instances": 1,
       "autorestart": true,

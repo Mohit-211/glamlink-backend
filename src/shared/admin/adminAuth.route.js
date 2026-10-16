@@ -8,6 +8,8 @@ const adminValidation = require('./admin.validation');
 // Only an existing admin can create another admin (Super Admin accounts come from `npm run auth`).
 router.post('/register', requireAdmin, [adminValidation.validateCreateAdminBody], adminAuthController.createAdminUser);
 router.post('/login', [adminValidation.validateLoginAdminBody], adminAuthController.loginAdminUser);
+// Ends every session of the signed-in admin (all devices).
+router.post('/logout', requireAdmin, adminAuthController.logoutAdmin);
 router.post('/change-password', requireAdmin, [adminValidation.validateResetPasswordBody], adminAuthController.resetAdminPassword);
 router.post('/otp',  adminAuthController.sendOTP);
 router.post('/verify-otp',  adminAuthController.verifyOTP);

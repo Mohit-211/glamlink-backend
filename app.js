@@ -11,6 +11,7 @@ app.set("trust proxy", 1);
 app.set("query parser", "extended");
 
 const config = require('./src/core/config/config.js');
+const logger = require('./src/core/logger.js');
 const routes = require('./src/routes');
 const accessLog = require('./src/core/http/accessLog.js');
 const { authLimiter } = require('./src/core/http/rateLimiter.js');
@@ -30,9 +31,19 @@ const jobs = require('./src/jobs');
 
 
 // Scheduled jobs (not under test: they change data on their own clock). Each module declares its own.
+// JOBS_ENABLED=false keeps them off, for testing mode on a copy of live data.
 if (config.env !== 'test') {
-  jobs.start();
+  if (config.jobsEnabled) jobs.start();
+  else logger.warn('Scheduled jobs are off (JOBS_ENABLED=false).');
 }
+
+// Some admin panel URLs carry a double slash (/api/v1//journal/topic); Express would answer 404. One slash it is.
+app.use((req, res, next) => {
+  const query = req.url.indexOf('?');
+  const pathname = query === -1 ? req.url : req.url.slice(0, query);
+  if (pathname.includes('//')) req.url = pathname.replace(/\/{2,}/g, '/') + (query === -1 ? '' : req.url.slice(query));
+  next();
+});
 
 // set security HTTP headers
 app.use(

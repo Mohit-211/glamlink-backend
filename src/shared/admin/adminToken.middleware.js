@@ -1,28 +1,9 @@
-const httpStatus = require('../../core/http/status');
-const jwt = require('jsonwebtoken');
-const catchAsync = require('../../core/http/catchAsync');
-const responseWrapper = require('../../core/http/responseWrapper');
-const config = require('../../core/config/config');
-const ApiError = require('../../core/http/ApiError');
-
-const validateJWTtoken = catchAsync(async (req, res, next) => {
-    try {
-        const token = req.header('x-access-token');
-        if (!token) {
-            return responseWrapper(res, '', 'Access denied: No token provided', httpStatus.BAD_REQUEST);
-        };
-        req.user = jwt.verify(token, Buffer.from(config?.jwt?.secret, 'hex'), {
-            algorithm: 'HS256',
-        });
-        if (req?.user?.is_backlisted) return responseWrapper(res, '', 'Invalid Token', httpStatus.UNAUTHORIZED);
-        req.body['user'] = req.user;
-        next();
-
-    } catch (error) {
-        throw new ApiError(error.statusCode ? error.statusCode : httpStatus.INTERNAL_SERVER_ERROR, error.message);
-    }
-});
+// The app's admin screens (src/mobile/backoffice, the bookings categories) use this name. It is the same check as
+// requireAdmin: an active admin's current token, as x-access-token or Authorization: Bearer, else 401
+// (ADMIN_SIGN_IN_REQUIRED or ADMIN_SESSION_EXPIRED). It used to accept a deactivated admin's token and answer an
+// expired one with 500.
+const { requireAdmin } = require('./access.middleware');
 
 module.exports = {
-    validateJWTtoken,
+    validateJWTtoken: requireAdmin,
 };

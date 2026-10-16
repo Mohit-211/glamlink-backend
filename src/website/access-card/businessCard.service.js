@@ -22,8 +22,13 @@ const { toPublicCard } = require("./cardPublic");
 const { entitlementsFor, checkOwnerEdit, hideOffersOffPlan } = require("./entitlements");
 const { getSettings } = require("./catalog");
 
-// What an admin may do on any card: everything Pro may, and special offers.
-const adminRights = async () => ({ ...(await getSettings()).entitlements.pro, special_offers: true });
+// What an admin may do on any card: everything Pro may, special offers, and up to 20 photos (the admin panel's
+// gallery; Mohit, Oct 16). Owners keep their plan's photo count.
+const ADMIN_PHOTOS = 20;
+const adminRights = async () => {
+  const { pro } = (await getSettings()).entitlements;
+  return { ...pro, special_offers: true, photos: Math.max(ADMIN_PHOTOS, pro.photos) };
+};
 const logger = require("../../core/logger");
 const {
   sendBusinessCardApprovedEmail,

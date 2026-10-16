@@ -1,9 +1,6 @@
-const fs = require('fs')
-
-// Node loads .env natively. Variables already set in the environment take precedence.
-// Quote any value that contains #, or everything from the # onwards is dropped.
-const { ENV_FILE } = require('./paths');
-if (fs.existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
+// Node loads .env natively (paths.js loads it, first thing). Variables already set in the environment take
+// precedence. Quote any value that contains #, or everything from the # onwards is dropped.
+require('./paths');
 
 const fail = (message) => {
     throw new Error(`Config validation error: ${message}`);
@@ -29,6 +26,18 @@ envVars.SMTP_PORT = number('SMTP_PORT');
 envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
 envVars.ACCESS_TOKEN_MINUTES = number('ACCESS_TOKEN_MINUTES', 15);
 envVars.REFRESH_TOKEN_DAYS = number('REFRESH_TOKEN_DAYS', 30);
+envVars.ADMIN_TOKEN_HOURS = number('ADMIN_TOKEN_HOURS', 12);
+// Scheduled jobs run unless JOBS_ENABLED=false (testing mode on a copy of live data: nothing runs on its own clock).
+envVars.JOBS_ENABLED = envVars.JOBS_ENABLED !== 'false';
+
+// Production refuses settings that would quietly weaken it.
+if (envVars.NODE_ENV === 'production') {
+    // Admin tokens are signed with the hex-decoded secret: anything that is not hex decodes to a short or empty key.
+    if (!/^[0-9a-f]{64,}$/i.test(envVars.JWT_SECRET) || envVars.JWT_SECRET.length % 2) {
+        fail('JWT_SECRET must be at least 64 hex characters in production (openssl rand -hex 32)');
+    }
+    for (const key of ['API_BASE_URL', 'ACCESSDOMAINS']) if (envVars[key] === undefined) fail(`${key} is required in production`);
+}
 envVars.WEBSITE_URL = (envVars.WEBSITE_URL || 'https://glamlink.net').replace(/\/+$/, '');
 envVars.ADMIN_URL = (envVars.ADMIN_URL || 'https://admin.glamlink.net').replace(/\/+$/, '');
 envVars.SHIPPO_ADDRESS_VALIDATION ??= 'legacy';
@@ -61,7 +70,9 @@ module.exports = {
         secret: envVars.JWT_SECRET,
         accessTokenMinutes: envVars.ACCESS_TOKEN_MINUTES,
         refreshTokenDays: envVars.REFRESH_TOKEN_DAYS,
+        adminTokenHours: envVars.ADMIN_TOKEN_HOURS,
     },
+    jobsEnabled: envVars.JOBS_ENABLED,
     email: {
         smtp: {
             host: envVars.SMTP_HOST,

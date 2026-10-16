@@ -2,8 +2,9 @@ const config = require('../config/config');
 const ApiError = require('./ApiError');
 const httpStatus = require('./status');
 
-// Cross-origin access: the origins in ACCESSDOMAINS (comma-separated) may call the API with credentials.
-const allowedOrigins = config.accessDomains.split(',');
+// Cross-origin access: the origins in ACCESSDOMAINS (comma-separated; spaces and a trailing slash are ignored) may
+// call the API with credentials.
+const allowedOrigins = (config.accessDomains || '').split(',').map((origin) => origin.trim().replace(/\/+$/, '')).filter(Boolean);
 
 // Sets the CORS headers for allowed origins on every response, preflight included.
 const credentials = (req, res, next) => {

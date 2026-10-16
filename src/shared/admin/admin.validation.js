@@ -8,11 +8,10 @@ const roleService = require('./role.service');
 const config = require('../../core/config/config');
 
 const validateCreateAdminBody = catchAsync(async (req, res, next) => {
-    const { name, email, password, role_id, department_id } = req.body;
-    if (!name || !email || !password || !role_id || !department_id) {
-        return responseWrapper(res, '', 'Please Enter Required Fields : [name || email_id || password || role_id || department_id]', httpStatus.BAD_REQUEST);
+    const { name, email, password, role_id } = req.body;
+    if (!name || !email || !password || !role_id) {
+        return responseWrapper(res, '', 'Please Enter Required Fields : [name || email_id || password || role_id]', httpStatus.BAD_REQUEST);
     };
-
     if (String(role_id) === String(config.SUP_ADM_ROLE_ID)) {
         return responseWrapper(res, '', 'You are not authorized to create this role.', httpStatus.BAD_REQUEST);
     };
@@ -28,8 +27,14 @@ const validateCreateAdminBody = catchAsync(async (req, res, next) => {
     const isValidRoleId = await roleService.findRoleById(parseInt(role_id));
     if (!isValidRoleId) return responseWrapper(res, '', 'Invalid Role Id', httpStatus.BAD_REQUEST);
 
-    const isValidDepartmentId = await Department.findByPk(parseInt(department_id));
-    if (!isValidDepartmentId) return responseWrapper(res, '', 'Invalid Department Id', httpStatus.BAD_REQUEST);
+    // The department is optional. Sent: it must exist. Not sent: ADM_DEPT_ID, unchecked (the live departments table
+    // is empty, and admins.department_id references nothing).
+    if (req.body.department_id) {
+        const isValidDepartmentId = await Department.findByPk(parseInt(req.body.department_id));
+        if (!isValidDepartmentId) return responseWrapper(res, '', 'Invalid Department Id', httpStatus.BAD_REQUEST);
+    } else {
+        req.body.department_id = config.ADM_DEPT_ID || null;
+    }
     next()
 });
 
