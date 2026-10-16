@@ -19,7 +19,7 @@ module.exports = [
     'src/shared/users/user.service.js uses models of another product: Review, Follow, Post, PostTag, Feed, PostLike, PostAttachment, PostComment, PostFavorite, Service, ServiceAttachment, UserReport, UserBlock, FeedPost, Album, AlbumAttachment, Reel, ReelLike, ReelComment, BookingSlot, Case, Booking, Availability, PostReport, Tag, ReelTag, AlbumAttachmentLike, AlbumLike, AlbumComment, AlbumAttachmentComment, ProductReview, Product, ProductAttachment, Cart, Brand, Vendor, ServiceLocation, PromotionPayment, ProductTypeMapping, ProductCategoryMapping, CRMPayment, OrderDetails, OrderParcelDetails, Order, BusinessCard',
     // The Stripe webhook handles every product's payments in one function. Fix: each product registers its
     // payment handler with shared/billing (planned with the webhook work in Phase 2).
-    'src/shared/billing/payment.controller.js uses models of another product: CRMPayment, Order, OrderDetails, Customer, Cart, Product, PromotionPayment, UserPromotion, BusinessCard, AccessOrder',
+    'src/shared/billing/payment.controller.js uses models of another product: CRMPayment, Order, OrderDetails, Customer, Cart, Product, PromotionPayment, UserPromotion',
     // A new professional account takes over the Access cards bought with its email.
     'src/shared/identity/account.service.js uses models of another product: BusinessCard',
     // The signed-in user (req.user) is loaded with their albums and recent reels.

@@ -27,6 +27,8 @@ const person = async (email, { subscription = 'INACTIVE' } = {}) => {
         "INSERT INTO users (email, role_id, account_type, professional_type, status, is_active, email_verified_at, subscription_status) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1, NOW(), ?)",
         [email, subscription],
     );
+    // Pro is the person's seat (website/access-card/seats.js).
+    if (subscription === 'ACTIVE') await insert("INSERT INTO access_subscriptions (user_id, source, status) VALUES (?, 'comp', 'active')", [id]);
     return { id, token: (await createSession({ id }, { client: 'test' })).tokens.access_token };
 };
 const guestCard = async (email) => {

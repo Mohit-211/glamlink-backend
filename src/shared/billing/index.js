@@ -1,5 +1,6 @@
-// Payments: Stripe keys and customers, the payment webhook, payment totals.
+// Payments: Stripe keys and customers, the payment webhook (with the handlers products register), payment totals.
 const { getKeys, getCustomer } = require('./stripeCustomer.service');
+const { registerStripeHandlers } = require('./stripeHandlers');
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
@@ -10,4 +11,5 @@ module.exports = {
     // For other modules.
     getKeys,
     getCustomer,
+    registerStripeHandlers,
 };

@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **Payments on the new Stripe integration** (section 9.4): a checkout quotes and stores what a plan costs for a card (`POST /access/checkout/quote`), then `POST /access/checkout/:id/pay` returns the Stripe client secret; `GET /access/checkout/:id` says when it is paid. The old calls (`shipping-rate[-public]`, `create-subscription[-public]`) now run on it: same requests and answers, plus `checkout_id`; prices come from the plans and sales, not from the browser. `cancel-subscription` now ends Access Pro at the end of the paid month (it ended it at once); `/access/subscription` shows the seat, `/access/subscription/cancel` and `/resume`. New refusals: 409 `ALREADY_OWNED` (buying Pro again), `NFC_ALREADY_PURCHASED` is now per person, 400 `SHIPPING_COUNTRY_UNSUPPORTED`, `CHECKOUT_EXPIRED` | **Nothing required:** `confirmCardPayment(clientSecret)` keeps working. **Should:** say "Your Pro plan ends on <date>" after cancelling, and offer resume; after paying, poll `GET /access/checkout/:id` until `paid` before showing the dashboard. **Can:** the Payment Element (`confirmPayment`) for Apple Pay, Google Pay and Link |
 | Oct 16 | **Plans and prices from the API:** `GET /access/plans` (section 9.3): the four plans with name, label, badge, tagline, features (`soon`, `highlight`), and prices in cents for whoever asks (signed in: their personal prices and what they already own; a guest: `?business_card_id=` with the card token, for a personal price on their email; anyone: list prices and a running sale). Admins can now change prices, run a sale and give one client a personal price | **Must (before prices change):** build the plan cards and the "Continue" button from `/access/plans` instead of `plans.ts` (`PRO_PRICE`, `KEYCHAIN_PRICE`, the feature lists). **Can:** show the sale and its end date |
 | Oct 16 | **Guest cards are drafts; one card per person** (section 9.2). `POST /businessCard` makes a draft (not public, not in the directory) and no longer attaches the card to an existing account with that email; it answers `status: "draft"`, `account_exists`, and `next_step: "sign_in"` or `"plan_selection"`. For a draft whose email has an account, `select-plan`, `shipping-rate-public` and `create-subscription-public` answer 409 `ACCOUNT_EXISTS`. New: `POST /access/cards/:id/claim` (signed in, with the card token) and `DELETE /access/cards/:id` (the owner). `createBusinessCard` (signed in) answers 409 `CARD_EXISTS` while the person has a card (`replace: true` swaps it) | **Must:** after `POST /businessCard`, when `next_step` is `sign_in` (or a purchase call answers `ACCOUNT_EXISTS`), send the person to sign in and then claim the draft with its card token. **Must:** handle `CARD_EXISTS` on create (offer edit, or replace). **Can:** a "Delete my card" action |
 | Oct 16 | **The card form's fields and checks are now the API's** (section 9.1). Creating and editing a card (guest, signed in, owner edit) checks the same fields the form checks, and a refusal names the field: 400 `INVALID_CARD` with `details: { field }` (the form's keys: `name`, `phone`, `bio`, `booking_link`, `instagram`, `images`, …). Read now: `isPrimary` on locations (it was dropped, so no location was primary), `new_images_gallery_meta` captions and cover, video thumbnails. Limits: 4 photos and 1 video (the form allows 5 media in any mix), MP4 under 21 MB, bio up to 80 characters of text (a stored longer bio can stay until it is changed). Ignored: `custom_handle`, `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`; `primary_specialty` is the first specialty. Public card responses (`getBusinessCard/:slug`, `getAllProfiles`, `getProfilesByDirectory/:id`, `getBusinessCardById/:id` without the owner's or an admin's token) leave out the owner's account and plan fields (`user_id`, `business_user`, `plan_type`, `nfc_status`, address and shipping fields, the marketing answers) and return `phone: null` when the phone is hidden; `getBusinessCardById` of a card that is not live is 404 for them | **Must:** cap the gallery at 4 photos and 1 video. **Can:** show `details.field` errors under the field. The dashboard reads `getMyBusinessCard`, which still returns everything |
@@ -408,3 +409,40 @@ cents (USD).
   later monthly amount.
 - `owned` (signed in): what the person already has; buying Pro again or a second keychain is refused, so grey those
   out (as `SubscriptionPlansTab` does for the keychain today).
+
+### 9.4 Checkout and payment (done Oct 16)
+
+Who may call: the card's owner (access token), or the guest with the draft's card token (`x-card-token`), as for
+the purchase calls in section 8. Amounts in cents.
+
+1. `POST /access/checkout/quote` `{ business_card_id, plan_type, rate_id? }`: what the plan costs this person now.
+   Products they already have are left out (a Pro member choosing Pro + keychain pays for the keychain only).
+   With the keychain, the card's checked address is needed first (`order/addNewAddress-public` or
+   `businessCard/select-address`), and the answer lists the shipping options; send `rate_id` to pick one (the
+   cheapest otherwise). Answers:
+
+   ```json
+   { "checkout_id": 77, "status": "open", "plan_type": "nfc_with_subscription",
+     "lines": [{ "product": "pro", "amount": 499, "recurring": 499, "list": 499, "personal": false, "…": "…" },
+               { "product": "keychain", "amount": 3999, "…": "…" }],
+     "shipping": { "address": { "name": "…", "street1": "…", "city": "…", "state": "NV", "zip": "…", "country": "US" },
+                   "options": [{ "rate_id": "…", "amount_cents": 500, "provider": "USPS", "service": "Ground Advantage", "estimated_days": 3 }],
+                   "selected": { "rate_id": "…", "amount_cents": 500, "…": "…" } },
+     "subtotal_cents": 4498, "shipping_cents": 500, "total_cents": 4998, "monthly_cents": 499, "expires_at": "…" }
+   ```
+
+   Quoting again (another plan or shipping option) updates the same open checkout. A quote holds for 24 hours.
+2. `POST /access/checkout/:id/pay` → `{ checkout_id, client_secret, publishable_key, amount_cents, … }`. Confirm with
+   Stripe.js: `stripe.confirmPayment({ elements, clientSecret })` with the Payment Element, or the current
+   `confirmCardPayment(clientSecret, { payment_method: { card } })`. Paying again returns the same secret.
+3. Stripe tells the API (webhook); the card goes live, the seat starts, the keychain order is made, the emails go
+   out. `GET /access/checkout/:id` shows `status: "paid"` (poll for a few seconds after Stripe.js confirms).
+
+The old calls answer as before on top of this: `shipping-rate[-public]` quotes (`checkout_id` added),
+`create-subscription[-public]` pays the card's newest quote for that plan (`clientSecret`, `paymentIntentId`,
+`customerId`, `subscriptionId`, `amount`, `publishableKey`, `checkout_id`).
+
+**The subscription:** `GET /access/subscription` → `{ status, pro, source, amount_cents, current_period_end,
+cancel_at_period_end, … }` (null without one). `POST /access/subscription/cancel` ends it at the end of the paid
+month (`pro` stays true until then); `POST /access/subscription/resume` takes that back.
+`POST /businessCard/cancel-subscription` now does the same as cancel (it used to end Pro at once).

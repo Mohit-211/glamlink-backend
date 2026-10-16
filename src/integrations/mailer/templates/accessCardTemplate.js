@@ -677,6 +677,7 @@ const businessCardPurchaseAdminFormat = (data) => {
 
     <tr>
       <td style="padding:28px 40px 36px;" align="center">
+        ${data.orderLink ? `<a href="${data.orderLink}" target="_blank" style="font-size:13px;color:${brandColor};text-decoration:none;font-weight:600;">Open the order in the admin panel</a>&nbsp;&nbsp;·&nbsp;&nbsp;` : ""}
         <a href="${data.businessCardLink}" target="_blank" style="font-size:13px;color:${brandColor};text-decoration:none;font-weight:600;">View Access Card</a>
       </td>
     </tr>

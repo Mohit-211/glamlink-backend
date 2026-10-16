@@ -121,6 +121,7 @@ AccessOrder.init(
       allowNull: true,
     },
 
+    // Empty for an order that ships nothing (Access Pro alone).
     fulfillment_status: {
       type: DataTypes.ENUM(
         "pending",
@@ -128,7 +129,7 @@ AccessOrder.init(
         "shipped",
         "delivered"
       ),
-      allowNull: false,
+      allowNull: true,
       defaultValue: "pending",
     },
 

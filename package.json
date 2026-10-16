@@ -24,6 +24,8 @@
     "check:models": "node scripts/model-table.js",
     "check:boundaries": "node scripts/check-boundaries.js",
     "check:contract": "node scripts/contract-check.js compare",
+    "stripe:setup": "node scripts/stripe-setup.js",
+    "stripe:reconcile": "node scripts/stripe-reconcile.js",
     "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""
   },
   "dependencies": {
@@ -46,7 +48,8 @@
     "sequelize": "^6.37.8",
     "sharp": "^0.35.5",
     "slugify": "^1.6.9",
-    "stripe": "^12.18.0"
+    "stripe": "^12.18.0",
+    "stripe-current": "npm:stripe@^23.0.0"
   },
   "devDependencies": {
     "oxlint": "^1.88.0"

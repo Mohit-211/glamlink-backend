@@ -3,10 +3,13 @@ const ApiError = require('../../core/http/ApiError');
 const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
 const { identify } = require('../../shared/identity');
-const { BusinessCard } = require('../../models');
+const { BusinessCard, AccessCheckout } = require('../../models');
 const { verifyCardToken, cardTokenFromRequest } = require('./cardToken');
 const { claimCard, deleteOwnCard } = require('./cardOwnership');
 const catalog = require('./catalog');
+const checkoutService = require('./checkout');
+const subscriptions = require('./subscriptions');
+const { seatOf } = require('./seats');
 
 // The Access purchase and card endpoints under /access (docs/access.md).
 
@@ -52,7 +55,37 @@ const plans = catchAsync(async (req, res) => {
     return responseWrapper(res, await catalog.listPlans({ user, email }), '');
 });
 
-// ---- Admin: plans, prices, discounts, personal prices, settings ------------------------------------------
+// ---- Checkout and subscription ------------------------------------------------------------------------------
+
+// Loads the checkout of /checkout/:id for the card access check that follows it.
+const loadCheckout = catchAsync(async (req, res, next) => {
+    req.checkout = await AccessCheckout.findByPk(req.params.id);
+    if (!req.checkout) throw new ApiError(httpStatus.NOT_FOUND, 'Checkout not found.');
+    next();
+});
+
+// A quote for a plan: the lines, the shipping options (a keychain) and the totals, kept as a checkout.
+const quoteCheckout = catchAsync(async (req, res) => {
+    const card = await BusinessCard.findOne({ where: { id: req.body.business_card_id, is_active: true } });
+    if (!card) throw new ApiError(httpStatus.NOT_FOUND, 'Business card not found');
+    const checkout = await checkoutService.quote({ card, planCode: req.body.plan_type, rateId: req.body.rate_id });
+    return responseWrapper(res, checkoutService.view(checkout), '');
+});
+
+const payCheckout = catchAsync(async (req, res) => responseWrapper(res, await checkoutService.pay(req.checkout.id), ''));
+const getCheckout = catchAsync(async (req, res) => responseWrapper(res, checkoutService.view(req.checkout), ''));
+
+const mySubscription = catchAsync(async (req, res) => responseWrapper(res, subscriptions.seatView(await seatOf(req.user.id)), ''));
+const cancelMine = catchAsync(async (req, res) => {
+    const seat = await subscriptions.cancelSeat(req.user.id, { now: false });
+    return responseWrapper(res, subscriptions.seatView(seat), 'Access Pro ends at the end of the month you paid for.');
+});
+const resumeMine = catchAsync(async (req, res) => {
+    const seat = await subscriptions.resumeSeat(req.user.id);
+    return responseWrapper(res, subscriptions.seatView(seat), 'Access Pro continues.');
+});
+
+// ---- Admin: plans, prices, discounts, personal prices, settings, subscriptions ---------------------------
 
 const adminId = (req) => req.user?.id || null;
 const respond = (fn, message = '') => catchAsync(async (req, res) => responseWrapper(res, await fn(req), message));
@@ -60,16 +93,44 @@ const respond = (fn, message = '') => catchAsync(async (req, res) => responseWra
 const admin = {
     catalog: respond(() => catalog.adminCatalog()),
     updatePlan: respond((req) => catalog.updatePlan(req.params.code, req.body), 'Plan updated.'),
-    changePrice: respond((req) => catalog.changePrice(req.params.code, req.body, adminId(req)), 'Price changed.'),
+    // A new list price; `move_subscribers` also moves paying subscribers to it from their next renewal.
+    changePrice: respond(async (req) => {
+        const product = await catalog.changePrice(req.params.code, req.body, adminId(req));
+        if (!(req.body.move_subscribers === true || req.body.move_subscribers === 'true')) return { product };
+        if (product.kind !== 'subscription') {
+            throw ApiError.withCode(httpStatus.BAD_REQUEST, 'Only a subscription price can move subscribers.', 'INVALID_INPUT', { field: 'move_subscribers' });
+        }
+        const result = await subscriptions.moveSubscribersToListPrice(product);
+        await catalog.markSubscribersMoved(product.code);
+        return { product, ...result };
+    }, 'Price changed.'),
     priceChanges: respond(() => catalog.priceChanges()),
     discounts: respond(() => catalog.listDiscounts()),
     createDiscount: respond((req) => catalog.createDiscount(req.body, adminId(req)), 'Discount created.'),
     updateDiscount: respond((req) => catalog.updateDiscount(req.params.id, req.body), 'Discount updated.'),
     endDiscount: respond((req) => catalog.endDiscount(req.params.id), 'Discount ended.'),
     overrides: respond((req) => catalog.listOverrides(req.query)),
-    createOverride: respond((req) => catalog.createOverride(req.body, adminId(req)), 'Personal price set.'),
+    // A personal price; `apply_now` also puts it on the client's live Access Pro subscription from their next renewal.
+    createOverride: respond(async (req) => {
+        const override = await catalog.createOverride(req.body, adminId(req));
+        const applied = req.body.apply_now === true || req.body.apply_now === 'true'
+            ? Boolean(await subscriptions.applyPersonalPrice(override))
+            : false;
+        return { ...override.toJSON(), applied_to_subscription: applied };
+    }, 'Personal price set.'),
     endOverride: respond((req) => catalog.endOverride(req.params.id), 'Personal price ended.'),
     updateSettings: respond((req) => catalog.updateSettings(req.body, adminId(req)), 'Settings saved.'),
+    subscriptions: respond((req) => subscriptions.listSeats(req.query)),
+    cancelSubscription: respond(
+        (req) => subscriptions.cancelSeat(req.params.userId, { now: req.body.now === true || req.body.now === 'true' }),
+        'Subscription cancelled.',
+    ),
+    setComp: respond(
+        (req) => subscriptions.setComp(req.params.userId, !(req.body.active === false || req.body.active === 'false')),
+        'Saved.',
+    ),
 };
 
-module.exports = { claim, remove, plans, admin };
+module.exports = {
+    claim, remove, plans, loadCheckout, quoteCheckout, payCheckout, getCheckout, mySubscription, cancelMine, resumeMine, admin,
+};

@@ -27,9 +27,13 @@ and an `index.js`:
 module.exports = {
     routes: () => [{ path: '/journal', router: require('./journal.route') }], // mounted by src/routes.js
     jobs: () => [...],                                                        // optional, started by src/jobs.js
+    stripeHandlers: () => ({ 'invoice.paid': fn }),                           // optional, registered by src/routes.js
     createNotification,                                                       // what other modules may call
 };
 ```
+
+Shared code reaches a product only through what the product registers at start-up: its cron jobs, and its Stripe
+event handlers (shared billing's webhook runs them first; a handler answers true when the event was its own).
 
 Where to put new code: what the website calls goes in `website/` (or `shared/` when the app calls it too),
 app-only code in `mobile/`, CRM code in `crm/`. An admin screen belongs to the product whose data it shows
@@ -42,9 +46,18 @@ app-only code in `mobile/`, CRM code in `crm/`. An admin screen belongs to the p
 - A module reaches another module only through its `index.js`.
 - Code uses (and associates with) only its own product's and shared models. Models come from
   `require('<...>/models')` (src/models.js).
+- A data migration (`core/db/migrations`) may use a module through its `index.js`, to apply the module's rules
+  to stored data.
 
 Known exceptions are listed, with reasons, in `scripts/boundary-exceptions.js`; remove an entry when its code
 is fixed (the check fails while a fixed entry stays).
+
+## Two Stripe libraries, for now
+
+The website and shared billing use stripe-node 23 (API version `2026-09-30.endive`) through
+`src/integrations/stripe.js`; it is installed as `stripe-current`. The app and CRM code keep requiring `stripe`
+(stripe-node 12) until their phases, because one app file calls Stripe without `new`, which stripe-node 22 and
+later refuse. When the app is reworked, move it to `integrations/stripe.js` and drop the old package.
 
 ## Checks for refactors
 

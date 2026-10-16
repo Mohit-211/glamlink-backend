@@ -48,7 +48,7 @@ Website and shared:
 | `/user/auth/reset-password` skipped validation; reset tokens never expired; OTP compared as string | Fixed: email-link reset with expiry (Phase 3) |
 | `roles.sql` missing a comma | Fixed: seeds regenerated from production (`1df712d`) |
 | Account deletion crashed on an undefined `Post_Tag`, no transaction | Partly: the crash is fixed (Phase 2b); still no transaction |
-| Access-order admin email links to `config.ADMIN_URL`, which does not exist | Open (Phase 2b) |
+| Access-order admin email links to `config.ADMIN_URL`, which does not exist | Fixed: `ADMIN_URL` (default `https://admin.glamlink.net`), and the email now shows the link (it was never rendered) (Phase 2b) |
 | `GET /payment/sum` adds DECIMAL strings | Open (Phase 2b, check) |
 | SMTP `secure: true` hard-coded | Partly: `.env.example` documents port 465 |
 | Controllers assigned undeclared globals | Fixed (Phase 2b lint) |
@@ -91,5 +91,7 @@ Found during the work (not in the audits):
 | `PUT /order/editAddress-public/:id` edited any address by id and re-pointed the card at it | Fixed: only the card's own address (Phase 2a) |
 | A card nobody owned could be edited by anyone (`updateBusinessCard`, featured-link reorder) | Fixed: card token or an admin (Phase 2a) |
 | SQL injection in `GET /businessCard/filter?location=` (public) | Fixed: compared as a value (Phase 2a, `d0dca4f`) |
-| A guest card is attached to any existing account whose email it uses (`POST /businessCard`) | Open (Phase 2b, access.md section 5: the account owner must sign in) |
-| `getAllProfiles` and the public card return the owner's subscription fields, and the phone even when hidden | Open (Phase 2b, access.md section 1) |
+| A guest card is attached to any existing account whose email it uses (`POST /businessCard`) | Fixed: drafts, sign in and claim (Phase 2b step 2) |
+| `getAllProfiles` and the public card return the owner's subscription fields, and the phone even when hidden | Fixed (Phase 2b step 1) |
+| A subscription-only purchase could not make its access order (the model refused an empty fulfillment status) | Fixed (Phase 2b step 4) |
+| The renewal webhook read `invoice.subscription` and the period fields Stripe moved (API 2025-03-31 onwards) | Fixed: Access payments rebuilt on API 2026-09-30 (Phase 2b step 4) |

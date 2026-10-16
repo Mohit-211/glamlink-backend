@@ -33,17 +33,27 @@ test('a second delivery of the same event is acknowledged without processing', a
 });
 
 test("an event that is not processed successfully can be retried", async () => {
-    // A successful charge for a payment we have no record of answers 404, so Stripe retries it later.
+    // A handler that fails (the database is down, say) answers an error, so Stripe retries the event later.
+    const { registerStripeHandlers } = require('../src/shared/billing');
+    let attempts = 0;
+    registerStripeHandlers({ 'test.flaky': async () => { attempts += 1; throw new Error('database unavailable'); } });
+    const event = { id: `evt_test_flaky_${Date.now()}`, object: 'event', type: 'test.flaky', data: { object: {} } };
+    const first = await deliver(event);
+    assert.equal(first.status, 400);
+    await new Promise((r) => setTimeout(r, 100)); // the claim is released after the response is sent
+    assert.equal(await stored(event.id), 0, 'claim released');
+    const retry = await deliver(event);
+    assert.equal(retry.status, 400);
+    assert.equal(attempts, 2, 'the retry is processed again, not skipped as a duplicate');
+});
+
+test('a charge that is none of ours (an invoice charge, say) is acknowledged, not retried for days', async () => {
     const event = {
         id: `evt_test_unknown_${Date.now()}`, object: 'event', type: 'charge.succeeded',
         data: { object: { id: 'ch_test', object: 'charge', currency: 'usd', amount: 1000, payment_intent: `pi_unknown_${Date.now()}`, metadata: {} } },
     };
-    const first = await deliver(event);
-    assert.equal(first.status, 404);
-    await new Promise((r) => setTimeout(r, 100)); // the claim is released after the response is sent
-    assert.equal(await stored(event.id), 0, 'claim released');
-    const retry = await deliver(event);
-    assert.equal(retry.status, 404, 'the retry is processed again, not skipped as a duplicate');
+    const res = await deliver(event);
+    assert.equal(res.status, 200);
 });
 
 test('an unsigned or wrongly signed event is refused and claims nothing', async () => {

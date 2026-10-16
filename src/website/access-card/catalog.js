@@ -3,9 +3,10 @@ const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
 const {
-    AccessProduct, AccessPriceChange, AccessPlan, AccessDiscount, AccessPriceOverride, AccessSetting, BusinessCard, User,
+    AccessProduct, AccessPriceChange, AccessPlan, AccessDiscount, AccessPriceOverride, AccessSetting, User,
 } = require('../../models');
 const { normalizeEmail } = require('../../shared/identity');
+const { seatOf, isPro, ownsKeychain } = require('./seats');
 
 // Plans, prices, discounts and settings (docs/access.md sections 2 and 3). Every amount is computed here, in
 // cents; the browser never sends a price.
@@ -98,12 +99,10 @@ const priceOf = async (product, who, { discount, now = new Date() } = {}) => {
     return { list, amount: list, recurring: recurring ? list : null, personal: false, discount: null };
 };
 
-// What a person already has: an active subscription, and the keychain (bought on any of their cards).
+// What a person already has: Access Pro (their seat), and the keychain (bought on any of their cards).
 const ownedBy = async (user) => {
     if (!user) return { subscription: false, keychain: false };
-    const account = await User.findByPk(user.id, { attributes: ['id', 'subscription_status'] });
-    const keychain = await BusinessCard.findOne({ where: { user_id: user.id, nfc_status: 'paid' }, attributes: ['id'], paranoid: false });
-    return { subscription: account?.subscription_status === 'ACTIVE', keychain: Boolean(keychain) };
+    return { subscription: isPro(await seatOf(user.id)), keychain: await ownsKeychain(user.id) };
 };
 
 /**
@@ -228,6 +227,12 @@ const changePrice = async (code, body, adminId) => {
 
 const priceChanges = () => AccessPriceChange.findAll({ order: [['id', 'DESC']], limit: 200 });
 
+// Records that the newest change of a product's price also moved its subscribers.
+const markSubscribersMoved = async (code) => {
+    const change = await AccessPriceChange.findOne({ where: { product_code: code }, order: [['id', 'DESC']] });
+    if (change) await change.update({ subscribers_moved: true });
+};
+
 const overlaps = async (startsAt, endsAt, exceptId) => {
     const where = {
         [Op.and]: [
@@ -296,6 +301,7 @@ const endDiscount = async (id) => {
 };
 
 const listDiscounts = () => AccessDiscount.findAll({ order: [['starts_at', 'DESC'], ['id', 'DESC']], limit: 200 });
+const discountById = (id) => AccessDiscount.findByPk(id);
 
 // A personal price for one client, by account (`user_id`, or the email of an account) or by email alone for
 // someone who has not signed up. It replaces any earlier personal price for the same product.
@@ -417,10 +423,12 @@ module.exports = {
     updatePlan,
     changePrice,
     priceChanges,
+    markSubscribersMoved,
     createDiscount,
     updateDiscount,
     endDiscount,
     listDiscounts,
+    discountById,
     createOverride,
     listOverrides,
     endOverride,

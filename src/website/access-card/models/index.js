@@ -14,6 +14,8 @@ const AccessPlan = require('./accessPlan.model');
 const AccessDiscount = require('./accessDiscount.model');
 const AccessPriceOverride = require('./accessPriceOverride.model');
 const AccessSetting = require('./accessSetting.model');
+const AccessSubscription = require('./accessSubscription.model');
+const AccessCheckout = require('./accessCheckout.model');
 
 // The associations this module owns: the side that holds the foreign key. Called once every module's
 // models are loaded (src/models.js), with all of them by name.
@@ -131,6 +133,7 @@ module.exports = {
   models: {
     BusinessCard, BusinessCardCategory, BusinessLocation, BusinessHour, BusinessGalleryMedia, AccessOrder, AccessCardAnalytics,
     Directory, DirectoryCategory, AccessProduct, AccessPriceChange, AccessPlan, AccessDiscount, AccessPriceOverride, AccessSetting,
+    AccessSubscription, AccessCheckout,
   },
   associate,
 };

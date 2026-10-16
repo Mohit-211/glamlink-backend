@@ -1,15 +1,16 @@
 const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");
-const Stripe = require("stripe");
 const { todayDate } = require("../../core/utils/time");
-const { accessCardOwner, setPasswordLink } = require("../identity");
-const { Payment, User, CRMPayment, Order, OrderDetails, Customer, Cart, Product, PromotionPayment, UserPromotion, BusinessCard, UserAddress, AccessOrder, State, City } = require("../../models");
+const { Payment, User, CRMPayment, Order, OrderDetails, Customer, Cart, Product, PromotionPayment, UserPromotion } = require("../../models");
 const catchAsync = require("../../core/http/catchAsync");
 const ApiError = require("../../core/http/ApiError");
 const responseWrapper = require("../../core/http/responseWrapper");
 const config = require("../../core/config/config");
+const logger = require("../../core/logger");
+const { stripe } = require("../../integrations/stripe");
 const { getKeys } = require("./stripeCustomer.service");
 const { claimStripeEvent, releaseUnlessProcessed } = require("./stripeEvents");
+const { handleStripeEvent } = require("./stripeHandlers");
 const {
   createNotification,
 } = require("../notifications");
@@ -19,9 +20,6 @@ const {
   sendOrderConfirmationToBuyer,
   sendOrderNotificationToAdmin,
   sendPromotionPurchaseEmails,
-  sendBusinessCardApprovedEmail,
-  sendNewAccessUserEmail,
-  sendBusinessCardPurchaseAdminEmail,
 } = require("../../integrations/mailer/email.service");
 
 const stripeWebhookSecretIntentCharge =
@@ -35,168 +33,19 @@ const geStripeKeys = catchAsync(async (req, res) => {
   return responseWrapper(res, { publishable_key }, "");
 });
 
-const createAccessOrder = async ({ paymentRecord, card }) => {
-  try {
-    // Prevent duplicate order if Stripe sends the webhook again
-    const existingOrder = await AccessOrder.findOne({
-      where: {
-        payment_id: paymentRecord.id,
-      },
-    });
-
-    if (existingOrder) {
-      console.log(
-        `⚠️ Access order already exists: ${existingOrder.order_number}`,
-      );
-
-      return existingOrder;
-    }
-
-    const orderNumber = await generateAccessOrderNumber();
-
-    const orderData = {
-      order_number: orderNumber,
-
-      business_card_id: card.id,
-      payment_id: paymentRecord.id,
-      user_id: paymentRecord.user_id || null,
-
-      customer_name: card.name || "Customer",
-      customer_email: card.email,
-
-      amount_paid: paymentRecord.amount,
-
-      // Stripe already confirmed this payment
-      payment_status: "paid",
-
-      shipping_amount: card.shipping_amount || 0,
-
-      // Default fulfillment
-      fulfillment_status: null,
-    };
-
-    // =========================================================
-    // PHYSICAL NFC ORDER
-    // =========================================================
-
-    if (
-      ["NFC_ONLY", "NFC_WITH_SUBSCRIPTION"].includes(paymentRecord.payment_type)
-    ) {
-      if (!card.user_address_id) {
-        throw new ApiError(
-          httpStatus.BAD_REQUEST,
-          "Shipping address not found for Access order",
-        );
-      }
-
-      const address = await UserAddress.findOne({
-        where: {
-          id: card.user_address_id,
-          is_active: true,
-        },
-        include: [
-          {
-            model: State,
-            as: "user_state",
-          },
-          {
-            model: City,
-            as: "user_city",
-          },
-        ],
-      });
-
-      if (!address) {
-        throw new ApiError(httpStatus.NOT_FOUND, "Shipping address not found");
-      }
-
-      orderData.recipient_name = card.name || "Customer";
-
-      orderData.shipping_address_line_1 = address.address_line_1;
-
-      orderData.shipping_address_line_2 = address.address_line_2 || null;
-
-      orderData.shipping_city = address.user_city?.name || "";
-
-      orderData.shipping_state = address.user_state?.iso2 || "";
-
-      orderData.shipping_postal_code = address.postal_code;
-
-      orderData.shipping_country = "US";
-
-      orderData.fulfillment_status = "pending";
-    }
-
-    // =========================================================
-    // SUBSCRIPTION ONLY
-    // =========================================================
-
-    if (paymentRecord.payment_type === "SUBSCRIPTION_ONLY") {
-      orderData.recipient_name = null;
-      orderData.shipping_address_line_1 = null;
-      orderData.shipping_address_line_2 = null;
-      orderData.shipping_city = null;
-      orderData.shipping_state = null;
-      orderData.shipping_postal_code = null;
-      orderData.shipping_country = null;
-
-      orderData.shipping_amount = 0;
-
-      // No physical fulfillment
-      orderData.fulfillment_status = null;
-    }
-
-    const order = await AccessOrder.create(orderData);
-
-    console.log(`✅ Access Order Created: ${order.order_number}`);
-
-    return order;
-  } catch (error) {
-    console.error("❌ Failed to create Access Order:", error);
-
-    throw error;
-  }
-};
-
-const generateAccessOrderNumber = async () => {
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
-  const prefix = `GL-${date}`;
-
-  const lastOrder = await AccessOrder.findOne({
-    where: {
-      order_number: {
-        [Op.like]: `${prefix}-%`,
-      },
-    },
-    order: [["id", "DESC"]],
-  });
-
-  let sequence = 1;
-
-  if (lastOrder) {
-    const parts = lastOrder.order_number.split("-");
-    sequence = parseInt(parts[parts.length - 1], 10) + 1;
-  }
-
-  return `${prefix}-${String(sequence).padStart(6, "0")}`;
-};
-
 const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
   try {
     const sig = req.headers["stripe-signature"];
-    const { secret_key } = getKeys("");
-    const stripe = new Stripe(secret_key);
 
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = stripe().webhooks.constructEvent(
         req.body,
         sig,
         stripeWebhookSecretIntentCharge,
       );
     } catch (err) {
-      console.error("🔴 Webhook signature verification failed.", err);
+      logger.warn(`Stripe webhook signature verification failed: ${err.message}`);
       return res
         .status(400)
         .json({ error: "Webhook signature verification failed" });
@@ -207,6 +56,11 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       return res.status(200).json({ received: true, duplicate: true });
     }
     releaseUnlessProcessed(res, event.id);
+
+    // The products' handlers first (website/access-card registers the Access payments, src/routes.js).
+    if (await handleStripeEvent(event)) {
+      return res.status(200).json({ received: true });
+    }
 
     console.log("======================event==========", event.type);
 
@@ -277,258 +131,17 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
 
       console.log(paymentRecord, "paymentRecord");
 
-      // ================= BUSINESS CARD PAYMENT =================
-
+      // A payment of the old Access card purchase flow (before api.glamlink.net): left for a person to check.
       if (
         paymentRecord &&
         ["NFC_ONLY", "NFC_WITH_SUBSCRIPTION", "SUBSCRIPTION_ONLY"].includes(
           paymentRecord.payment_type,
         )
       ) {
-        console.log("🎉 Processing Business Card Setup Payment");
-
-        await Payment.update(
-          {
-            payment_status: "SUCCESS",
-            receipt_url: receiptUrl,
-          },
-          {
-            where: {
-              id: paymentRecord.id,
-            },
-          },
+        logger.warn(
+          `Charge ${chargeId} paid old-flow Access payment ${paymentRecord.id} (card ${paymentRecord.business_card_id}); not activated automatically`,
         );
-
-        const card = await BusinessCard.findByPk(
-          paymentRecord.business_card_id,
-        );
-
-        if (!card) {
-          throw new ApiError(404, "Business card not found");
-        }
-
-        let user = null;
-        let newOwner = false;
-
-        // =========================================================
-        // RESOLVE USER
-        // =========================================================
-
-        // CASE 1:
-        // Payment already belongs to a user
-        if (paymentRecord.user_id) {
-          user = await User.findByPk(paymentRecord.user_id);
-        }
-
-        // CASE 2:
-        // Public payment, but Access Card was already linked
-        // to an existing user when the card was created.
-        if (!user && card.user_id) {
-          user = await User.findOne({
-            where: {
-              id: card.user_id,
-              is_active: true,
-              account_type: "professional",
-            },
-          });
-
-          if (user) {
-            console.log(
-              `✅ Existing user found from BusinessCard.user_id: ${user.id}`,
-            );
-
-            // Keep Payment linked to this existing user
-            await paymentRecord.update({
-              user_id: user.id,
-            });
-          }
-        }
-
-        // CASE 3:
-        // Public payment and no user is linked yet: the account for the card's email. An existing account
-        // is used (a user account becomes professional); otherwise one is created without a password and
-        // the welcome email carries a link to set it.
-        if (!user) {
-          const owner = await accessCardOwner({
-            email: card.email,
-            name: card.name,
-            phone: card.phone,
-            extra: {
-              stripe_customer_id: paymentRecord.stripe_customer_id,
-              stripe_subscription_id: paymentRecord.stripe_subscription_id,
-              subscription_status: "PENDING",
-            },
-          });
-          user = owner.user;
-          newOwner = owner.created;
-          console.log(`✅ ${newOwner ? "New" : "Existing"} user for card email: ${user.id}`);
-
-          await card.update({
-            user_id: user.id,
-          });
-
-          await paymentRecord.update({
-            user_id: user.id,
-          });
-        }
-
-        // =========================================================
-        // LINK ACCESS CARD ADDRESS TO USER
-        // =========================================================
-
-        if (card.user_address_id && user) {
-          await UserAddress.update(
-            {
-              user_id: user.id,
-            },
-            {
-              where: {
-                id: card.user_address_id,
-                is_active: true,
-              },
-            },
-          );
-
-          console.log(
-            `✅ Address ${card.user_address_id} linked to user ${user.id}`,
-          );
-        }
-
-        const updates = {};
-
-        updates.status = "accepted";
-
-        // ================= PLAN TYPE & NFC STATUS =================
-
-        // Purchased NFC only
-        if (paymentRecord.payment_type === "NFC_ONLY") {
-          updates.nfc_status = "paid";
-
-          if (user.subscription_status === "ACTIVE") {
-            updates.plan_type = "nfc_with_subscription";
-          } else {
-            updates.plan_type = "nfc_only";
-          }
-        }
-
-        // Purchased NFC + Subscription
-        else if (paymentRecord.payment_type === "NFC_WITH_SUBSCRIPTION") {
-          updates.nfc_status = "paid";
-          updates.plan_type = "nfc_with_subscription";
-        }
-
-        // Purchased Subscription only
-        else if (paymentRecord.payment_type === "SUBSCRIPTION_ONLY") {
-          if (card.nfc_status === "paid") {
-            updates.plan_type = "nfc_with_subscription";
-          } else {
-            updates.plan_type = "subscription_only";
-          }
-        }
-
-        await card.update({
-          ...updates,
-          is_details: true,
-        });
-
-        if (
-          paymentRecord.payment_type === "NFC_WITH_SUBSCRIPTION" ||
-          paymentRecord.payment_type === "SUBSCRIPTION_ONLY"
-        ) {
-          const subscription = await stripe.subscriptions.retrieve(
-            paymentRecord.stripe_subscription_id,
-          );
-
-          await user.update({
-            stripe_subscription_id: paymentRecord.stripe_subscription_id,
-            subscription_status: "ACTIVE",
-            subscription_started_at: new Date(
-              subscription.current_period_start * 1000,
-            ),
-            subscription_renewal_at: new Date(
-              subscription.current_period_end * 1000,
-            ),
-          });
-        }
-
-        // =========================================================
-        // SEND ACCESS CARD EMAIL AFTER SUCCESSFUL PAYMENT
-        // =========================================================
-
-        if (newOwner) {
-          // Brand-new user created during public payment
-          await sendNewAccessUserEmail({
-            to: card.email,
-            name: card.name,
-            email: user.email,
-            setPasswordLink: await setPasswordLink(user),
-            businessCardLink: card.business_card_link,
-            qrCodeUrl: card.business_card_qr,
-          });
-        } else {
-          // Existing user - logged in OR logged out
-          await sendBusinessCardApprovedEmail({
-            to: card.email,
-            name: card.name,
-            businessCardLink: card.business_card_link,
-            qrCodeUrl: card.business_card_qr,
-            purchaseType: paymentRecord.payment_type,
-          });
-        }
-
-        // =========================================================
-        // CREATE ACCESS ORDER
-        // =========================================================
-
-        const accessOrder = await createAccessOrder({
-          paymentRecord,
-          card,
-        });
-
-        // =========================================================
-        // SEND ADMIN ORDER EMAIL
-        // =========================================================
-
-        await sendBusinessCardPurchaseAdminEmail({
-          orderNumber: accessOrder.order_number,
-          orderDate: accessOrder.created_at,
-
-          customerName: accessOrder.customer_name,
-          customerEmail: accessOrder.customer_email,
-
-          amountPaid: accessOrder.amount_paid,
-          paymentStatus: accessOrder.payment_status,
-
-          recipientName: accessOrder.recipient_name,
-
-          shippingAddressLine1: accessOrder.shipping_address_line_1,
-
-          shippingAddressLine2: accessOrder.shipping_address_line_2,
-
-          shippingCity: accessOrder.shipping_city,
-
-          shippingState: accessOrder.shipping_state,
-
-          shippingPostalCode: accessOrder.shipping_postal_code,
-
-          shippingCountry: accessOrder.shipping_country,
-
-          shippingAmount: accessOrder.shipping_amount,
-
-          fulfillmentStatus: accessOrder.fulfillment_status,
-
-          businessCardLink: card.business_card_link,
-
-          orderLink: `${config.ADMIN_URL}/access-orders/${accessOrder.id}`,
-        });
-
-        console.log(
-          `✅ Business Card Activated: ${paymentRecord.business_card_id}`,
-        );
-
-        return res.status(200).json({
-          received: true,
-        });
+        return res.status(200).json({ received: true });
       }
 
       if (!paymentRecord) {
@@ -574,11 +187,8 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
           return res.status(200).json({ received: true });
         }
 
-        // **Step 3: If Still Not Found, Return Error**
-        console.error(
-          `❌ Payment record not found in both tables for transaction: ${paymentIntentId}`,
-        );
-        return res.status(404).send("Payment record not found");
+        // Not one of these payments (an invoice's charge, for one): acknowledged.
+        return res.status(200).json({ received: true });
       }
 
       if (charge.amount !== Math.round(Number(paymentRecord.amount) * 100)) {
@@ -716,120 +326,6 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    // ================= MONTHLY SUBSCRIPTION SUCCESS =================
-
-    if (event.type === "invoice.payment_succeeded") {
-      const invoice = event.data.object;
-
-      console.log("💰 Business Card Renewal Success:", invoice.id);
-
-      const existingPayment = await Payment.findOne({
-        where: {
-          transaction_id: invoice.id,
-        },
-      });
-
-      if (existingPayment) {
-        return res.status(200).json({
-          received: true,
-        });
-      }
-
-      const paymentRecord = await Payment.findOne({
-        where: {
-          stripe_subscription_id: invoice.subscription,
-        },
-        order: [["id", "ASC"]],
-      });
-
-      if (paymentRecord) {
-        await Payment.create({
-          transaction_id: invoice.id,
-
-          user_id: paymentRecord.user_id,
-
-          business_card_id: paymentRecord.business_card_id,
-
-          stripe_customer_id: paymentRecord.stripe_customer_id,
-
-          stripe_subscription_id: invoice.subscription,
-
-          amount: (invoice.amount_paid / 100).toFixed(2),
-
-          payment_type: "SUBSCRIPTION_RENEWAL",
-
-          description: "Business Card Monthly Renewal",
-
-          payment_status: "SUCCESS",
-
-          receipt_url: invoice.hosted_invoice_url,
-        });
-
-        const subscription = await stripe.subscriptions.retrieve(
-          invoice.subscription,
-        );
-
-        await User.update(
-          {
-            subscription_status: "ACTIVE",
-            subscription_started_at: new Date(
-              subscription.current_period_start * 1000,
-            ),
-            subscription_renewal_at: new Date(
-              subscription.current_period_end * 1000,
-            ),
-          },
-          {
-            where: {
-              id: paymentRecord.user_id,
-            },
-          },
-        );
-
-        console.log(
-          `✅ Renewal saved for card ${paymentRecord.business_card_id}`,
-        );
-      }
-
-      return res.status(200).json({
-        received: true,
-      });
-    }
-
-    // ================= MONTHLY SUBSCRIPTION FAILED =================
-
-    if (event.type === "invoice.payment_failed") {
-      const invoice = event.data.object;
-
-      console.log("❌ Business Card Renewal Failed:", invoice.id);
-
-      const paymentRecord = await Payment.findOne({
-        where: {
-          stripe_subscription_id: invoice.subscription,
-        },
-        order: [["id", "ASC"]],
-      });
-
-      if (paymentRecord) {
-
-        await User.update(
-          {
-            subscription_status: "INACTIVE",
-          },
-          {
-            where: {
-              id: paymentRecord.user_id,
-            },
-          },
-        );
-
-        console.log(`❌ Card disabled ${paymentRecord.business_card_id}`);
-      }
-
-      return res.status(200).json({
-        received: true,
-      });
-    }
     res.status(200).json({ received: true });
   } catch (error) {
     console.error("❌ Webhook Processing Error:", error);

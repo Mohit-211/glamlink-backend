@@ -30,6 +30,9 @@ envVars.DEFAULT_API_DATA_LIMIT = number('DEFAULT_API_DATA_LIMIT', 15);
 envVars.ACCESS_TOKEN_MINUTES = number('ACCESS_TOKEN_MINUTES', 15);
 envVars.REFRESH_TOKEN_DAYS = number('REFRESH_TOKEN_DAYS', 30);
 envVars.WEBSITE_URL = (envVars.WEBSITE_URL || 'https://glamlink.net').replace(/\/+$/, '');
+envVars.ADMIN_URL = (envVars.ADMIN_URL || 'https://admin.glamlink.net').replace(/\/+$/, '');
+envVars.SHIPPO_ADDRESS_VALIDATION ??= 'legacy';
+if (!['legacy', 'v2'].includes(envVars.SHIPPO_ADDRESS_VALIDATION)) fail('SHIPPO_ADDRESS_VALIDATION must be legacy or v2');
 envVars.DEFAULT_TIMEZONE ??= 'UTC';
 envVars.MAIL_TRANSPORT ??= 'smtp';
 if (!['smtp', 'log'].includes(envVars.MAIL_TRANSPORT)) fail('MAIL_TRANSPORT must be smtp or log');
@@ -78,6 +81,8 @@ module.exports = {
     API_BASE_URL: envVars.API_BASE_URL,
     // The website, for links in emails (verify email, reset password)
     WEBSITE_URL: envVars.WEBSITE_URL,
+    // The admin panel, for links in admin emails (an Access order)
+    ADMIN_URL: envVars.ADMIN_URL,
     DEFAULT_TIMEZONE: envVars.DEFAULT_TIMEZONE,
     STORY_VALIDATION_TIME_SPAN_HOURS: envVars.STORY_VALIDATION_TIME_SPAN_HOURS,
     
@@ -85,10 +90,34 @@ module.exports = {
     STRIPE_SECRET_KEY: envVars.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET_INTENT_CHARGE: envVars.STRIPE_WEBHOOK_SECRET_INTENT_CHARGE,
     STRIPE_WEBHOOK_SECRET_CUSTOMER_INVOICE_PRICE: envVars.STRIPE_WEBHOOK_SECRET_CUSTOMER_INVOICE_PRICE,
+    // The old purchase flow's Stripe prices: the Access products adopt them when set (scripts/stripe-setup.js).
+    STRIPE_LEGACY_PRICES: {
+        pro: envVars.STRIPE_GLAMLINK_MONTHLY_PRICE_ID,
+        keychain: envVars.STRIPE_GLAMLINK_SETUP_PRICE_ID,
+        shipping: envVars.STRIPE_SHIPPING_PRICE_ID,
+    },
 
     NUMERAL_API_KEY: envVars.NUMERAL_API_KEY,
     NUMERAL_BASE_URL: envVars.NUMERAL_BASE_URL,
     SHIPPO_API_KEY:envVars.SHIPPO_API_KEY,
+    // Shippo's address check: legacy (POST /addresses, every account) or v2 (/v2/addresses/validate, enabled by Shippo).
+    SHIPPO_ADDRESS_VALIDATION: envVars.SHIPPO_ADDRESS_VALIDATION,
+    // The secret token at the end of the Shippo webhook URL, and Shippo's HMAC secret once they set one up.
+    SHIPPO_WEBHOOK_TOKEN: envVars.SHIPPO_WEBHOOK_TOKEN,
+    SHIPPO_WEBHOOK_HMAC_SECRET: envVars.SHIPPO_WEBHOOK_HMAC_SECRET,
+    // Where keychains ship from (the warehouse).
+    SHIP_FROM: {
+        name: envVars.SHIP_FROM_NAME,
+        company: envVars.SHIP_FROM_COMPANY,
+        street1: envVars.SHIP_FROM_STREET1,
+        street2: envVars.SHIP_FROM_STREET2,
+        city: envVars.SHIP_FROM_CITY,
+        state: envVars.SHIP_FROM_STATE,
+        zip: envVars.SHIP_FROM_ZIP,
+        country: envVars.SHIP_FROM_COUNTRY || 'US',
+        phone: envVars.SHIP_FROM_PHONE,
+        email: envVars.SHIP_FROM_EMAIL,
+    },
 
     SUP_ADM_ROLE_ID: envVars.SUP_ADM_ROLE_ID,
     USR_ROLE_ID: envVars.USR_ROLE_ID,

@@ -130,7 +130,8 @@ describe('a personal price', () => {
 
     test('for a signed-in account, and what they own', async () => {
         const { createSession } = require('../src/shared/identity');
-        const userId = await insert("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active, email_verified_at, subscription_status) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1, NOW(), 'ACTIVE')", [`member-${stamp}@test.example`]);
+        const userId = await insert("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active, email_verified_at) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1, NOW())", [`member-${stamp}@test.example`]);
+        await insert("INSERT INTO access_subscriptions (user_id, source, status) VALUES (?, 'comp', 'active')", [userId]);
         const token = (await createSession({ id: userId }, { client: 'test' })).tokens.access_token;
         await asAdmin('POST', '/access/admin/custom-prices', { user_id: userId, product_code: 'keychain', amount_cents: 1999 });
         const data = await plans({ token });
@@ -160,7 +161,7 @@ describe('plans and settings', () => {
         assert.equal((await asAdmin('PUT', '/access/admin/settings', { entitlements: { free: { photos: 4 } } })).status, 400);
         const catalog = (await asAdmin('GET', '/access/admin/catalog')).body.data;
         assert.equal(catalog.settings.shipping.mode, 'flat');
-        assert.equal(catalog.products.length, 2);
+        assert.deepEqual(catalog.products.map((p) => p.code).sort(), ['keychain', 'pro', 'shipping']);
         await asAdmin('PUT', '/access/admin/settings', { shipping: { ...shipping, mode: 'live', flat_amount_cents: 0, countries: ['US'] } });
     });
 });

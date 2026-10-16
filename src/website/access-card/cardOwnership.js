@@ -4,6 +4,7 @@ const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
 const { BusinessCard, User } = require('../../models');
 const { normalizeEmail, accessCardOwner } = require('../../shared/identity');
+const { planFieldsFor, seatOf, isPro } = require('./seats');
 
 // Who owns a card (docs/access.md sections 4 and 5): one live card per person; a guest's card is a draft until
 // a plan is chosen or paid; a guest whose email already has an account signs in and claims the draft; deleting a
@@ -35,22 +36,6 @@ const previousLinkOf = async (userId, transaction) => {
         transaction,
     });
     return old ? { business_card_link: old.business_card_link, business_card_qr: old.business_card_qr } : {};
-};
-
-// A card's plan fields from its owner: the subscription is the person's, and so is the keychain they bought
-// (on any of their cards, deleted ones too).
-const planFieldsFor = async (user, transaction) => {
-    const keychain = Boolean(await BusinessCard.findOne({
-        where: { user_id: user.id, nfc_status: 'paid' },
-        attributes: ['id'],
-        paranoid: false,
-        transaction,
-    }));
-    const pro = user.subscription_status === 'ACTIVE';
-    return {
-        nfc_status: keychain ? 'paid' : 'not_purchased',
-        plan_type: pro ? (keychain ? 'nfc_with_subscription' : 'subscription_only') : keychain ? 'nfc_only' : 'free',
-    };
 };
 
 // Makes room for a person's new card. Without `replace`, a live card refuses with CARD_EXISTS; with it, the live
@@ -102,12 +87,11 @@ const deleteOwnCard = async ({ user, cardId }) => {
     const card = await BusinessCard.findOne({ where: { id: cardId, user_id: user.id } });
     if (!card) throw new ApiError(httpStatus.NOT_FOUND, 'Business card not found.');
     await card.destroy();
-    return { deleted: true, subscription_continues: user.subscription_status === 'ACTIVE' };
+    return { deleted: true, subscription_continues: isPro(await seatOf(user.id)) };
 };
 
 module.exports = {
     liveCardOf,
-    planFieldsFor,
     makeRoomFor,
     lockPerson,
     assertNoAccountFor,

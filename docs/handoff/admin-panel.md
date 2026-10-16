@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | **Subscriptions and payments** (section 7.2): every Access Pro subscription is a seat, paid through Stripe or complimentary (given by an admin; 23 accounts on the live copy have Pro without paying). New: `GET /access/admin/subscriptions`, `POST /access/admin/subscriptions/:userId/cancel`, `PUT /access/admin/subscriptions/:userId/comp`. A price change can move paying subscribers (`move_subscribers`; it now answers `{ product, moved, failed }`), a personal price can go on a live subscription (`apply_now`). Every paid purchase now makes an access order (Access Pro alone too, with no fulfillment status); the admin's order email links to the order in the panel | **New screen:** subscriptions (list, cancel, give or take back complimentary Pro). **Must:** the access orders list shows orders whose `fulfillment_status` is null (nothing to ship) |
 | Oct 16 | **Access pricing screens** (section 7.1): plans, prices (with history), site-wide discounts, personal prices for one client, and settings (what Free and Pro may do, shipping), under `/access/admin/…` | **New screens** (none exist): see section 7.1 |
 | Oct 16 | **Guest drafts and one card per person.** A card a guest makes on the website is a draft until a plan is chosen or paid. `GET /businessCard/getAllBusinessCards` leaves drafts out; `?status=draft` lists them (`?status=pending`, `accepted` or `rejected` filters too). `createBusinessCardByAdmin` for an email whose account already has a card answers 409 `CARD_EXISTS` (`details.card_id`); send `replace=true` to replace it (the old card is deleted but kept, and the new one takes its link and QR code). The card's `status` can be `draft` | **Can:** a "Drafts" view (`?status=draft`). **Must:** handle `CARD_EXISTS` on "Create card" (offer replace) |
 | Oct 16 | **Card create and edit use the website form's fields and checks** (the backend's `docs/access.md` section 1; the website handoff note's section 9.1 lists every rule). A refusal is 400 `INVALID_CARD` with `details: { field }`. Up to 4 photos and 1 MP4 video, a thumbnail per video; bio up to 80 characters of text; phone 10 digits while shown. No longer saved: `custom_handle`, `primary_specialty` (the first specialty is used), `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`, per-location phone and description. Business hours: lines of text (`[{ note }]`). `getBusinessCardById/:id` returns the whole card only with an admin token (or the owner's); without one, the public card | **Must:** limit the gallery to 4 photos and 1 video (it allows 20), drop the removed fields from the form, show `details.field` errors. Captions: send `new_images_gallery_meta` (one per new photo) and `existing_images_gallery_meta` (one per kept photo, in `existing_image_ids` order); `gallery_meta` is read only for new photos |
@@ -167,6 +168,16 @@ with `details.field`, 404, 409 `DISCOUNT_OVERLAPS`.
 | POST | `/custom-prices` | `user_id` or `email`, `product_code`, `amount_cents`, `note`, `ends_at` (optional) | A price for one client (an email works before they have an account). Replaces their earlier one for that product; beats a running sale |
 | POST | `/custom-prices/:id/end` | | Ends it |
 | PUT | `/settings` | any of `entitlements` (`{ free, pro }` each with `photos`, `videos`, `edit_details`, `edit_media`, `special_offers`, `analytics`, `priority_search`), `keychains_per_person`, `shipping` (`mode` live/flat/free, `flat_amount_cents`, `countries` US/CA, `parcel` dimensions and weight) | Each setting sent replaces the stored one whole; answers all settings |
+
+### 7.2 Subscriptions (done Oct 16)
+
+| Method | Path | Body / query | What it does |
+| --- | --- | --- | --- |
+| GET | `/access/admin/subscriptions` | `?status=active`, `?source=stripe` or `comp` | Seats: `user_id`, `source`, `status` (Stripe's: active, past_due, canceled, …), `amount_cents`, `current_period_end`, `cancel_at_period_end` |
+| POST | `/access/admin/subscriptions/:userId/cancel` | `{ now: true }` to end at once | Ends a person's Access Pro at the end of their paid month (or now) |
+| PUT | `/access/admin/subscriptions/:userId/comp` | `{ active: true\|false }` | Gives or takes back complimentary Pro (409 `SUBSCRIPTION_PAID` for someone who pays) |
+| PUT | `/access/admin/products/:code/price` | add `move_subscribers: true` | Also moves paying subscribers without a personal price to the new price from their next renewal |
+| POST | `/access/admin/custom-prices` | add `apply_now: true` | Also puts the personal price on the client's live subscription from their next renewal |
 
 ## Appendix: every admin endpoint
 

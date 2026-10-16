@@ -10,6 +10,8 @@ module.exports = {
         { path: '/access-card/analytics', router: require('./accessCardAnalytics.route') },
         { path: '/access', router: require('./access.route') },
     ],
+    // Its Stripe event handlers (Access payments), registered with shared billing by src/routes.js.
+    stripeHandlers: () => require('./payments').handlers,
     // For other modules and data migrations.
     sanitizeBio,
     bioMarkupRemoved,
