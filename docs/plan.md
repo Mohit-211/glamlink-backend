@@ -20,7 +20,7 @@ Approved Oct 16, 2026. Progress is in progress.md; finding-by-finding status in 
   logged in its handoff note with what the frontend must or can do, including logic the backend takes over.
 - Each change is verified: route table and route chains, model table, the 67-endpoint contract check against the
   local copy of production, the test suite, and `npm run lint` (with the module-boundary check).
-- New work continues on new branches from `phase3/identity`; `main` and older commits stay as they are.
+- New work continues on `phase5/security` (it holds every earlier phase); `main` and older commits stay as they are.
 
 ## Phases
 
@@ -43,7 +43,8 @@ Only shared, website and core code changes.
    It is required, unless the caller is the signed-in owner or an admin, on `select-plan`, the public shipping,
    subscription and address calls, `getAddressByBusinessCardId`, and edits of a card nobody owns yet.
 2. **One admin guard.** `requireAdmin` replaces the old `validateJWTtoken` on the website and shared routes;
-   admin login refuses deactivated admins. (App back-office routes keep the old check until the app phase.)
+   admin login refuses deactivated admins. (Since the go-live fixes, the app's back-office routes get the same
+   check through the shared guard.)
 3. **Error handling.** Unexpected errors are logged with their stack and answer a generic 500 instead of the raw
    database message, in shared and website code. Stripe card errors keep their message; the messages the website
    matches on stay, with stable codes added.
@@ -56,7 +57,7 @@ Only shared, website and core code changes.
 9. **`PUT /ads/sort-order`** made reachable.
 10. **Directory filter** (`GET /businessCard/filter`) wrote its `location` into the SQL; it is now a value.
 
-### 2b. Access, and the backend takes over frontend logic (current)
+### 2b. Access (done), and the backend takes over frontend logic (after the first deploy)
 
 **Access** (designed in access.md, added Oct 16): the card takes precisely the website form's fields (the admin
 panel matches them); plans, features and prices are stored and served by the API; admins change prices, give one
@@ -66,22 +67,27 @@ covered (signed in or not, email with an existing account, existing card); the k
 product; Stripe moves to stripe-node 23 (API `2026-09-30.endive`) and Shippo to its current address check, rates,
 labels and tracking; the plan features (pricing page) are enforced on the server, which settles the edit lock.
 
-**Takeovers:** each adds an endpoint or an optional parameter, so nothing that works today breaks: live ads and ad
-tracking, journal paging and search, real directory search with geocoding, podcast episodes from the server, the
-newsletter and "get featured" forms, analytics de-duplication, helpers for the admin panel (collapse double
-slashes, optional `department_id`, 20 gallery images), the access-order admin link.
+**Takeovers:** each adds an endpoint or an optional parameter, so nothing that works today breaks. Done: the
+helpers for the admin panel (double slashes collapsed, optional `department_id`, 20 gallery photos for admins)
+and the access-order admin link. After the first deploy (Mohit, Oct 16: the first version goes live first; the
+website works today without them): live ads and ad tracking, journal paging and search, real directory search
+with geocoding, podcast episodes from the server, the newsletter and "get featured" forms, analytics
+de-duplication.
 
-### 3. New database and go-live readiness
+### 3. New database and go-live readiness (done)
 
-Migrations: stored file URLs moved from node.glamlink.net to api.glamlink.net, token and OTP leftovers dropped,
-reference data trimmed to the US and Canada (only if unreferenced), the Phase 2 tables. Readiness: pm2 name
-`glamlink-api` and folder `/var/www/api`, a testing mode (no cron jobs, no emails, no push, Stripe test keys),
-CORS origins, row-count and frontend-call check scripts, and `docs/deploy.md`.
+Done (the go-live fixes): stored file URLs moved from node.glamlink.net to `API_BASE_URL` (migration
+`20261016-0800`), pm2 name `glamlink-api` and folder `/var/www/api`, a testing mode (`JOBS_ENABLED=false`,
+`MAIL_TRANSPORT=log`, no push, Stripe and Shippo test keys), CORS origins, production settings refused when weak or
+missing, `npm run check:server`, and the runbook `docs/deploy.md`. Left for later, as nothing depends on them:
+dropping the token and OTP leftover tables, trimming reference data to the US and Canada, the row-count and
+frontend-call scripts (`check:server`, the migration report and the smoke checks in deploy.md cover the deploy).
 
 ### 4. Rehearsal (READY gate)
 
-On a fresh dump of the live database: restore, migrate, compare row counts, review the account-merge report,
-contract check, tests, every website and admin call, a test purchase.
+Folded into the testing-mode deploy (deploy.md sections 1 to 7): the server run on a fresh copy of the live data is
+the rehearsal; the migration report, `check:server`, the smoke checks and a test purchase are its checks. Locally:
+contract check, tests and lint pass on the Oct 14 copy.
 
 ### 5–7. Deploy, frontends, switch
 

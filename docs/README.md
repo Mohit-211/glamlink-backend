@@ -6,6 +6,7 @@ Start here. Every document below is kept current as work lands.
 | --- | --- |
 | [plan.md](plan.md) | The go-live plan: new backend on api.glamlink.net with a new database, phase by phase, and the rules for the work |
 | [access.md](access.md) | The Access design (Phase 2b): the card's fields, plans and features, prices and discounts, one card per person, every purchase situation, Stripe and Shippo |
+| [deploy.md](deploy.md) | The server runbook: what to do after pulling the code, testing mode, the switch to live, going back |
 | [progress.md](progress.md) | What is done so far, phase by phase, with commits |
 | [audit.md](audit.md) | Every finding of the original audits (backend, Oct 7; website, Oct 15) with its current status |
 | [architecture.md](architecture.md) | The code layout (shared, website, mobile, crm), module rules, and the checks used for refactors |
@@ -18,6 +19,7 @@ Outside the repo (Claude Docs):
 - Glamlink Web — Code Audit (Oct 15): https://claude.ai/artifact/Qnh7bXqtBNzqcSj8gye1Eg
 - Glamlink Backend Roadmap (change log): https://claude.ai/artifact/93UGzDxXcQhS4QbSDRy68D
 - Glamlink API Go-Live Plan: https://claude.ai/code/artifact/af714945-e9fa-4ac0-80f2-739e6d572a3a
+- Admin panel security: backend changes and questions (answered Oct 16): https://claude.ai/code/artifact/7cf1fb80-6241-4282-b8a6-9966c6290ed9
 
 ## Ground rules
 

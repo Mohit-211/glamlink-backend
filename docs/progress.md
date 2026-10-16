@@ -2,7 +2,22 @@
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one.
 
-## Phase 2b: Access, and frontend takeovers (current, branch `phase5/security`)
+## Go-live preparation (Oct 16, branch `phase5/security`; current)
+
+Mohit (Oct 16): security is fixed, so the first version goes live next; the remaining frontend takeovers come
+after it. The server runbook is deploy.md.
+
+| Item | Status |
+| --- | --- |
+| Stripe on the newest package | Done: `stripe` 23.0.0 is the only Stripe package (the `stripe-current` alias and stripe-node 12 are gone). The app and CRM keep API version 2022-11-15 on their own clients; no app or CRM file changed (`568ffc7`) |
+| Admin sign-in (the admin panel's security questions, answered in that doc) | Done: one 401 `INVALID_CREDENTIALS` answer for every failed login; 12-hour tokens with a `token_version` (migration `20261016-0900`); `POST /admin/auth/logout` and a new password end every session; the app's admin screens on the same check (401, never 500); the OTP request answers the same for any email (`d4900c0`) |
+| For the admin panel as it is | Done: double slashes collapsed, `department_id` optional, up to 20 photos on a card from an admin, 20 `images` per upload (`d4900c0`) |
+| File links on the API host | Done: migration `20261016-0800` (2,584 values in 28 columns on the local copy; analytics, Stripe events and backups keep theirs; originals in `file_url_backup`) (`d4900c0`) |
+| Testing mode, pm2, production settings, `check:server` | Done: `JOBS_ENABLED`; emails logged with their links under `MAIL_TRANSPORT=log`; pm2 `glamlink-api` in `/var/www/api` (the old process is `glamlink-backend` in `/var/www/backend`); production refuses a weak `JWT_SECRET` or a missing `API_BASE_URL`/`ACCESSDOMAINS`, and sign-ups without a Turnstile secret; 10 guest cards an hour per address; `STORAGE_DIR` in `.env` now read; `npm run check:server` (`d4900c0`) |
+| Mohit's decisions | Drafts 14 and 59: fine. 23 complimentary seats: keep. Kate Sibley: keep "Kate Sibley"; removing her second card waits for his go-ahead |
+| Runbook and notes | Done: deploy.md; both handoff notes (Turnstile site key, the directory form's fields, admin sign-in and sign-out, the 20-photo gallery); the admin security questions answered; audit and plan updated. Tests 132; contract identical apart from the moved file links (baseline `go-live-baseline.json`) |
+
+## Phase 2b: Access (done Oct 16, branch `phase5/security`); frontend takeovers after the first deploy
 
 Access design: access.md (Oct 16). Build order and status:
 

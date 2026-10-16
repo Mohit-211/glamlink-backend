@@ -104,8 +104,9 @@ The server computes every amount; the browser never sends prices.
   working.
 - The keychain belongs to the person too: one per person (**Default**, admin setting).
 - Deleting a card is a soft delete; Access card data is never erased.
-- Existing data: Kate Sibley (account 194) has two live cards on one email ("Kate Sibley", accepted, and "Tiffany
-  Adison Menzione", pending). The rule applies to new cards; this pair waits for Mohit's decision.
+- Existing data: Kate Sibley (account 194) has two cards on one email ("Kate Sibley", 16, accepted, and "Tiffany
+  Adison Menzione", 21, pending). Mohit: keep "Kate Sibley" (Oct 16). Removing card 21 waits for his go-ahead; until
+  then the API treats card 21, her newest, as her card.
 
 ## 5. Buying: the flow and every situation
 
@@ -212,6 +213,8 @@ refunded yet); emails to the buyer when the keychain ships.
 
 ## 11. Setting up (for the deploy runbook)
 
+The whole runbook is deploy.md; these are its Access steps.
+
 1. `.env`: `ADMIN_URL`; the warehouse `SHIP_FROM_NAME`, `SHIP_FROM_COMPANY`, `SHIP_FROM_STREET1`, `SHIP_FROM_STREET2`,
    `SHIP_FROM_CITY`, `SHIP_FROM_STATE`, `SHIP_FROM_ZIP`, `SHIP_FROM_PHONE`, `SHIP_FROM_EMAIL` (the address the
    old code had written in); `SHIPPO_WEBHOOK_TOKEN` (a long random string); `SHIPPO_ADDRESS_VALIDATION=legacy`
@@ -229,7 +232,7 @@ refunded yet); emails to the buyer when the keychain ships.
 
 ## 12. Decisions taken with defaults (Oct 16)
 
-Each can be changed: most are settings an admin changes.
+Each can be changed: most are settings an admin changes. Mohit's answers (Oct 16) are marked.
 
 - Free owners can keep their details current; photos, video and offers need Pro (`entitlements` setting).
 - A price change applies to new purchases; subscribers keep theirs unless the admin moves them.
@@ -238,6 +241,8 @@ Each can be changed: most are settings an admin changes.
 - One keychain per person (`keychains_per_person`); the keychain ships to the US (Canada in `shipping.countries`).
 - Guest drafts are kept, hidden, never erased. On the live copy, two old unpaid guest cards (14 "Polished Nails &
   Spa", accepted, and 59 "Jessica Leigh", pending) became drafts; their old status is in
-  `business_card_status_backup`.
-- Kate Sibley (account 194) has two live cards ("Kate Sibley" and "Tiffany Adison Menzione"): waiting for Mohit.
-- 23 accounts have Pro without a Stripe subscription (bulk-set on Oct 8): they are complimentary seats.
+  `business_card_status_backup`. **Mohit: fine.**
+- Kate Sibley (account 194): **Mohit: keep "Kate Sibley".** Her second card (21) is removed once he confirms.
+- 23 accounts have Pro without a Stripe subscription (bulk-set on Oct 8): they are complimentary seats. **Mohit:
+  keep them;** admins give or take back Pro with `PUT /access/admin/subscriptions/:userId/comp`.
+- **Mohit: admins may put up to 20 photos on a card** (the admin panel's gallery); owners keep their plan's count.

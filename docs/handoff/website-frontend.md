@@ -1,7 +1,7 @@
 # Website frontend: backend API changes for the cutover
 
 For: the Claude working on the Glamlink website (glamlink.net) frontend.
-Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `phase3/identity` (from `phase2c` onward).
+Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `phase5/security` (it holds every earlier phase).
 
 The backend and the website ship together in one cutover. After it, every signed-in person has to sign in
 again (old tokens stop working). Everything below is what the website must change to work with the new
@@ -34,6 +34,14 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
 - [ ] Plans and prices from `GET /access/plans` before any admin price change or sale (section 9.3).
 - [ ] Free owners may edit details; photos, video and offers stay behind Pro (`UPGRADE_REQUIRED`, section 9.6).
 - [ ] After cancelling, Access Pro runs to the end of the paid month: say so, offer resume (section 9.4).
+- [ ] `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in every build: the API requires the Turnstile token on sign-up in production,
+      and the form skips the captcha without the key (then sign-up fails with `CAPTCHA_REQUIRED`). Testing mode:
+      Cloudflare's always-pass test site key `1x00000000000000000000AA`.
+- [ ] The Stripe publishable key comes from the same account and mode as the API's secret key (test while testing).
+- [ ] `/directory-form-apply` (`directoryForm.tsx`) posts to `POST /businessCard` too: send the photos as
+      `profile_image` and `images` (it sends `profilePhoto` and `gallery_images`, which the API refuses with 400
+      "Unexpected field", as the old API did), and continue like `/access` after it (section 9.2): the card is a
+      hidden draft until a plan is chosen.
 
 ## Changelog
 
@@ -41,6 +49,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **Ready to run on api.glamlink.net** (the backend's `docs/deploy.md`). Stored file links (card photos, QR codes, gallery, journal covers and bodies) point at `https://api.glamlink.net/images/…` and `/videos/…` instead of `node.glamlink.net`; the files are copied. Sign-up in production needs the Turnstile token (an API without its secret key answers 503 `CAPTCHA_NOT_CONFIGURED` rather than letting sign-ups through). One address may create 10 guest cards an hour (`POST /businessCard`; refused attempts don't count), then 429 `TOO_MANY_REQUESTS`. A URL with a double slash (`/api/v1//journal`) now reaches its route | **Must:** the Turnstile site key in the build, and the directory form's fields (checklist). Nothing else: image URLs come from the API as before |
 | Oct 16 | **The plan's features are enforced by the API** (section 9.6): once a card is live, its owner on Free can still change the details (text, links, hours, locations) but not the photos, the video or the profile image, and cannot run a special offer: 403 `UPGRADE_REQUIRED` with `details.feature` (`edit_media`, `special_offers`, or `edit_details` if an admin turns Free editing off). Pro may do all of it. Public cards show an offer only while the owner is Pro. Drafts, cards waiting for review and rejected cards can always be edited | **Should:** let Free owners edit their details (today the Edit button sends them to the plans), keep photos, video and offers behind Pro; show the offer fields to Pro owners; on `UPGRADE_REQUIRED`, offer the upgrade |
 | Oct 16 | **Delivery addresses checked with Shippo in one step** (section 9.5): `order/addNewAddress-public`, `editAddress-public`, `order/addNewAddress` and `editAddress` save the address as Shippo corrected it and answer it, with `corrected: true` and `original_address` when Shippo changed it. New optional fields: `address_line_2`, `recipient_name`, `phone`. Refusals: 400 `ADDRESS_INVALID` (message unchanged: "Address validation failed: …"), 502 `ADDRESS_CHECK_UNAVAILABLE`. `editAddress` edits only the signed-in person's own addresses (it edited any address by id). The keychain ships to the US only unless an admin adds Canada | **Should:** show "We corrected your address to …" when `corrected`, and add an apartment/suite field (`address_line_2`) |
 | Oct 16 | **Payments on the new Stripe integration** (section 9.4): a checkout quotes and stores what a plan costs for a card (`POST /access/checkout/quote`), then `POST /access/checkout/:id/pay` returns the Stripe client secret; `GET /access/checkout/:id` says when it is paid. The old calls (`shipping-rate[-public]`, `create-subscription[-public]`) now run on it: same requests and answers, plus `checkout_id`; prices come from the plans and sales, not from the browser. `cancel-subscription` now ends Access Pro at the end of the paid month (it ended it at once); `/access/subscription` shows the seat, `/access/subscription/cancel` and `/resume`. New refusals: 409 `ALREADY_OWNED` (buying Pro again), `NFC_ALREADY_PURCHASED` is now per person, 400 `SHIPPING_COUNTRY_UNSUPPORTED`, `CHECKOUT_EXPIRED` | **Nothing required:** `confirmCardPayment(clientSecret)` keeps working. **Should:** say "Your Pro plan ends on <date>" after cancelling, and offer resume; after paying, poll `GET /access/checkout/:id` until `paid` before showing the dashboard. **Can:** the Payment Element (`confirmPayment`) for Apple Pay, Google Pay and Link |
@@ -169,6 +178,8 @@ Error responses: `{ success: false, status, message, code, data: "" }`. `code` i
 | `INVALID_LINK` | 400 | Email link expired or already used |
 | `INVALID_INPUT` | 400 | Missing name or invalid email |
 | `CAPTCHA_REQUIRED` / `CAPTCHA_FAILED` | 400 | Turnstile token missing or rejected |
+| `CAPTCHA_NOT_CONFIGURED` | 503 | The API has no Turnstile secret yet: sign-up is off until it does (a server setting, not the visitor's fault) |
+| `TOO_MANY_REQUESTS` | 429 | Too many guest cards from one address in an hour |
 | `CARD_TOKEN_REQUIRED` | 401 | A purchase call without the card's token (section 8) |
 | `ADDRESS_INVALID` | 400 | Shipping address rejected by the carrier (message: "Address validation failed: …") |
 | `ADDRESS_NOT_FOUND` | 404 | No address on the card or account (message: "Address not found") |
@@ -368,6 +379,9 @@ only the fields it sends.
 
   It never attaches the card to an existing account any more (before, anyone could create a card on someone else's
   account by typing their email).
+- **Both card forms make drafts.** `/access` and `/directory-form-apply` post to the same `POST /businessCard`; the old
+  API made the directory form's card public at once, the new one keeps it a draft like any guest card. After the
+  directory form, follow `next_step` as `/access` does (choose Free, or sign in and claim), or the card never goes live.
 - **The email already has an account** (`account_exists: true`, `next_step: "sign_in"`): the plan and payment calls
   answer 409 `ACCOUNT_EXISTS`. Send the person to sign in, then:
 

@@ -22,16 +22,16 @@ do not touch until the app or CRM phase).
 | 10 | High | Personal data readable without login | Fixed: admin lists (Phase 0); the logged-out card purchase now needs the card token, the owner or an admin (Phase 2a) |
 | 11 | High | Shipping labels and push notifications without login | Fixed: owner-or-admin and admin only (Phase 0) |
 | 12 | High | Server logs public at `/api/v1/logs` | Fixed: removed (Phase 0) |
-| 13 | High | Admin tokens never re-checked; deactivated admins keep access; admin login ignores `is_active` | Fixed: `requireAdmin` re-checks the admin is active (Phase 0) and is the only admin check on website and shared routes; admin sign-in and admin OTP verification refuse deactivated admins (Phase 2a). Open: admin roles are never enforced (all admin roles have the same power) |
+| 13 | High | Admin tokens never re-checked; deactivated admins keep access; admin login ignores `is_active` | Fixed: `requireAdmin` re-checks the admin is active (Phase 0) and is the only admin check on website and shared routes; admin sign-in and admin OTP verification refuse deactivated admins (Phase 2a); the app's admin screens use the same check, tokens last 12 hours and end on sign-out or a new password (go-live fixes). Open: admin roles are never enforced (all admin roles have the same power) |
 | 14 | High | Promotion webhook activated unpaid promotions | Fixed (Phase 0) |
 | 15 | Medium | "Login required" let guests through on 187 routes | Fixed: `authenticate` / `optionalAuth` / `requireProfessional` (Phase 3) |
 | 16 | Medium | Passwords and tokens written to logs | Fixed (Phase 0) |
 | 17 | Medium | Uploads accepted on every route, no size limit | Partly: 50 MB per file, files removed when a request fails (Phase 0). Upload parsing still runs on every `/api/v1` request because the admin panel sends multipart bodies to plain endpoints |
 | 18 | Medium | Shippo webhook not verified | Website: the new keychain tracking webhook checks the secret token in its URL and Shippo's HMAC once set up (Phase 2b). App: its order shipping is unchanged (`src/mobile/commerce`) |
-| 19 | Medium | Admin tokens signed with `Buffer.from(JWT_SECRET, "hex")` | Open: production `JWT_SECRET` must be 64 hex characters (deploy checklist). User tokens use a derived key (Phase 3) |
+| 19 | Medium | Admin tokens signed with `Buffer.from(JWT_SECRET, "hex")` | Fixed: production refuses to start unless `JWT_SECRET` is at least 64 hex characters (go-live fixes). User tokens use a derived key (Phase 3) |
 | 20 | Medium | Google Maps key hard-coded in source | Fixed: read from `GOOGLE_API_KEY` (Phase 2a); Mohit rotated the key (Oct 16). The new key goes in the server `.env` |
 | 21 | Low | `.env.example` held real-looking credentials | Fixed: placeholders only (Phase 2b, `73092bc`) |
-| 22 | Low | Login reveals whether an email exists | Fixed for users: one `INVALID_CREDENTIALS` answer (Phase 3). Open for admins: the admin panel matches the message "User not found.", so it changes with the panel |
+| 22 | Low | Login reveals whether an email exists | Fixed: one `INVALID_CREDENTIALS` answer for users (Phase 3) and admins (go-live fixes); the admin OTP request answers the same for any email |
 | 23 | Low | CORS configured three ways; `Access-Control-Allow-Origin: *` on every response | Fixed: one CORS file (`cbc20dc`); no wildcard; only `ACCESSDOMAINS` origins get CORS headers; others are refused with 403 (Phase 2a) |
 
 ## Bugs (backend audit: 32 findings)
@@ -78,7 +78,7 @@ typo, the ServiceLocation hook, the per-minute CRM cron that restarts the server
 | `role_id: 7` header trusted | Fixed: ignored (Phase 3) |
 | Tokens in localStorage | Fixed on the backend: refresh token in an httpOnly cookie (Phase 3); the website must adopt it |
 | Auth errors answered 200 | Fixed: real statuses and codes (Phase 3) |
-| Captcha skipped when the key is missing | Fixed: Turnstile required in production (Phase 3) |
+| Captcha skipped when the key is missing | Fixed: the API checks the Turnstile token (Phase 3), and production refuses sign-ups while its secret is missing (go-live fixes; before, a missing key let them through) |
 | Hard-coded prices, edit lock only in the UI | Fixed: plans and prices from `GET /access/plans`, plan features enforced by the API (Phase 2b, access.md) |
 | Ad selection in the browser, ad tracking 404, journal paging in the browser, mock directory, YouTube key in the browser, four forms that send nothing, analytics counts easy to inflate | Open (Phase 2b) |
 | Password rules differ between sign-up and reset | Fixed: one rule (Phase 3) |
@@ -98,3 +98,8 @@ Found during the work (not in the audits):
 | `PUT /order/editAddress/:id` edited any address by its id (any signed-in account) | Fixed: own addresses only (Phase 2b step 5) |
 | `GET /order/getBuinessAddressById/:id` (no sign-in) served any address, including Access card buyers' delivery addresses | Partly: delivery addresses are no longer served (Phase 2b step 5); the route stays public for the app's business addresses until the app phase |
 | The renewal webhook read `invoice.subscription` and the period fields Stripe moved (API 2025-03-31 onwards) | Fixed: Access payments rebuilt on API 2026-09-30 (Phase 2b step 4) |
+| The pm2 config named the app `glamlink-backend` in `/var/www/backend`, the old backend's name and folder on the same server | Fixed: `glamlink-api` in `/var/www/api` (go-live fixes) |
+| A `STORAGE_DIR` set in `.env` was ignored (the storage path was read before `.env` loaded) | Fixed (go-live fixes) |
+| The app's admin screens (`validateJWTtoken`) let deactivated admins in and answered an expired token with 500 | Fixed: the same check as every admin route (go-live fixes) |
+| Admin tokens lasted 5 days and could not be ended (sign-out only deleted the browser's copy) | Fixed: 12 hours, ended on sign-out or a new password (go-live fixes) |
+| Guest cards (`POST /businessCard`) had no rate limit; each can become an account and a live card | Fixed: 10 an hour per address in production (go-live fixes) |

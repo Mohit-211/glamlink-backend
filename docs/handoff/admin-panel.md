@@ -1,7 +1,7 @@
 # Admin panel: backend API changes for the cutover
 
 For: the Claude working on the Glamlink admin panel.
-Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `phase3/identity`.
+Backend: `api.glamlink.net`, all routes under `/api/v1`. Backend branch: `phase5/security` (it holds every earlier phase).
 
 The backend and its clients ship together in one cutover. Admin sign-in itself is unchanged; what changed
 is which endpoints exist, some field names, and the account model behind the user screens. Anything not
@@ -18,16 +18,23 @@ Found by reviewing the admin panel code (Oct 16) against the new backend. Detail
 - [ ] One API client that sends the admin token on **every** call. Today 124 of 204 calls send none (41 of them
       change data), and every admin endpoint now refuses a missing token. `x-access-token` and
       `Authorization: Bearer` both work.
-- [ ] Build URLs without a double slash: 26 calls produce `/api/v1//journal/...`, which the API answers with 404.
+- [ ] When convenient: build URLs without a double slash. 26 calls produce `/api/v1//journal/...`; the API now
+      treats `//` as `/`, so they work.
 - [ ] `VITE_API_BASE_URL=https://api.glamlink.net/api/v1/`, `VITE_IMAGE_BASE_URL=https://api.glamlink.net/images/`,
       `VITE_VIDEO_BASE_URL=https://api.glamlink.net/videos/` (files are served at the root, not under `/api/v1`).
 - [ ] Three paths: `admin/getAllReferralByBeauticianId/:id` is `admin/getAllReferralByProfessionalId/:id`;
       `admin/getBookingsByCounsellorId` is `admin/getBookingsByProfessionalId`; deleting an admin is
       `DELETE admin/deleteAdmin` (the panel calls `admin/auth/deleteAdmin`, which does not exist).
 - [ ] Request bodies: `getReviewsTakenByUserId` and `getAvailablityByUserId` send `professional_id`, not `counselor_id`.
-- [ ] "Add admin" must send `password` and `department_id`; the backend requires both.
+- [ ] "Add admin" must send `password`; `department_id` is optional now.
 - [ ] When an admin call answers 401 (`code: "ADMIN_SESSION_EXPIRED"` or `"ADMIN_SIGN_IN_REQUIRED"`), end the session and go
       to sign-in. The panel currently looks for the messages `jwt expired` / `invalid token`, which the API no longer sends.
+      A 401 always means "sign in again" (no endpoint answers 401 for a role); the app's screens (posts, reels,
+      services, appointments, categories) answer the same way now.
+- [ ] Sign-in: a failure is 401 `INVALID_CREDENTIALS` "Invalid email or password." whatever the reason; show it, and
+      don't treat a 401 from the login call as an ended session. Sign-out: call `POST /admin/auth/logout` with the
+      token, then clear it. Sessions last 12 hours.
+- [ ] Card gallery: up to 20 photos and 1 video for admins (not 4: that is the owners' limit).
 
 ## Changelog
 
@@ -35,6 +42,8 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 16 | **Admin sign-in** (the panel's security questions, answered in that doc): a failed login is 401 `INVALID_CREDENTIALS` "Invalid email or password." for an unknown email, a wrong password and a deactivated admin alike (it was 400 "User not found." or another message). Tokens last 12 hours (`ADMIN_TOKEN_HOURS`; it was 5 days). New `POST /admin/auth/logout` ends every session of that admin; changing or resetting the password does too (the next call answers 401 `ADMIN_SESSION_EXPIRED`). `POST /admin/auth/otp` answers the same for any email. The app's admin screens (`/admin/posts`, `/admin/reels`, `/admin/services`, `/admin/home/appointments/all`, `/admin/user/promoted`, `/admin/service-list`, `/category` writes) now use the same check as every admin route: Bearer accepted, a deactivated admin refused, 401 with a code instead of 400 or 500 (`jwt expired`) | **Must:** show the login error; call logout on sign-out; after a password change, show sign-in |
+| Oct 16 | **For the panel as it is:** a URL with a double slash (`/api/v1//journal/topic`) reaches its route; "Add admin" needs no `department_id` (`ADM_DEPT_ID` is used); the card gallery takes up to 20 photos from an admin (owners stay at their plan's 4; an owner can't add to a card over that). Uploads take up to 20 `images` per request | **Must:** cap the gallery at 20 photos and 1 video (the 4-photo entry below was for owners) |
 | Oct 16 | **Plan features enforced for owners** (the website note's section 9.6): on a live card, Free owners cannot change photos, video or the profile image or run offers; admins are not limited. What each plan allows is the `entitlements` setting (section 7.1) | **Can:** show the settings' entitlements on the pricing screen so they can be changed |
 | Oct 16 | **Keychain labels and tracking with Shippo** (section 7.3): on an access order, `GET …/rates`, `POST …/label` (buys the label: the rate chosen at checkout, or today's), `POST …/label/void`. The order gains `carrier`, `service`, `label_url` (the PDF to print), `tracking_number`, `tracking_link`, `tracking_status`, `shipped_at`, `delivered_at`; Shippo's tracking moves it to shipped and delivered. Addresses gain `address_line_2`, `recipient_name`, `phone`, `city_name`, `purpose`, `address_type`, `validation_result` | **New on the order screen:** "Buy label" (and a rate picker from `…/rates`), "Print label" (`label_url`), "Void label", the tracking status. The manual fulfillment update still works |
 | Oct 16 | **Subscriptions and payments** (section 7.2): every Access Pro subscription is a seat, paid through Stripe or complimentary (given by an admin; 23 accounts on the live copy have Pro without paying). New: `GET /access/admin/subscriptions`, `POST /access/admin/subscriptions/:userId/cancel`, `PUT /access/admin/subscriptions/:userId/comp`. A price change can move paying subscribers (`move_subscribers`; it now answers `{ product, moved, failed }`), a personal price can go on a live subscription (`apply_now`). Every paid purchase now makes an access order (Access Pro alone too, with no fulfillment status); the admin's order email links to the order in the panel | **New screen:** subscriptions (list, cancel, give or take back complimentary Pro). **Must:** the access orders list shows orders whose `fulfillment_status` is null (nothing to ship) |
@@ -62,9 +71,15 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 ## 2. Admin sign-in and access
 
-- Unchanged: `POST /admin/auth/login` returns the admin token; send it as `x-access-token` on every admin
-  call. `POST /admin/auth/otp`, `/verify-otp`, `/forgot-password` and `/change-password` are unchanged.
-- `POST /admin/auth/register` (create another admin) needs an admin token; it is not open any more.
+- `POST /admin/auth/login` returns the admin token (12 hours); send it as `x-access-token` or
+  `Authorization: Bearer` on every admin call. A failed login is 401 `INVALID_CREDENTIALS` "Invalid email or
+  password.", whatever the reason.
+- `POST /admin/auth/logout` (token required) ends every session of that admin, on every device. Changing the password
+  (`/change-password`) or resetting it (`/forgot-password`) does the same.
+- `POST /admin/auth/otp` answers "If this email belongs to an admin, an OTP has been sent to it." for any email;
+  `/verify-otp` is unchanged.
+- `POST /admin/auth/register` (create another admin) needs an admin token; it is not open any more. `name`, `email`,
+  `password`, `role_id` required; `department_id` optional.
 - Every admin endpoint (the appendix lists all 199) requires an active admin's token. Website/app user
   tokens are refused on admin routes, and admin tokens are not user sessions.
 - Error responses keep `{ success: false, status, message, data: "" }`; some now add a `code` field.
@@ -143,7 +158,7 @@ Designed Oct 16 in the backend's `docs/access.md` (section 8); each part is logg
 - **The card form** shows exactly the website's fields (`docs/access.md` section 1). No longer saved:
   `custom_handle`, `primary_specialty` (it is the first specialty), `elite_setup`, `excites_about_glamlink`,
   `biggest_pain_points`, per-location phone and description. `location_type` is `exact_address` or `city_only`.
-  Gallery: up to 4 photos and 1 video (the panel allows 20 today).
+  Gallery: up to 20 photos and 1 video for an admin (owners: their plan's 4).
 - **New screens:** plans (name, tagline, badge, features, order), prices (with "move subscribers at their next
   renewal"), site-wide discounts, personal prices for one client, settings (Free and Pro features, shipping,
   ship-from address and parcel), subscriptions (status, cancel).
@@ -262,6 +277,7 @@ All need an admin token in `x-access-token`.
 
 - `POST /admin/auth/register`
 - `POST /admin/auth/change-password`
+- `POST /admin/auth/logout`
 
 **/admin/dashboard**
 
