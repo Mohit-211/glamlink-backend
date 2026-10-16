@@ -1,7 +1,7 @@
-// Stripe for the website and shared billing: stripe-node 23 on API version 2026-09-30.endive, installed as
-// `stripe-current`. The app and CRM code still require `stripe` (stripe-node 12, API 2022-11-15) until their
-// phases: stripe-node 22+ is a class that needs `new`, and one app file calls it as a function.
-const Stripe = require('stripe-current');
+// Stripe for the website and shared billing: stripe-node 23 on API version 2026-09-30.endive. The app and CRM
+// code create their own clients from the same package, pinned to API version 2022-11-15 (the one they were
+// written for), until their phases move them here.
+const Stripe = require('stripe');
 const config = require('../core/config/config');
 
 const API_VERSION = '2026-09-30.endive';

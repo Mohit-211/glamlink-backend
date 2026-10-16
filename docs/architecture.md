@@ -52,12 +52,14 @@ app-only code in `mobile/`, CRM code in `crm/`. An admin screen belongs to the p
 Known exceptions are listed, with reasons, in `scripts/boundary-exceptions.js`; remove an entry when its code
 is fixed (the check fails while a fixed entry stays).
 
-## Two Stripe libraries, for now
+## Stripe
 
-The website and shared billing use stripe-node 23 (API version `2026-09-30.endive`) through
-`src/integrations/stripe.js`; it is installed as `stripe-current`. The app and CRM code keep requiring `stripe`
-(stripe-node 12) until their phases, because one app file calls Stripe without `new`, which stripe-node 22 and
-later refuse. When the app is reworked, move it to `integrations/stripe.js` and drop the old package.
+One package, stripe-node 23 (the newest). The website and shared billing use it through
+`src/integrations/stripe.js`, on API version `2026-09-30.endive`. The app and CRM code still create their own
+clients from the same package, and those clients send API version `2022-11-15`, the one their code was written
+for. The exception is the app's `payout.service.js`, which names no version and so gets 23's default; it reads only
+fields that are the same in both versions (ids, links, `charges_enabled`, `payouts_enabled`, `details_submitted`).
+When the app is reworked, move its calls to `integrations/stripe.js`.
 
 ## Checks for refactors
 

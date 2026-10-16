@@ -136,9 +136,8 @@ paid. Its card token (24 h) lets the guest continue. The flow:
 
 ## 6. Payments: Stripe
 
-- **SDK:** stripe-node 23 (pins API version `2026-09-30.endive`) for the website and shared billing. The app and
-  CRM code keep the old stripe-node 12 until their phases (one app file calls Stripe in a way version 22+ no longer
-  allows), so both are installed for now: `stripe` (old, app and CRM) and `stripe-current` (new).
+- **SDK:** stripe-node 23, the only Stripe package (it pins API version `2026-09-30.endive`). The app and CRM
+  code use the same package with API version `2022-11-15` until their phases (architecture.md, "Stripe").
 - **Access Pro** (with or without the keychain): a Subscription created `default_incomplete`, with the Pro item,
   the keychain and shipping as one-off items on the first invoice, the discount or personal price applied per item,
   `billing_mode: flexible`, and the first invoice's `confirmation_secret` returned as `clientSecret`.
