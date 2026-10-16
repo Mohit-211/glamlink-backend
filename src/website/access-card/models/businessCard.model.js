@@ -144,8 +144,9 @@ BusinessCard.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // draft: made by a guest, not public until a plan is chosen or paid (docs/access.md section 5).
     status: {
-      type: DataTypes.ENUM("pending", "accepted", "rejected"),
+      type: DataTypes.ENUM("draft", "pending", "accepted", "rejected"),
       defaultValue: "pending",
     },
 

@@ -9,7 +9,7 @@ Access design: access.md (Oct 16). Build order and status:
 | Step | Status |
 | --- | --- |
 | 1. The card's fields (one create and one edit path, the website's checks, media limits, phone privacy) | Done: `cardFields.js` (the form's fields and checks, `INVALID_CARD` with the field), `cardMedia.js` (4 photos, 1 video, thumbnails, captions), `cardWriter.js` (one transaction for card, locations, hours, media; links of deleted cards stay reserved), `cardPublic.js` (no account, plan or hidden phone in public responses); the three create functions and the edit (2,460 lines) replaced. Contract: only the four public card reads change, as intended. Tests: `test/cardFields.test.js` |
-| 2. Drafts, one card per person, claim, owner delete and re-create on the same link | Planned |
+| 2. Drafts, one card per person, claim, owner delete and re-create on the same link | Done: guest cards are drafts (`status` gains `draft`, migration `20261016-0300`: on the local copy cards 14 and 59, unowned and never paid, became drafts; their status is kept in `business_card_status_backup`); a guest is never attached to an existing account (`ACCOUNT_EXISTS`, then `POST /access/cards/:id/claim`); one live card per person (`CARD_EXISTS`, `replace`) for website and admin creates; `DELETE /access/cards/:id` for owners; the next card takes the person's link, QR, keychain and plan; verified emails get only non-draft cards. Tests: `test/cardOwnership.test.js` |
 | 3. Plans, products, prices, discounts, personal prices, settings | Planned |
 | 4. Stripe: stripe-node 23, checkouts, seats, webhook handlers, setup and reconcile scripts | Planned |
 | 5. Shippo: address check, rates, labels, tracking webhook | Planned |

@@ -8,6 +8,7 @@ module.exports = {
         { path: '/businessCard', router: require('./businessCard.route') },
         { path: '/order', router: require('./cardAddress.route') },
         { path: '/access-card/analytics', router: require('./accessCardAnalytics.route') },
+        { path: '/access', router: require('./access.route') },
     ],
     // For other modules and data migrations.
     sanitizeBio,

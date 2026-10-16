@@ -35,6 +35,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 16 | **Guest cards are drafts; one card per person** (section 9.2). `POST /businessCard` makes a draft (not public, not in the directory) and no longer attaches the card to an existing account with that email; it answers `status: "draft"`, `account_exists`, and `next_step: "sign_in"` or `"plan_selection"`. For a draft whose email has an account, `select-plan`, `shipping-rate-public` and `create-subscription-public` answer 409 `ACCOUNT_EXISTS`. New: `POST /access/cards/:id/claim` (signed in, with the card token) and `DELETE /access/cards/:id` (the owner). `createBusinessCard` (signed in) answers 409 `CARD_EXISTS` while the person has a card (`replace: true` swaps it) | **Must:** after `POST /businessCard`, when `next_step` is `sign_in` (or a purchase call answers `ACCOUNT_EXISTS`), send the person to sign in and then claim the draft with its card token. **Must:** handle `CARD_EXISTS` on create (offer edit, or replace). **Can:** a "Delete my card" action |
 | Oct 16 | **The card form's fields and checks are now the API's** (section 9.1). Creating and editing a card (guest, signed in, owner edit) checks the same fields the form checks, and a refusal names the field: 400 `INVALID_CARD` with `details: { field }` (the form's keys: `name`, `phone`, `bio`, `booking_link`, `instagram`, `images`, …). Read now: `isPrimary` on locations (it was dropped, so no location was primary), `new_images_gallery_meta` captions and cover, video thumbnails. Limits: 4 photos and 1 video (the form allows 5 media in any mix), MP4 under 21 MB, bio up to 80 characters of text (a stored longer bio can stay until it is changed). Ignored: `custom_handle`, `elite_setup`, `excites_about_glamlink`, `biggest_pain_points`; `primary_specialty` is the first specialty. Public card responses (`getBusinessCard/:slug`, `getAllProfiles`, `getProfilesByDirectory/:id`, `getBusinessCardById/:id` without the owner's or an admin's token) leave out the owner's account and plan fields (`user_id`, `business_user`, `plan_type`, `nfc_status`, address and shipping fields, the marketing answers) and return `phone: null` when the phone is hidden; `getBusinessCardById` of a card that is not live is 404 for them | **Must:** cap the gallery at 4 photos and 1 video. **Can:** show `details.field` errors under the field. The dashboard reads `getMyBusinessCard`, which still returns everything |
 | Oct 16 | Coming (Phase 2b): the Access redesign in the backend's `docs/access.md`. Section 9 lists what it will mean for the website; each part gets its own entry here when it lands | Nothing yet |
 | Oct 16 | The card bio is cleaned on save: only the bio editor's formatting stays (paragraphs, bold, italic, underline, strike, h3, lists, quotes, and links over http, https, mailto or tel, which get `target="_blank" rel="noopener noreferrer nofollow"`). The directory filter's `location` is matched as a value (it was written into the SQL) | Nothing: the bio editor only produces these |
@@ -165,6 +166,9 @@ Error responses: `{ success: false, status, message, code, data: "" }`. `code` i
 | `NFC_ALREADY_PURCHASED` | 400 | The card already has its NFC keychain (message: "NFC card already purchased") |
 | `PAYMENT_FAILED` | 4xx | Stripe refused the payment; the message is Stripe's, written for the payer ("Your card was declined.") |
 | `INVALID_CARD` | 400 | A card field fails the form's rules; `details.field` names it (section 9.1) |
+| `ACCOUNT_EXISTS` | 409 | A guest's draft whose email already has an account: sign in, then claim it (section 9.2) |
+| `CARD_EXISTS` | 409 | The person already has a card; `details.card_id` is theirs. Send `replace: true` to swap it (section 9.2) |
+| `CARD_NOT_CLAIMABLE` | 409 | Claiming a card that is no longer a draft, or is someone else's |
 
 Older errors elsewhere in the API still have no `code`; branch on `status` there. Messages the website matches today
 ("Address not found", "Please verify address first", "NFC card already purchased", "Address validation failed: …")
@@ -335,3 +339,32 @@ only the fields it sends.
 | `images`, `videos` + `video_thumbnails` | At least one item on create; up to 4 photos and 1 MP4 video (21 MB), a thumbnail per video [`images`]. Edit: `existing_image_ids` / `existing_video_ids` list what stays; a card that already has more keeps them but cannot add |
 | `new_images_gallery_meta`, `existing_images_gallery_meta` | Caption and cover (`is_thumbnail`) per new / kept photo, in order |
 | `offer_promotion`, `promotion_details` | Special offer (Pro only, once plans are enforced) |
+
+### 9.2 Drafts and one card per person (done Oct 16)
+
+- **A guest's card is a draft** until a plan is chosen (Free) or paid. Drafts are not public (`getBusinessCard/:slug`
+  404), not in the directory or listings. The card token still works for the purchase calls.
+- `POST /businessCard` (guest) answers:
+
+  ```json
+  { "business_card_id": 412, "card_token": "eyJ…", "status": "draft", "account_exists": false,
+    "next_step": "plan_selection", "plan_type": "free", "business_card_link": "…", "business_card_qr": "…" }
+  ```
+
+  It never attaches the card to an existing account any more (before, anyone could create a card on someone else's
+  account by typing their email).
+- **The email already has an account** (`account_exists: true`, `next_step: "sign_in"`): the plan and payment calls
+  answer 409 `ACCOUNT_EXISTS`. Send the person to sign in, then:
+
+  `POST /access/cards/:id/claim` with their access token and the draft's card token (`x-card-token`). Body
+  `{ "replace": true }` only after they chose to replace the card they already have. Answers
+  `{ business_card_id, status: "accepted", plan_type, nfc_status, business_card_link, business_card_qr }`; then continue
+  the purchase signed in (the plan step). Errors: 401 `CARD_TOKEN_REQUIRED`, 409 `CARD_EXISTS` (with
+  `details.card_id`), 409 `CARD_NOT_CLAIMABLE`.
+- **One card per person.** `POST /businessCard/createBusinessCard` (signed in) answers 409 `CARD_EXISTS` while they
+  have a card; with `replace=true` in the form, the old card is deleted (kept in the database) and the new one takes
+  its public link and QR code.
+- **Delete:** `DELETE /access/cards/:id` (the owner) answers `{ deleted: true, subscription_continues }`. The
+  subscription goes on; the person's next card takes over the deleted card's link and QR code (printed codes and the
+  keychain keep working), their keychain and their plan.
+- Choosing Free for a card whose owner subscribes changes nothing (the subscription is the person's).

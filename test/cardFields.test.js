@@ -165,7 +165,8 @@ describe('creating and editing through the API', () => {
     });
 
     test('the public card hides a hidden phone and the private fields', async () => {
-        await q('UPDATE business_cards SET is_phone_visible = 0 WHERE id = ?', [cardId]);
+        // A guest's card is public once a plan is chosen (cardOwnership.test.js); here it is made live directly.
+        await q("UPDATE business_cards SET is_phone_visible = 0, status = 'accepted' WHERE id = ?", [cardId]);
         const res = await app.request('GET', `/api/v1/businessCard/getBusinessCard/${slug}`);
         assert.equal(res.status, 200);
         assert.equal(res.body.data.phone, null);

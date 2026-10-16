@@ -18,6 +18,7 @@ const {
 const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity");
 const { createCard, updateCard, publicLink } = require("./cardWriter");
 const { readCard } = require("./cardFields");
+const { planFieldsFor, makeRoomFor, lockPerson, assertNoAccountFor } = require("./cardOwnership");
 const { toPublicCard } = require("./cardPublic");
 const logger = require("../../core/logger");
 const config = require("../../core/config/config");
@@ -63,41 +64,6 @@ const parseFeaturedLinks = (featuredLinks) => {
   }
 };
 
-const checkExistingBusinessCard = async ({ email, userId }) => {
-  const conditions = [];
-
-  if (userId) {
-    conditions.push({
-      user_id: userId,
-    });
-  }
-
-  if (email) {
-    conditions.push({
-      email: email.trim().toLowerCase(),
-    });
-  }
-
-  if (!conditions.length) {
-    return;
-  }
-
-  const existingCard = await BusinessCard.findOne({
-    where: {
-      is_active: true,
-      [Op.or]: conditions,
-    },
-    attributes: ["id", "email", "user_id", "plan_type", "is_active"],
-  });
-
-  if (existingCard) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "An Access Card already exists for this user.",
-    );
-  }
-};
-
 const selectBusinessCardPlan = async (body) => {
   const { business_card_id, plan_type } = body;
 
@@ -112,12 +78,17 @@ const selectBusinessCardPlan = async (body) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
   }
 
+  // A guest's card goes on only while its email has no account; that account's owner signs in and claims it.
+  await assertNoAccountFor(card);
+
   if (plan_type === "free") {
-    await card.update({
-      plan_type: "free",
-    });
     if (card.user_id) {
-      // Existing logged-in user
+      // The subscription and keychain are the person's: choosing Free changes neither.
+      const owner = await User.findByPk(card.user_id);
+      await card.update({
+        status: card.status === "draft" ? "accepted" : card.status,
+        ...(await planFieldsFor(owner)),
+      });
 
       await sendBusinessCardApprovedEmail({
         to: card.email,
@@ -127,26 +98,17 @@ const selectBusinessCardPlan = async (body) => {
         purchaseType: "FREE",
       });
     } else {
-      // Public (logged-out) flow
-
-      let user = await User.findOne({
-        where: {
-          email: normalizeEmail(card.email),
-        },
+      // A guest's draft goes live with a new account, which gets an email to set its password.
+      const { user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone });
+      await card.update({ user_id: user.id, status: "accepted", plan_type: "free" });
+      await sendNewAccessUserEmail({
+        to: card.email,
+        name: card.name,
+        email: user.email,
+        setPasswordLink: await setPasswordLink(user),
+        businessCardLink: card.business_card_link,
+        qrCodeUrl: card.business_card_qr,
       });
-
-      if (!user) {
-        ({ user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone }));
-        await card.update({ user_id: user.id });
-        await sendNewAccessUserEmail({
-          to: card.email,
-          name: card.name,
-          email: user.email,
-          setPasswordLink: await setPasswordLink(user),
-          businessCardLink: card.business_card_link,
-          qrCodeUrl: card.business_card_qr,
-        });
-      }
     }
 
     return {
@@ -175,29 +137,16 @@ const selectBusinessCardPlan = async (body) => {
 };
 
 const createBusinessCard = async (body, files) => {
-  // A card made on the website without signing in. When its email belongs to an active professional account,
-  // the card is attached to that account.
-  const email = typeof body.email === "string" ? body.email.trim() : "";
-  const existingUser = email
-    ? await User.findOne({
-        where: { email: normalizeEmail(email), account_type: "professional" },
-        attributes: ["id", "status", "is_active"],
-      })
-    : null;
-  const userLogin = Boolean(
-    existingUser && existingUser.is_active && ["ACCEPTED", "PENDING"].includes(existingUser.status),
-  );
-
+  // A guest's card is a draft until a plan is chosen or paid (docs/access.md section 5). It is never attached
+  // to an existing account here: when its email has one, that account's owner signs in and claims it.
   const cardDoc = await createCard({
     body,
     files,
-    attributes: {
-      user_id: userLogin ? existingUser.id : null,
-      status: "accepted",
-      plan_type: "free",
-      nfc_status: "not_purchased",
-    },
+    attributes: { user_id: null, status: "draft", plan_type: "free", nfc_status: "not_purchased" },
   });
+  const accountExists = Boolean(
+    await User.findOne({ where: { email: normalizeEmail(cardDoc.email) }, attributes: ["id"] }),
+  );
 
   sendAccessCardCreatedAdminEmail({
     name: cardDoc.name,
@@ -205,14 +154,15 @@ const createBusinessCard = async (body, files) => {
     email: cardDoc.email,
     phone: cardDoc.phone,
     businessCardLink: cardDoc.business_card_link,
-    created_by: userLogin ? "Existing User" : "Guest",
+    created_by: "Guest",
   }).catch((err) => logger.error("sendAccessCardCreatedAdminEmail failed", err));
 
   return {
     success: true,
     business_card_id: cardDoc.id,
-    user_exists: userLogin,
-    next_step: "plan_selection",
+    user_exists: accountExists,
+    account_exists: accountExists,
+    next_step: accountExists ? "sign_in" : "plan_selection",
     status: cardDoc.status,
     plan_type: cardDoc.plan_type,
     business_card_link: cardDoc.business_card_link,
@@ -220,12 +170,19 @@ const createBusinessCard = async (body, files) => {
   };
 };
 
+// One card per person: while they have one it is refused (CARD_EXISTS) unless `replace` is sent; their previous
+// card's public link carries over. Runs in the new card's transaction.
+const roomFor = (userId, body) => async (transaction) => {
+  await lockPerson(userId, transaction);
+  return makeRoomFor(userId, { replace: body.replace === true || body.replace === "true", transaction });
+};
+
 const createBusinessCardByAdmin = async (body, files) => {
-  // An admin makes a card for a client. It is attached to the client's active account when the email has one
-  // (several cards may share an email here); otherwise an account is made and gets an email to set a password.
+  // An admin makes a card for a client. It is attached to the client's active account when the email has one;
+  // otherwise an account is made and gets an email to set a password.
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const existingUser = email
-    ? await User.findOne({ where: { email: normalizeEmail(email), is_active: true }, attributes: ["id"] })
+    ? await User.findOne({ where: { email: normalizeEmail(email), is_active: true } })
     : null;
 
   const cardDoc = await createCard({
@@ -235,10 +192,12 @@ const createBusinessCardByAdmin = async (body, files) => {
       user_id: existingUser ? existingUser.id : null,
       created_by_admin: true,
       status: "accepted",
-      plan_type: "free",
-      nfc_status: "not_purchased",
       address_verified: false,
+      ...(existingUser
+        ? await planFieldsFor(existingUser)
+        : { plan_type: "free", nfc_status: "not_purchased" }),
     },
+    prepare: existingUser ? roomFor(existingUser.id, body) : undefined,
   });
 
   if (existingUser) {
@@ -270,12 +229,6 @@ const createBusinessCardByAdmin = async (body, files) => {
 const createBusinessCardWithToken = async (body, files) => {
   const { user } = body;
 
-  // One card per account (and per email).
-  await checkExistingBusinessCard({
-    userId: user.id,
-    email: (typeof body.email === "string" && body.email.trim()) || user.email,
-  });
-
   const cardDoc = await createCard({
     body,
     files,
@@ -283,10 +236,10 @@ const createBusinessCardWithToken = async (body, files) => {
       user_id: user.id,
       status: "accepted",
       is_details: true,
-      plan_type: "free",
-      nfc_status: "not_purchased",
       address_verified: false,
+      ...(await planFieldsFor(user)),
     },
+    prepare: roomFor(user.id, body),
   });
 
   sendAccessCardCreatedAdminEmail({
@@ -637,7 +590,7 @@ const getBusinessCard = async (slug) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
   }
 
-  if (["PENDING", "REJECTED"].includes(card.status?.toUpperCase())) {
+  if (["DRAFT", "PENDING", "REJECTED"].includes(card.status?.toUpperCase())) {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
   }
 
@@ -982,10 +935,12 @@ const searchBusinessCards = async ({ search }) => {
   };
 };
 
-const getAllBusinessCards = async () => {
+// Admin list: live cards (any review status); `status` = draft lists guests' drafts, or one review status.
+const getAllBusinessCards = async ({ status } = {}) => {
   return await BusinessCard.findAll({
     where: {
       is_active: true,
+      status: ["draft", "pending", "accepted", "rejected"].includes(status) ? status : { [Op.ne]: "draft" },
     },
     order: [["created_at", "DESC"]],
     include: [
@@ -1648,6 +1603,8 @@ const getBusinessCardShippingRatePublic = async (body) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
   }
 
+  await assertNoAccountFor(card);
+
   console.log("card.plan_type =", card.plan_type);
   console.log("request.plan_type =", plan_type);
   console.log("address_verified =", card.address_verified);
@@ -1934,6 +1891,8 @@ const createBusinessCardSubscriptionPublic = async (body) => {
   if (!card) {
     throw new ApiError(httpStatus.NOT_FOUND, "Business card not found");
   }
+
+  await assertNoAccountFor(card);
 
   if (
     !["nfc_only", "nfc_with_subscription", "subscription_only"].includes(

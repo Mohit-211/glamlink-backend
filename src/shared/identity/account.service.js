@@ -1,6 +1,7 @@
 // Creating accounts, the one place that does it: website and app registration, and Access card checkout
 // for someone without an account. Keeps role_id in step with the account type while code still reads it.
 const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
 const config = require('../../core/config/config');
 const sequelize = require('../../core/db/central.db');
 const { User, Profile, UserAttachment, BusinessCard } = require('../../models');
@@ -102,9 +103,17 @@ const setPasswordLink = async (user) => {
     return `${config.WEBSITE_URL}/reset-password?token=${encodeURIComponent(token)}`;
 };
 
-// Access cards bought while signed out carry only an email; attach them once that email is proven.
-const attachGuestBusinessCards = (user) =>
-    BusinessCard.update({ user_id: user.id }, { where: { email: user.email, user_id: null, is_active: true } });
+// An Access card bought while signed out carries only an email; it is attached once that email is proven. Drafts
+// are not (a guest's unpaid card is claimed by signing in), and a person has one card: the newest, only when they
+// have none.
+const attachGuestBusinessCards = async (user) => {
+    if (await BusinessCard.findOne({ where: { user_id: user.id }, attributes: ['id'] })) return;
+    const card = await BusinessCard.findOne({
+        where: { email: user.email, user_id: null, is_active: true, status: { [Op.ne]: 'draft' } },
+        order: [['id', 'DESC']],
+    });
+    if (card) await card.update({ user_id: user.id });
+};
 
 // What the website and app get back about the signed-in account.
 const accountView = (user, profile) => ({

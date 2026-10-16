@@ -139,7 +139,7 @@ const searchBusinessCards = catchAsync(async (req, res) => {
 });
 
 const getAllBusinessCards = catchAsync(async (req, res) => {
-  const response = await businessCardService.getAllBusinessCards();
+  const response = await businessCardService.getAllBusinessCards(req.query);
   return responseWrapper(res, response, "", httpStatus.OK);
 });
 

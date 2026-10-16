@@ -69,16 +69,21 @@ const saveDetails = async (cardId, { locations, hours, media }, transaction) => 
 
 /**
  * A new card from a request's fields and files. `attributes` come from the caller, never the request:
- * user_id, status, plan_type, nfc_status, created_by_admin and the like. Returns the saved card.
+ * user_id, status, plan_type, nfc_status, created_by_admin and the like. `prepare(transaction)` runs first in the
+ * same transaction and returns more attributes (the ownership checks; a public link the card takes over).
+ * Returns the saved card.
  */
-const createCard = async ({ body, files, attributes = {} }) => {
+const createCard = async ({ body, files, attributes = {}, prepare }) => {
     const { card, locations, hours } = readCard(body, { files });
     const media = planMedia({ files, body, creating: true, limits: MEDIA_LIMITS });
     const cardDoc = await sequelize.transaction(async (transaction) => {
-        const doc = await BusinessCard.create({ ...card, profile_image: media.profileImage, ...attributes }, { transaction });
+        const more = prepare ? await prepare(transaction) : {};
+        const doc = await BusinessCard.create({ ...card, profile_image: media.profileImage, ...attributes, ...more }, { transaction });
         await saveDetails(doc.id, { locations, hours, media }, transaction);
-        const slug = await freeSlug(doc, transaction);
-        await doc.update({ business_card_link: publicLink(slug), business_card_qr: qrUrl(slug) }, { transaction });
+        if (!doc.business_card_link) {
+            const slug = await freeSlug(doc, transaction);
+            await doc.update({ business_card_link: publicLink(slug), business_card_qr: qrUrl(slug) }, { transaction });
+        }
         return doc;
     });
     // Drawn after the card is saved: the card already holds the QR code's URL.
