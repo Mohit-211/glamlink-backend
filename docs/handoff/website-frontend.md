@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Listings become accounts** (section 10.14): approving a directory application makes the person a professional account (set-password email) and a page made from the listing; they keep the listing up to date (`GET`/`PUT /my/directory`) and manage their products (`/my/products`, shown at once) from the Access dashboard. Pages add `listing` (locations, hours, photos) | **Should:** in the dashboard, a "Directory listing" and a "Products" section; the approval email points to sign-in |
 | Oct 23 | **The directory** (section 10.13): `GET /directory/search` (our profiles and approved applications, by distance and filters), `GET /directory/listings/:id`, Google's listings near the visitor (`GET /directory/google`), and the claim flow (`/directory/google/search`, `/directory/google/places/:placeId`, then the application with `place_id`) | **Should:** replace the mock provider with these; "Claim this profile" and "Find my business on Google" prefill the apply form |
 | Oct 23 | **Ads** (section 10.12): `GET /ads?live=true` (with `slot` and `page`) answers only the ads to show now; `POST /ads/track` counts views and clicks | **Must:** send the ad slots' tracking to `${API}/ads/track`. **Should:** fetch `GET /ads?live=true&page=<page>` instead of every ad |
 | Oct 23 | **Site-wide search** (section 10.11): `GET /search?q=` answers topics, professionals, brands, products, articles and videos (first rows and counts, exact matches first); `&type=<group>` pages one group | **Should:** point the hero search and its results page at it (instead of the journal search) |
@@ -663,7 +664,7 @@ to review.
 
 Answers 201 `{ id, status: "pending" }`, "Thank you! Your application is in for review."; support@glamlink.net is
 emailed. Refusals: 400 `INVALID_INPUT` with `details.field`; 20 submissions an hour per address across the public
-forms. How approved applications show on /directory comes with the directory search.
+forms. Approval makes the person an account with a page (section 10.14).
 
 ### 10.6 Professional and brand pages (Oct 23; products and articles on them come next)
 
@@ -829,7 +830,8 @@ Google; a "Don't see your profile? Get yours" banner opens the form with "Find m
 | `page`, `limit` | 12 by default, at most 50 |
 
 Each row: `{ kind, id, slug, name, image, tagline, city, state, specialty, distance_miles }`. `kind: "profile"` links to
-the page (`/profiles/<slug>`); `kind: "listing"` is an approved application, shown by **`GET /directory/listings/:id`**:
+the page (`/profiles/<slug>`); since approved applicants have accounts and pages (section 10.14) nearly every row is
+one. `kind: "listing"` is an approved application with no account, shown by **`GET /directory/listings/:id`**:
 its name, title, specialties, bio, photos, website, booking link, social links, locations (an exact address only for
 exact-address locations, with the business phone given for it), hours and offer; not the applicant's own email or
 phone. Without a place, rows come by name.
@@ -854,3 +856,29 @@ image), so no key reaches the browser.
 Google calls cost money: the API keeps answers six hours and allows 30 Google searches a minute per address (300
 photos). Without the server's Google key these answer 503 `GOOGLE_NOT_CONFIGURED`. The mock provider and its invented
 ratings can go.
+
+### 10.14 Listings become accounts; the dashboard for listings and products (done Oct 23)
+
+Mohit (Oct 23): when an admin approves a directory application, its email gets a professional account (a brand
+account when the admin approves it as one: its page goes by the business at the listing's main location) and the
+person is emailed a "Set your password" link (or, if the account already had a password, a note to sign in). They sign in to the **same dashboard as Access** to keep their listing up to
+date, manage their products and make their Free digital card. The account gets a public page made from the listing
+(section 10.6: `listing` holds its locations, hours and photos; `email` and `phone` stay null), and the directory shows
+it once, as a profile.
+
+**The owner's listing:** `GET /my/directory` and `PUT /my/directory` (signed in, a professional or brand): the listing's
+fields as the form sends them (not `email`, which is the sign-in, nor the form's questions). Photos: `profile_image`
+(a file) replaces it, `""` removes it; `images` adds photos (up to 10 in all, `gallery_meta` for their captions);
+`remove_photos` (a JSON list of photo links) takes some out. No listing: 404 `NO_LISTING`.
+
+**The owner's products** (shown at once; admins can still edit, unpublish or delete them):
+
+| Method | Path | Body | Answers |
+| --- | --- | --- | --- |
+| GET | `/my/products` | `page`, `limit` | `{ count, rows }`: their products, drafts too, newest first |
+| POST | `/my/products` | `title` (required), `short_description`, `description`, `category`, `brand` (text), `price` (dollars, `12.50`), `link` (a web link), `status` (`published` by default, or `draft`); the cover as `images` (one file) | 201, the product (with `owner`, `brand_profile`, `status`) |
+| PUT | `/my/products/:id` | the same fields (`cover_image: ""` removes the cover) | The product |
+| DELETE | `/my/products/:id` | | `{ deleted: true }` |
+
+A brand's products are its own make (`brand_id` is the brand). Refusals: 400 `INVALID_PRODUCT` with `details.field`;
+another account's product answers 404.

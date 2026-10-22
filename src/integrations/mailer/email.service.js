@@ -939,6 +939,30 @@ The link works for 7 days. If it runs out, reply to this email and we will send 
   }
 };
 
+// An approved directory listing: how the person signs in to keep it up to date (a "Set your password" link, good for
+// 7 days, when the account has no password yet).
+const sendListingApprovedEmail = async ({ to, name, setPasswordLink, signInLink }) => {
+  try {
+    const subject = "Your Glamlink directory listing is live";
+
+    const text = `
+Hello ${name},
+
+Your listing is now in the Glamlink directory.
+
+${setPasswordLink
+    ? `Set your password to sign in (the link works for 7 days):\n\n${setPasswordLink}`
+    : `Sign in with this email to manage it:\n\n${signInLink}`}
+
+From your dashboard you can keep your listing up to date, add your products, and make your free digital card.
+`;
+
+    await sendEmail(to, subject, text);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
+};
+
 // An application from the website's directory form, for support to review in the admin panel.
 const sendDirectoryApplicationEmail = async (data) => {
   try {
@@ -1114,6 +1138,7 @@ module.exports = {
   sendGuestApplicationEmail,
   sendFeatureRequestEmail,
   sendDirectoryApplicationEmail,
+  sendListingApprovedEmail,
   sendProfileInviteEmail,
   sendBusinessCardSubscriptionCancelledEmail,
   sendBusinessCardPurchaseAdminEmail,

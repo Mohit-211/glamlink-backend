@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Listings become accounts** (section 8.5): approving a directory application makes (or finds) the person's account, links it and emails them how to sign in; they then edit their listing and their products themselves (shown at once). Admins also edit any listing (`PUT /directory/applications/:id`) and add one for someone (`POST /directory/applications/admin`). Products the owners add carry their `owner_id`; admins keep full edit, unpublish and delete | **New:** "Approve as brand", edit and add on the applications screen |
 | Oct 23 | **Ad counts** (section 8.11): the website now reports each ad's views and clicks. New `GET /ads/admin/stats` (every ad's totals, with a date range) and `GET /ads/:id/stats` (one ad by day). `GET /ads` still lists every ad; `?live=true` is the website's | **New:** views, clicks and click rate on the ads list; a per-day view for one ad |
 | Oct 23 | **What people search for** (section 8.10): `GET /search/admin/terms` lists the most searched terms, or (`?sort=empty`) the latest searches that found nothing | **New:** a search terms report, next to the home page's popular searches |
 | Oct 23 | **The magazine** (section 8.9): issues (title, number, cover, date, Publuu ids or a flipbook link, description, status, order, featured) and who appears in each (cover, featured, mentioned, page); the website's 14 issues are already loaded | **New screens:** issues (list, add, edit, delete) and their featured people |
@@ -289,8 +290,10 @@ owner or brand is 400 `INVALID_PRODUCT` with `details.field`. Pick the accounts 
 | Method | Path | Query or body | Answers |
 | --- | --- | --- | --- |
 | GET | `/directory/applications` | `page`, `limit` (50, at most 50), `status` (`pending`, `approved`, `rejected`), `search` (name, email, handle, title, specialty) | `{ count, rows }`, newest first |
-| GET | `/directory/applications/:id` | | The application: the form's fields (lists and objects parsed), `profile_image`, `gallery` (`[{ url, caption, is_thumbnail, sort_order }]`), `wants_access_card`, `place_id`, `status`, `review_note`, `reviewed_by`, `reviewed_at`. 404 `NOT_FOUND` |
-| PUT | `/directory/applications/:id/status` | `{ status, note? }` | The application, with who reviewed it and when |
+| GET | `/directory/applications/:id` | | The application: the form's fields (lists and objects parsed), `profile_image`, `gallery` (`[{ url, caption, is_thumbnail, sort_order }]`), `wants_access_card`, `place_id`, `status`, `review_note`, `reviewed_by`, `reviewed_at`; from the main location `business_name`, `city`, `state` (and its coordinates); `user_id` once approved. 404 `NOT_FOUND` |
+| PUT | `/directory/applications/:id/status` | `{ status, note?, professional_type? }` | The application, with who reviewed it and when. Approving makes (or finds) the account for its email (`professional_type: "brand"` makes a new or app account a brand's, which goes by the business at the listing's main location, `business_name`), links it (`user_id`) and emails the person how to sign in, once. An account that is already a professional's keeps its type |
+| PUT | `/directory/applications/:id` | Any of the form's fields; photos as on the form (`profile_image`, `images`), `remove_photos` | The listing |
+| POST | `/directory/applications/admin` | A listing's fields (`name`, `email` required), `status` (`approved` by default), `professional_type` | 201, the listing; approved, it makes the account as approval does |
 | POST | `/directory/applications/delete` | `{ ids: [...] }` | `{ deleted }`; the photos are deleted too |
 
 Approving lists the applicant on /directory (since Oct 23: the website's directory shows approved applications among

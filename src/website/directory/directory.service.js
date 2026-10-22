@@ -51,7 +51,7 @@ const miles = (from, to) => {
 
 const LISTINGS = `SELECT 'listing' AS kind, a.id, NULL AS slug, ${ci('a.name')} AS name, ${ci('a.profile_image')} AS image,
     ${ci('a.professional_title')} AS tagline, ${ci('a.city')} AS city, ${ci('a.state')} AS state, ${ci('a.primary_specialty')} AS specialty,
-    ${ci('a.specialties')} AS specialties, a.latitude, a.longitude FROM directory_applications a WHERE a.status = 'approved'`;
+    ${ci('a.specialties')} AS specialties, a.latitude, a.longitude FROM directory_applications a WHERE a.status = 'approved' AND a.user_id IS NULL`;
 const DISTANCE = `3958.8 * 2 * ASIN(SQRT(POWER(SIN(RADIANS(:lat - d.latitude) / 2), 2)
     + COS(RADIANS(:lat)) * COS(RADIANS(d.latitude)) * POWER(SIN(RADIANS(:lng - d.longitude) / 2), 2)))`;
 

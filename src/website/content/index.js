@@ -13,6 +13,7 @@ module.exports = {
         { path: '/discover', router: require('./discover.route') },
         { path: '/ads', router: require('./ad.route') },
         { path: '/settings', router: require('./siteSettings.route') },
+        { path: '/my/products', router: require('./myProducts.route') },
     ],
     // For other modules (loaded when called, so this file stays light):
     // the published products an account owns or makes, as { count, rows } (rows as the shop lists them).

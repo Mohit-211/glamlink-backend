@@ -10,7 +10,9 @@ router.post('/applications', limitPublicForms, directoryApplicationController.cr
 // Admin
 router.get('/applications', requireAdmin, directoryApplicationController.listApplications);
 router.post('/applications/delete', requireAdmin, directoryApplicationController.deleteApplications);
+router.post('/applications/admin', requireAdmin, directoryApplicationController.addListing);
 router.get('/applications/:id', requireAdmin, directoryApplicationController.getApplication);
+router.put('/applications/:id', requireAdmin, directoryApplicationController.updateApplication);
 router.put('/applications/:id/status', requireAdmin, directoryApplicationController.reviewApplication);
 
 module.exports = router;

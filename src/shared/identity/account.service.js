@@ -81,19 +81,21 @@ const createAccount = async ({
     });
 };
 
-// The account an Access card bought with this email belongs to. An existing live account is used (a user
-// account becomes a professional one: buying an Access card is that switch); otherwise a professional
-// account without a password is created, and the person sets one from the welcome email (setPasswordLink).
-// `extra` is set on a new account only. Returns { user, created }.
-const accessCardOwner = async ({ email, name, phone, extra = {} }) => {
+// The account an Access card bought with this email belongs to (or a directory listing approved for it). An existing
+// live account is used (a user account becomes a professional one: buying an Access card is that switch); otherwise a
+// professional account without a password is created, and the person sets one from the welcome email
+// (setPasswordLink). `professionalType` (a brand's listing) applies to a new or a user account; `extra` is set on a
+// new account only. Returns { user, created }.
+const accessCardOwner = async ({ email, name, phone, extra = {}, professionalType = 'individual' }) => {
     const existing = await User.findOne({ where: { email: normalizeEmail(email) } });
     if (existing) {
         if (existing.account_type === 'user') {
-            await existing.update({ account_type: 'professional', professional_type: 'individual', role_id: roleIdFor('professional', 'individual'), downgraded_at: null });
+            const type = PROFESSIONAL_TYPES.includes(professionalType) ? professionalType : 'individual';
+            await existing.update({ account_type: 'professional', professional_type: type, role_id: roleIdFor('professional', type), downgraded_at: null });
         }
         return { user: existing, created: false };
     }
-    const user = await createAccount({ email, name, mobile: phone, accountType: 'professional' });
+    const user = await createAccount({ email, name, mobile: phone, accountType: 'professional', professionalType });
     if (Object.keys(extra).length) await user.update(extra);
     return { user, created: true };
 };

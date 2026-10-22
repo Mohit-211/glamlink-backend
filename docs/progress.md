@@ -22,6 +22,14 @@ Mohit's decisions (Oct 23):
 - **Newsletter:** subscribers are stored (admin list, delete, CSV export); Mailchimp sync comes once its key and
   audience are set.
 - **The old API** (node.glamlink.net) has the same profile leak: Mohit handles the old server.
+- **Every owner edits their page**, Free included; **a page shows while its account has a live card** (admin brand
+  pages always).
+- **The directory** shows our profiles first, then about 20 Google listings near the visitor, which owners claim
+  through the apply form, prefilled from Google ("Find my business on Google" too).
+- **Directory listings become accounts:** approval makes (or finds) the account for the application's email and sends
+  a "Set your password" link; the person uses the Access dashboard to keep the listing up to date and manage their
+  products, which show at once (admins can edit, unpublish or delete them); the account gets a page from the
+  listing; approval does not make a card (they make their Free card themselves).
 
 Development moved to Linux (Oct 23): a portable MariaDB 10.11 for the tests. No copy of the live data is on this
 machine yet, so the contract check waits for one; the tests cover each change.
@@ -47,6 +55,7 @@ machine yet, so the contract check waits for one; the tests cover each change.
 | Grouped site-wide search | Done: module `website/search` (`GET /search`, grouped or one group paged; each group is its module's own list with exact matches first, `core/db/searchOrder.js`); migration `20261023-1200` (`search_terms`) and `GET /search/admin/terms`; 60 searches a minute per address. Tests: `test/search.test.js` |
 | Ad tracking and live ads | Done: migration `20261023-1300` (`ad_stats`, per ad and day); `POST /ads/track` (300 a minute per address); `GET /ads?live=true` with `slot` and `page`; admin totals and daily counts (`adStats.service.js`). Tests: `test/ads.test.js` |
 | Directory search with geocoding | Done, as Mohit described (Oct 23): module `website/directory`: our profiles (`GET /directory/search`: live cards and approved applications, by distance, words, specialty, city, state) and listings (`GET /directory/listings/:id`); Google's listings near the visitor and the claim flow (`/directory/google`, `/google/search`, `/google/places/:placeId`, `/google/photo`) on Places API (New) (`integrations/googlePlaces.js`), answers cached six hours; card locations geocoded after each save (`cardGeocode.js`), applications' main location too (migration `20261023-1400`); `npm run directory:geocode` for the rest. `getCoordinates` returned the viewport's corner, now the place. Tests: `test/directory.test.js` with a fake Google |
+| Product uploads by owners, as Mohit set it | Done: migration `20261023-1500` (`directory_applications.user_id`); approval makes the account, links it, gives it a page slug and sends the set-password email; pages and the directory read approved listings (`profileQuery.js`); `GET`/`PUT /my/directory`; admins edit and add listings; `/my/products` (shown at once; a brand's products are its make). Tests: `test/listingAccounts.test.js` |
 
 ## Go-live preparation (Oct 16, branch `phase5/security`)
 

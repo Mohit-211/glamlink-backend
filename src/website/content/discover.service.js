@@ -543,6 +543,8 @@ module.exports = {
   listShop,
   productsOfAccount,
   shopFilters,
+  withLinks,
+  PRODUCT_CARD,
   getAllDiscoverByAdmin,
   findDiscoverById,
   updateDiscover,

@@ -11,6 +11,8 @@ DirectoryApplication.init({
     name: { type: DataTypes.STRING(100), allowNull: false },
     professional_title: { type: DataTypes.STRING(100), allowNull: true },
     email: { type: DataTypes.STRING(200), allowNull: false },
+    // The account approval made (or found) for the email: it signs in to update the listing (Mohit, Oct 23).
+    user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
     phone: { type: DataTypes.STRING(30), allowNull: true },
     bio: { type: DataTypes.TEXT, allowNull: true },
     custom_handle: { type: DataTypes.STRING(60), allowNull: true },
@@ -22,6 +24,7 @@ DirectoryApplication.init({
     social_media: jsonColumn('social_media'),
     locations: jsonColumn('locations'),
     // The main location, for the directory's distance search: from the form's location, geocoded when it has none.
+    business_name: { type: DataTypes.STRING(150), allowNull: true },
     city: { type: DataTypes.STRING(100), allowNull: true },
     state: { type: DataTypes.STRING(50), allowNull: true },
     latitude: { type: DataTypes.DECIMAL(10, 6), allowNull: true },

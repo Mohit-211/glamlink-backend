@@ -2,6 +2,7 @@
 // with a "Set your password" email), and what is set on any page (slug, listing, featuring, its own fields).
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
+const sequelize = require('../../core/db/central.db');
 const { paging } = require('../../core/http/paging');
 const { isYes } = require('../../core/utils/formValues');
 const { toSlug } = require('../../core/utils/slug');
@@ -101,6 +102,17 @@ const freeSlugFor = async (name) => {
     }
 };
 
+// An explicit slug for an account whose page may have no card to take one from (an approved directory listing's): its
+// card's handle when it ever had one (it stays theirs), else a free slug from its name. Answers the slug.
+const ensurePageSlug = async (userId, name) => {
+    const page = await ProfilePage.findByPk(userId);
+    if (page?.slug) return page.slug;
+    const [card] = (await sequelize.query('SELECT slug FROM business_cards WHERE user_id = :id AND slug IS NOT NULL ORDER BY id DESC LIMIT 1', { replacements: { id: userId } }))[0];
+    const slug = card?.slug && !(await slugTaken(card.slug, userId)) ? card.slug : await freeSlugFor(name);
+    await savePage(userId, { slug });
+    return slug;
+};
+
 // A brand page before the brand has a login: a brand account without a password and its page, shown without a card.
 const createBrandPage = async (body) => {
     const name = String(body.name ?? '').trim();
@@ -128,4 +140,4 @@ const invite = async (userId) => {
     return { sent: true, email: user.email };
 };
 
-module.exports = { listPages, pageView, savePage, updatePage, createBrandPage, invite };
+module.exports = { listPages, pageView, savePage, updatePage, createBrandPage, invite, ensurePageSlug };

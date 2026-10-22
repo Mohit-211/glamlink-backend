@@ -1,6 +1,7 @@
 // The SQL behind the public pages. Mohit, Oct 23: an active professional account has a page while it has a live
-// Access card (its newest, where old data holds several), or when an admin made it as a brand page; unlisted pages
-// are hidden. A page's name, image and tagline fall back from what is set on the page to the card and the account.
+// Access card (its newest, where old data holds several) or an approved directory listing, or when an admin made it as
+// a brand page; unlisted pages are hidden. A page's details fall back from what is set on the page to the card, the
+// listing and the account.
 const sequelize = require('../../core/db/central.db');
 const { containing, startingWith } = require('../../core/utils/like');
 
@@ -15,12 +16,14 @@ const FROM = `
     LEFT JOIN profiles pr ON pr.id = (SELECT MAX(p2.id) FROM profiles p2 WHERE p2.user_id = u.id AND p2.deleted_at IS NULL)
     LEFT JOIN business_locations l ON l.id = (
         SELECT bl.id FROM business_locations bl WHERE bl.business_card_id = c.id AND bl.deleted_at IS NULL
-        ORDER BY bl.is_primary DESC, bl.sort_order ASC, bl.id ASC LIMIT 1)`;
+        ORDER BY bl.is_primary DESC, bl.sort_order ASC, bl.id ASC LIMIT 1)
+    LEFT JOIN directory_applications da ON da.id = (
+        SELECT MAX(d2.id) FROM directory_applications d2 WHERE d2.user_id = u.id AND d2.status = 'approved')`;
 
 // Accounts that can have a page: active professionals (individuals and brands), not merged into another account.
 const ACCOUNT = "u.is_active = 1 AND u.deleted_at IS NULL AND u.account_type = 'professional' AND u.merged_into_user_id IS NULL";
-// Pages that exist: a live card, or an admin's brand page.
-const EXISTS = '(c.id IS NOT NULL OR pp.created_by_admin = 1)';
+// Pages that exist: a live card, an approved directory listing, or an admin's brand page.
+const EXISTS = '(c.id IS NOT NULL OR da.id IS NOT NULL OR pp.created_by_admin = 1)';
 // Pages the public sees.
 const VISIBLE = `${EXISTS} AND COALESCE(pp.is_listed, 1) = 1`;
 
@@ -28,30 +31,40 @@ const VISIBLE = `${EXISTS} AND COALESCE(pp.is_listed, 1) = 1`;
 // text that is searched or sorted across them gets one.
 const ci = (expr) => `(${expr}) COLLATE utf8mb4_unicode_ci`;
 
-// A brand shows its business name; an individual their own.
+// A brand shows its business name (its card's, else its listing's); an individual their own.
 const NAME = ci(`CASE WHEN u.professional_type = 'brand'
-    THEN COALESCE(NULLIF(TRIM(c.business_name), ''), NULLIF(TRIM(pr.name), ''), NULLIF(TRIM(c.name), ''))
-    ELSE COALESCE(NULLIF(TRIM(c.name), ''), NULLIF(TRIM(pr.name), '')) END`);
+    THEN COALESCE(NULLIF(TRIM(c.business_name), ''), NULLIF(TRIM(da.business_name), ''), NULLIF(TRIM(pr.name), ''), NULLIF(TRIM(c.name), ''), NULLIF(TRIM(da.name), ''))
+    ELSE COALESCE(NULLIF(TRIM(c.name), ''), NULLIF(TRIM(da.name), ''), NULLIF(TRIM(pr.name), '')) END`);
 const SLUG = ci('COALESCE(pp.slug, c.slug)');
-const TAGLINE = ci("COALESCE(NULLIF(TRIM(pp.tagline), ''), NULLIF(TRIM(c.professional_title), ''))");
-const IMAGE = ci('COALESCE(pp.image, c.profile_image)');
+const TAGLINE = ci("COALESCE(NULLIF(TRIM(pp.tagline), ''), NULLIF(TRIM(c.professional_title), ''), NULLIF(TRIM(da.professional_title), ''))");
+const IMAGE = ci('COALESCE(pp.image, c.profile_image, da.profile_image)');
+// Where it is and what it does: the card's main location and specialties, else the listing's.
+const CITY = ci('COALESCE(l.city, da.city)');
+const STATE = ci('COALESCE(l.state, da.state)');
+const SPECIALTY = ci('COALESCE(c.primary_specialty, da.primary_specialty)');
+const SPECIALTIES = ci('COALESCE(c.specialties, da.specialties)');
 
 const ROW = `u.id, u.professional_type AS type, ${SLUG} AS slug, ${NAME} AS name, ${IMAGE} AS image, ${TAGLINE} AS tagline,
-    l.city AS city, l.state AS state, c.primary_specialty AS specialty,
+    ${CITY} AS city, ${STATE} AS state, ${SPECIALTY} AS specialty,
     COALESCE(pp.is_featured, 0) AS is_featured, COALESCE(pp.featured_order, 0) AS featured_order`;
 
 const DETAIL = `${ROW}, pp.cover_image AS cover_image, pp.about AS page_about, pp.website AS page_website, pp.social AS page_social,
     c.id AS card_id, c.slug AS card_slug, c.bio AS card_bio, c.website AS card_website, c.social_media AS card_social,
     c.specialties AS card_specialties, c.email AS card_email, c.phone AS card_phone, c.is_phone_visible,
-    c.booking_link, c.preferred_booking_method, pr.about AS account_about, pr.website_link AS account_website`;
+    c.booking_link, c.preferred_booking_method, pr.about AS account_about, pr.website_link AS account_website,
+    da.id AS listing_id, da.bio AS listing_bio, da.website AS listing_website, da.social_media AS listing_social,
+    da.specialties AS listing_specialties, da.booking_link AS listing_booking_link, da.locations AS listing_locations,
+    da.business_hours AS listing_hours, da.gallery AS listing_gallery`;
 
-const SEARCH = `(${NAME} LIKE :term OR ${TAGLINE} LIKE :term OR ${ci('c.primary_specialty')} LIKE :term
-    OR ${ci('c.specialties')} LIKE :term OR ${ci('l.city')} LIKE :term OR ${ci('l.state')} LIKE :term)`;
+const SEARCH = `(${NAME} LIKE :term OR ${TAGLINE} LIKE :term OR ${SPECIALTY} LIKE :term OR ${SPECIALTIES} LIKE :term
+    OR ${CITY} LIKE :term OR ${STATE} LIKE :term)`;
 
-// The directory's profile rows (website/directory): visible pages with a live card, and the main location's coordinates.
+// The directory's profile rows (website/directory): visible pages with a live card or an approved listing, and the
+// main location's coordinates.
 const DIRECTORY_PROFILES = `SELECT 'profile' AS kind, u.id, ${SLUG} AS slug, ${NAME} AS name, ${IMAGE} AS image, ${TAGLINE} AS tagline,
-    ${ci('l.city')} AS city, ${ci('l.state')} AS state, ${ci('c.primary_specialty')} AS specialty, ${ci('c.specialties')} AS specialties,
-    l.latitude, l.longitude ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND c.id IS NOT NULL`;
+    ${CITY} AS city, ${STATE} AS state, ${SPECIALTY} AS specialty, ${SPECIALTIES} AS specialties,
+    COALESCE(l.latitude, da.latitude) AS latitude, COALESCE(l.longitude, da.longitude) AS longitude
+    ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND (c.id IS NOT NULL OR da.id IS NOT NULL)`;
 
 const query = async (sql, replacements) => (await sequelize.query(sql, { replacements }))[0];
 
