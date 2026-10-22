@@ -48,6 +48,11 @@ const DETAIL = `${ROW}, pp.cover_image AS cover_image, pp.about AS page_about, p
 const SEARCH = `(${NAME} LIKE :term OR ${TAGLINE} LIKE :term OR ${ci('c.primary_specialty')} LIKE :term
     OR ${ci('c.specialties')} LIKE :term OR ${ci('l.city')} LIKE :term OR ${ci('l.state')} LIKE :term)`;
 
+// The directory's profile rows (website/directory): visible pages with a live card, and the main location's coordinates.
+const DIRECTORY_PROFILES = `SELECT 'profile' AS kind, u.id, ${SLUG} AS slug, ${NAME} AS name, ${IMAGE} AS image, ${TAGLINE} AS tagline,
+    ${ci('l.city')} AS city, ${ci('l.state')} AS state, ${ci('c.primary_specialty')} AS specialty, ${ci('c.specialties')} AS specialties,
+    l.latitude, l.longitude ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND c.id IS NOT NULL`;
+
 const query = async (sql, replacements) => (await sequelize.query(sql, { replacements }))[0];
 
 // One page of pages: { count, rows } of light rows (ROW), by name; featured ones in their featured order.
@@ -131,4 +136,4 @@ const slugTaken = async (slug, userId = null) => {
     return rows.length > 0;
 };
 
-module.exports = { pageList, visiblePage, visibleAccountId, pageOf, pageLinks, slugTaken };
+module.exports = { pageList, visiblePage, visibleAccountId, pageOf, pageLinks, slugTaken, DIRECTORY_PROFILES };

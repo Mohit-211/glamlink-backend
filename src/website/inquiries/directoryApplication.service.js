@@ -11,6 +11,8 @@ const { containing } = require('../../core/utils/like');
 const { isYes } = require('../../core/utils/formValues');
 const { removeUploadedFile } = require('../../core/http/uploadedFiles');
 const { sendDirectoryApplicationEmail } = require('../../integrations/mailer/email.service');
+const logger = require('../../core/logger');
+const { geocoder, configured } = require('../../integrations/googlePlaces');
 const { refuse, text, email, phone, json } = require('./formInput');
 
 const MAX_PHOTOS = 10;
@@ -26,6 +28,41 @@ const galleryOf = (files, meta) => files.map((file, index) => {
         sort_order: Number.isInteger(item.sort_order) ? item.sort_order : index + 1,
     };
 });
+
+const numberOrNull = (value) => (value === null || value === undefined || value === '' || Number.isNaN(Number(value)) ? null : Number(value));
+
+// The form's main location (the primary one, else the first): its city, state and any coordinates it carries.
+const mainLocation = (locations) => {
+    const main = (locations || []).find((l) => l && l.is_primary) || (locations || [])[0];
+    if (!main || typeof main !== 'object') return {};
+    return {
+        city: typeof main.city === 'string' ? main.city.trim().slice(0, 100) || null : null,
+        state: typeof main.state === 'string' ? main.state.trim().slice(0, 50) || null : null,
+        latitude: numberOrNull(main.latitude),
+        longitude: numberOrNull(main.longitude),
+    };
+};
+
+// Coordinates for an application's main location when the form gave none (its address, or its city and state).
+const geocodeApplication = async (application) => {
+    if (!configured() || application.latitude !== null) return;
+    const main = (application.locations || []).find((l) => l && l.is_primary) || (application.locations || [])[0] || {};
+    const address = [main.location_type === 'exact_address' ? main.address : null, application.city, application.state].filter(Boolean).join(', ');
+    if (!address) return;
+    const found = await geocoder.geocode(address).catch(() => null);
+    if (found) {
+        await application.update({
+            latitude: found.latitude,
+            longitude: found.longitude,
+            city: application.city || found.city,
+            state: application.state || found.state,
+        });
+    }
+};
+
+const inBackground = (application) => {
+    geocodeApplication(application).catch((err) => logger.warn(`Geocoding application ${application.id}: ${err.message}`));
+};
 
 const createApplication = async (body, files = {}, ipAddress) => {
     const images = files.images || [];
@@ -56,7 +93,9 @@ const createApplication = async (body, files = {}, ipAddress) => {
         place_id: text(body, 'place_id', { max: 255, label: 'Listing' }),
         ip_address: ipAddress || null,
     };
+    Object.assign(application, mainLocation(application.locations));
     const row = await DirectoryApplication.create(application);
+    inBackground(row);
     await sendDirectoryApplicationEmail(application);
     return { id: row.id, status: row.status };
 };
@@ -90,6 +129,7 @@ const reviewApplication = async (id, body, adminId) => {
         reviewed_by: adminId ?? null,
         reviewed_at: new Date(),
     });
+    if (body.status === 'approved') inBackground(application);
     return application;
 };
 
@@ -106,4 +146,4 @@ const deleteApplications = async (body) => {
     return { deleted };
 };
 
-module.exports = { createApplication, listApplications, getApplication, reviewApplication, deleteApplications };
+module.exports = { createApplication, listApplications, getApplication, reviewApplication, deleteApplications, geocodeApplication };

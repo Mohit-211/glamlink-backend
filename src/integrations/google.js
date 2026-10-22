@@ -11,7 +11,8 @@ const getCoordinates = async (address) => {
     const data = response.data;
 
     if (data.status === "OK") {
-      const location = data.results[0].geometry.viewport.northeast;
+      // The place itself (the viewport's corner, used before, is off by up to the place's size).
+      const location = data.results[0].geometry.location;
       return location;
     } else {
       console.error("Geocoding Error:", data.status);

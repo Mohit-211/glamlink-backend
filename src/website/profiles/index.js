@@ -16,4 +16,7 @@ module.exports = {
     visibleAccountId: (slug) => require('./profileQuery').visibleAccountId(slug),
     // The site-wide search's professionals (type 'individual') or brands: { count, rows } of page rows.
     searchPages: (options) => require('./profile.service').searchPages(options),
+    // SQL selecting the directory's profile rows (kind, id, slug, name, image, tagline, city, state, specialty,
+    // specialties, latitude, longitude).
+    directoryProfilesSql: () => require('./profileQuery').DIRECTORY_PROFILES,
 };

@@ -16,6 +16,7 @@ module.exports = [
     require('./website/watch'),
     require('./website/magazine'),
     require('./website/search'),
+    require('./website/directory'),
     require('./mobile/social'),
     require('./mobile/commerce'),
     require('./mobile/promotions'),

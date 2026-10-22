@@ -293,7 +293,9 @@ owner or brand is 400 `INVALID_PRODUCT` with `details.field`. Pick the accounts 
 | PUT | `/directory/applications/:id/status` | `{ status, note? }` | The application, with who reviewed it and when |
 | POST | `/directory/applications/delete` | `{ ids: [...] }` | `{ deleted }`; the photos are deleted too |
 
-Approving records the decision; listing approved applicants on /directory comes with the directory search.
+Approving lists the applicant on /directory (since Oct 23: the website's directory shows approved applications among
+its profiles), and an application with `place_id` claims that Google listing (it leaves the Google results). Check
+that the claim is genuine before approving: the applicant's email and phone are in the application.
 
 ### 8.6 Professional and brand pages (done Oct 23)
 

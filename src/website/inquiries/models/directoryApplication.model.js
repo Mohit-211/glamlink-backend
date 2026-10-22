@@ -21,6 +21,11 @@ DirectoryApplication.init({
     specialties: jsonColumn('specialties'),
     social_media: jsonColumn('social_media'),
     locations: jsonColumn('locations'),
+    // The main location, for the directory's distance search: from the form's location, geocoded when it has none.
+    city: { type: DataTypes.STRING(100), allowNull: true },
+    state: { type: DataTypes.STRING(50), allowNull: true },
+    latitude: { type: DataTypes.DECIMAL(10, 6), allowNull: true },
+    longitude: { type: DataTypes.DECIMAL(11, 6), allowNull: true },
     business_hours: jsonColumn('business_hours'),
     profile_image: { type: DataTypes.STRING(255), allowNull: true },
     gallery: jsonColumn('gallery'),

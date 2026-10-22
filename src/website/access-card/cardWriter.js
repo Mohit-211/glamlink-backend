@@ -10,6 +10,7 @@ const { readCard } = require('./cardFields');
 const { planMedia } = require('./cardMedia');
 const { checkOwnerEdit, checkNewCard } = require('./entitlements');
 const { publicLink, qrUrl, slugOf } = require('./cardLinks');
+const { geocodeCard } = require('./cardGeocode');
 
 // Writing a card: one path for every way a card is created or edited (the website's guest and signed-in forms,
 // the admin panel), so the same fields and checks apply everywhere (docs/access.md section 1).
@@ -93,6 +94,7 @@ const createCard = async ({ body, files, attributes = {}, prepare, rights }) => 
     });
     // Drawn after the card is saved: the card already holds the QR code's URL.
     drawQrCode(cardDoc.business_card_link).catch((err) => logger.error(`QR code for card ${cardDoc.id}`, err));
+    geocodeCard(cardDoc.id);
     return cardDoc;
 };
 
@@ -113,6 +115,7 @@ const updateCard = async (cardDoc, { body, files, rights, byOwner = false }) => 
         await cardDoc.update({ ...card, ...(media.profileImage && { profile_image: media.profileImage }) }, { transaction });
         await saveDetails(cardDoc.id, { locations, hours, media }, transaction);
     });
+    if (locations) geocodeCard(cardDoc.id);
     return cardDoc;
 };
 

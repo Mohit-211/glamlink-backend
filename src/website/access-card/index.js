@@ -17,4 +17,6 @@ module.exports = {
     sanitizeBio,
     bioMarkupRemoved,
     publicLink,
+    // Coordinates for card locations that have none (the directory's backfill script). Loaded when called.
+    geocodeLocations: (where) => require('./cardGeocode').geocodeLocations(where),
 };

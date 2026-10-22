@@ -68,6 +68,23 @@ const adEventLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// The directory's Google listings, searches and details (each a paid Google call): 30 a minute from one address;
+// their photos: 300 a minute (a page shows 20). Production only.
+const googleLookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  message: { success: false, status: 429, code: 'TOO_MANY_REQUESTS', message: 'Too many searches. Please wait a moment.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const googlePhotoLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  message: { success: false, status: 429, code: 'TOO_MANY_REQUESTS', message: 'Too many photos. Please wait a moment.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const productionOnly = (limiter) => (config.env === 'production' ? limiter : (req, res, next) => next());
 
 module.exports = {
@@ -76,4 +93,6 @@ module.exports = {
   limitPublicForms: productionOnly(publicFormLimiter),
   limitSearches: productionOnly(searchLimiter),
   limitAdEvents: productionOnly(adEventLimiter),
+  limitGoogleLookups: productionOnly(googleLookupLimiter),
+  limitGooglePhotos: productionOnly(googlePhotoLimiter),
 };

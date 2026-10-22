@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **The directory** (section 10.13): `GET /directory/search` (our profiles and approved applications, by distance and filters), `GET /directory/listings/:id`, Google's listings near the visitor (`GET /directory/google`), and the claim flow (`/directory/google/search`, `/directory/google/places/:placeId`, then the application with `place_id`) | **Should:** replace the mock provider with these; "Claim this profile" and "Find my business on Google" prefill the apply form |
 | Oct 23 | **Ads** (section 10.12): `GET /ads?live=true` (with `slot` and `page`) answers only the ads to show now; `POST /ads/track` counts views and clicks | **Must:** send the ad slots' tracking to `${API}/ads/track`. **Should:** fetch `GET /ads?live=true&page=<page>` instead of every ad |
 | Oct 23 | **Site-wide search** (section 10.11): `GET /search?q=` answers topics, professionals, brands, products, articles and videos (first rows and counts, exact matches first); `&type=<group>` pages one group | **Should:** point the hero search and its results page at it (instead of the journal search) |
 | Oct 23 | **The magazine** (section 10.10): the 14 issues from `src/data/issues.ts` are served by `GET /magazine` and `GET /magazine/:slug` (with who appears in each); profile pages list their issues | **Should:** read the magazine pages from these instead of `issues.ts`; keep `public/magazine` until the covers are copied to the API |
@@ -811,3 +812,45 @@ answers every ad as before (the admin list).
 the API (`${API}/ads/track`, not the website's own `/api/ads/track`). Answers `{ counted: true }`; 400
 `INVALID_AD_EVENT` (`details.field`) for an unknown ad or type. Counts are kept per ad and day for admins; one address
 may send 300 a minute.
+
+### 10.13 The directory (done Oct 23)
+
+Mohit (Oct 23): /directory shows our own profiles on top, then about 20 Google listings near the visitor (with the
+filters, by Google's relevance). A Google listing has "Claim this profile", which opens the apply form prefilled from
+Google; a "Don't see your profile? Get yours" banner opens the form with "Find my business on Google".
+
+**Our profiles: `GET /directory/search`.** Live Access cards and the applications admins approved, one page:
+
+| Parameter | Meaning |
+| --- | --- |
+| `lat` and `lng`, or `location` | The visitor's point, or a place typed ("Las Vegas, NV", a ZIP; the API geocodes it). Nearest first, within `radius` miles (25 by default, at most 100) |
+| `q` | Name, title or specialty |
+| `specialty`, `city`, `state` | One specialty; a city; a state (as written on the card, e.g. `NV`) |
+| `page`, `limit` | 12 by default, at most 50 |
+
+Each row: `{ kind, id, slug, name, image, tagline, city, state, specialty, distance_miles }`. `kind: "profile"` links to
+the page (`/profiles/<slug>`); `kind: "listing"` is an approved application, shown by **`GET /directory/listings/:id`**:
+its name, title, specialties, bio, photos, website, booking link, social links, locations (an exact address only for
+exact-address locations, with the business phone given for it), hours and offer; not the applicant's own email or
+phone. Without a place, rows come by name.
+
+**Google's listings: `GET /directory/google`** with `lat` and `lng` (or `location`), `type` (`esthetician`, `med-spa`,
+`hair-stylist`) and `q` (words): up to 20 `{ place_id, name, address, city, state, rating, review_count, photo_url,
+maps_url, website, type, distance_miles }`, by Google's relevance. Listings already claimed through the directory and
+closed businesses are left out. `photo_url` is the API's own link (`/directory/google/photo?...`, a redirect to Google's
+image), so no key reaches the browser.
+
+**Claiming and starting from Google:**
+
+1. `GET /directory/google/search?q=<business name, city>` (the form's "Find my business on Google"): up to 5
+   `{ place_id, name, address, city, state, claimed }`.
+2. `GET /directory/google/places/:placeId`: `{ place_id, claimed, form, name, address, rating, review_count, maps_url,
+   photos }`, where `form` holds the apply form's fields Google knows: `place_id`, `phone`, `website`, `bio`, `locations`
+   (one exact address, primary) and `business_hours` (`[{ note: "Monday: 9:00 AM – 5:00 PM" }]`). Google does not know
+   the person's name, title or email: the form asks for them.
+3. `POST /directory/applications` as before (section 10.5), with `place_id`. Once an admin approves it, the listing
+   leaves Google's list and the application shows among our profiles.
+
+Google calls cost money: the API keeps answers six hours and allows 30 Google searches a minute per address (300
+photos). Without the server's Google key these answer 503 `GOOGLE_NOT_CONFIGURED`. The mock provider and its invented
+ratings can go.

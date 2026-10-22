@@ -12,4 +12,6 @@ module.exports = {
         { path: '/feature-request', router: require('./featureRequest.route') },
         { path: '/directory', router: require('./directoryApplication.route') },
     ],
+    // For scripts: coordinates for an application's main location when it has none. Loaded when called.
+    geocodeApplication: (application) => require('./directoryApplication.service').geocodeApplication(application),
 };

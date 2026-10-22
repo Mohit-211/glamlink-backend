@@ -92,7 +92,7 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 | `SHIP_FROM_*` | The warehouse the keychains ship from | Without it a keychain shipping quote fails |
 | `TURNSTILE_SECRET_KEY` | Cloudflare's always-pass test secret `1x0000000000000000000000000000000AA` | Live: the real secret. Production refuses sign-ups without it. The website needs the matching site key (test: `1x00000000000000000000AA`) |
 | `SMTP_*`, `EMAIL_FROM` | Copy from the old `.env` | Used only when `MAIL_TRANSPORT=smtp` |
-| `GOOGLE_API_KEY` | The rotated server key | Restricted to Geocoding, Places, Routes and the server's IP |
+| `GOOGLE_API_KEY` | The rotated server key | Restricted to Geocoding, Places, Places API (New), Routes and the server's IP. The directory uses Places API (New) (enable it in Google Cloud for this key) and Geocoding |
 | `YOUTUBE_API_KEY` | A key with YouTube Data API v3 | Restricted to that API and the server's IP. Imports each video series' playlist hourly (with `JOBS_ENABLED`) and the links admins paste; the website then drops its own key |
 | `FIREBASE_*` | Leave empty | Push notifications off. Live: from the service account file |
 | `OPENAI_API_KEY`, `FACEPP_*`, `NUMERAL_*` | Copy from the old `.env` | App features only |
@@ -257,6 +257,14 @@ Late evening, in this order:
    the dashboard; a purchase; admin sign-in and a journal edit.
 9. When it has run well for a day, stop the old process (`pm2 stop glamlink-backend`; keep its folder and database):
    its scheduled jobs would otherwise keep changing the old database.
+
+### Once, with the Oct 23 code: coordinates for the directory
+
+Card locations are geocoded when saved; the ones saved before need it once (about 250 addresses, about $1.25):
+
+```bash
+npm run directory:geocode
+```
 
 ### Once, with the Oct 23 code: the magazine covers
 
