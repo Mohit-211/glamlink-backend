@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Page analytics** (section 8.13): the website counts views of professional and brand pages and clicks on their links; `GET /profiles/admin/:userId/analytics` gives any page's numbers | **Can:** a numbers tab on the page screen |
 | Oct 23 | **Slugs** (section 8.12): every article and product has its own slug, made from the title unless an admin gives one; a taken one is refused; an empty one no longer clears it | **Can:** show and edit the slug on the article and product forms |
 | Oct 23 | **Listings become accounts** (section 8.5): approving a directory application makes (or finds) the person's account, links it and emails them how to sign in; they then edit their listing and their products themselves (shown at once). Admins also edit any listing (`PUT /directory/applications/:id`) and add one for someone (`POST /directory/applications/admin`). Products the owners add carry their `owner_id`; admins keep full edit, unpublish and delete | **New:** "Approve as brand", edit and add on the applications screen |
 | Oct 23 | **Ad counts** (section 8.11): the website now reports each ad's views and clicks. New `GET /ads/admin/stats` (every ad's totals, with a date range) and `GET /ads/:id/stats` (one ad by day). `GET /ads` still lists every ad; `?live=true` is the website's | **New:** views, clicks and click rate on the ads list; a per-day view for one ad |
@@ -380,6 +381,12 @@ optional `slug`, the page's address: written as a slug ("My Post" is my-post) an
 (`INVALID_INPUT`) or product (`INVALID_PRODUCT`) has it, `details.field: "slug"`. Without one, an article or product
 gets one from its title when it is added, and keeps it when the title changes; an empty `slug` on an edit changes
 nothing (it used to clear it). Worth showing next to the title, with a field to change it.
+
+### 8.13 Page analytics (done Oct 23)
+
+| Method | Path | Query | Answers |
+| --- | --- | --- | --- |
+| GET | `/profiles/admin/:userId/analytics` | `from`, `to` (YYYY-MM-DD; today when not given) | The page's views, unique visitors and clicks, as its owner sees them in the dashboard: `page`, `date_range`, `summary`, `events`, `daily_views`, `daily_clicks`, `device_breakdown`, `top_targets` (the website handoff, section 10.17) |
 
 ## Appendix: every admin endpoint
 

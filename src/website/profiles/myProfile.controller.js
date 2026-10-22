@@ -1,6 +1,7 @@
 const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
 const myProfileService = require('./myProfile.service');
+const pageAnalytics = require('./pageAnalytics.service');
 
 const getMyPage = catchAsync(async (req, res) => {
     const data = await myProfileService.getMyPage(req.user);
@@ -12,4 +13,9 @@ const updateMyPage = catchAsync(async (req, res) => {
     return responseWrapper(res, data, 'Page saved.');
 });
 
-module.exports = { getMyPage, updateMyPage };
+const analytics = catchAsync(async (req, res) => {
+    const data = await pageAnalytics.analytics(req.user.id, req.query);
+    return responseWrapper(res, data, '');
+});
+
+module.exports = { getMyPage, updateMyPage, analytics };

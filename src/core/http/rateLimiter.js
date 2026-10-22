@@ -68,6 +68,15 @@ const adEventLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Page views and clicks from the website: 120 a minute from one address (a person reading pages). Production only.
+const pageEventLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  message: { success: false, status: 429, code: 'TOO_MANY_REQUESTS', message: 'Too many page events.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // The directory's Google listings, searches and details (each a paid Google call): 30 a minute from one address;
 // their photos: 300 a minute (a page shows 20). Production only.
 const googleLookupLimiter = rateLimit({
@@ -93,6 +102,7 @@ module.exports = {
   limitPublicForms: productionOnly(publicFormLimiter),
   limitSearches: productionOnly(searchLimiter),
   limitAdEvents: productionOnly(adEventLimiter),
+  limitPageEvents: productionOnly(pageEventLimiter),
   limitGoogleLookups: productionOnly(googleLookupLimiter),
   limitGooglePhotos: productionOnly(googlePhotoLimiter),
 };

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../shared/admin');
+const { limitPageEvents } = require('../../core/http/rateLimiter');
 const profileController = require('./profile.controller');
 
 // Public
@@ -9,6 +10,7 @@ router.get('/:slug/products', profileController.profileProducts);
 router.get('/:slug/articles', profileController.profileArticles);
 router.get('/:slug/videos', profileController.profileVideos);
 router.get('/:slug/magazine', profileController.profileMagazine);
+router.post('/:slug/events', limitPageEvents, profileController.trackEvent);
 
 // Admin. (A page's own lists, /:slug/products, /articles, /videos and /magazine, come before these, so a page whose slug is
 // "admin" still has them.)
@@ -17,6 +19,7 @@ router.post('/admin/brands', requireAdmin, profileController.createBrandPage);
 router.get('/admin/:userId', requireAdmin, profileController.adminGetPage);
 router.put('/admin/:userId', requireAdmin, profileController.adminUpdatePage);
 router.post('/admin/:userId/invite', requireAdmin, profileController.invite);
+router.get('/admin/:userId/analytics', requireAdmin, profileController.adminAnalytics);
 
 // Public: one page (last, as it takes any slug)
 router.get('/:slug', profileController.getProfile);

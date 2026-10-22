@@ -3,6 +3,7 @@ const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
 const profileService = require('./profile.service');
 const profileAdminService = require('./profileAdmin.service');
+const pageAnalytics = require('./pageAnalytics.service');
 
 const listProfiles = catchAsync(async (req, res) => {
     const data = await profileService.listProfiles(req.query);
@@ -59,4 +60,17 @@ const invite = catchAsync(async (req, res) => {
     return responseWrapper(res, data, 'Email sent.');
 });
 
-module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite };
+const trackEvent = catchAsync(async (req, res) => {
+    const data = await pageAnalytics.track(req.params.slug, req.body, req.get('user-agent'));
+    return responseWrapper(res, data, '');
+});
+
+const adminAnalytics = catchAsync(async (req, res) => {
+    const data = await pageAnalytics.analytics(req.params.userId, req.query);
+    return responseWrapper(res, data, '');
+});
+
+module.exports = {
+    listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, trackEvent,
+    adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite, adminAnalytics,
+};

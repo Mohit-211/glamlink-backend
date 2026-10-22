@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Page analytics** (section 10.17): `POST /profiles/:slug/events` counts page views and clicks (website, Access card, products, booking, social, email, phone); `GET /my/profile/analytics` gives the owner the numbers in the card analytics' shape | **Should:** report views and clicks on the page as on the card; a numbers screen in the dashboard |
 | Oct 23 | **Sitemap feed** (section 10.16): `GET /sitemap`, every public page's id, slug and date of last change by kind (articles, topics, profiles, products, videos, issues) | **Should:** build sitemap.xml from it instead of downloading full lists |
 | Oct 23 | **Calls by slug** (section 10.15): `GET /journal/slug/:slug` and `GET /discover/shop/slug/:slug`; `GET /journal/topic/:id` takes a slug too; products carry `slug`; every article and product has its own. The calls by id still answer | **Can:** move article, topic and product links to slugs; old links by id keep working |
 | Oct 23 | **Listings become accounts** (section 10.14): approving a directory application makes the person a professional account (set-password email) and a page made from the listing; they keep the listing up to date (`GET`/`PUT /my/directory`) and manage their products (`/my/products`, shown at once) from the Access dashboard. Pages add `listing` (locations, hours, photos) | **Should:** in the dashboard, a "Directory listing" and a "Products" section; the approval email points to sign-in |
@@ -919,4 +920,42 @@ site; no paging):
 Each kind lists what its own pages show: published articles, products, videos and issues; active topics; visible
 professional and brand pages (`type`: `individual` or `brand`). A page's date is its latest change: of the page, its
 card, its listing or its account. The slugs are the ones the calls in section 10.15 take.
+
+### 10.17 Page analytics (done Oct 23)
+
+**Reporting**, as the card page does: `POST /profiles/:slug/events` with
+`{ event_type, event_target?, visitor_id?, session_id? }`.
+
+| `event_type` | When | `event_target` |
+| --- | --- | --- |
+| `PAGE_VIEW` | The page is shown | |
+| `WEBSITE_CLICK` | The website link | The link |
+| `ACCESS_CARD_CLICK` | The link to their Access card | |
+| `PRODUCT_CLICK` | A product on the page | The product's `id` |
+| `BOOKING_CLICK` | The booking link | |
+| `SOCIAL_CLICK` | A social link | The platform (`instagram`, ...) |
+| `EMAIL_CLICK`, `PHONE_CLICK` | The email or the phone | |
+
+`visitor_id` is a random id kept in the browser (unique visitors are counted by it); `session_id` is optional. Answers
+`{ counted: true }`, or `{ counted: false }` for robots (search engines, link previews). Refusals: 400
+`INVALID_PAGE_EVENT` with `details.field`; 404 for a page that is not shown; 120 a minute from one address. Nothing
+about the visitor is kept beyond these ids and the kind of device.
+
+**The dashboard**: `GET /my/profile/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD` (signed in, a professional or brand; both
+dates are today when not given) answers in the shape of the card's analytics:
+
+```json
+{ "page": { "id": 812, "slug": "skinmedica", "name": "SkinMedica", "visible": true },
+  "date_range": { "from": "2026-10-01", "to": "2026-10-23" },
+  "summary": { "total_views": 120, "unique_visitors": 80, "total_clicks": 30 },
+  "events": { "PAGE_VIEW": 120, "WEBSITE_CLICK": 10, "ACCESS_CARD_CLICK": 4, "PRODUCT_CLICK": 12, "...": 0 },
+  "daily_views": [{ "date": "2026-10-01", "count": 5 }],
+  "daily_clicks": [{ "date": "2026-10-01", "count": 2 }],
+  "device_breakdown": [{ "device_type": "mobile", "count": 70 }],
+  "top_targets": [{ "event_type": "PRODUCT_CLICK", "event_target": "31", "count": 7 }] }
+```
+
+As for cards, days without events are left out of the daily lists. `top_targets` holds the 10 most clicked links and
+products. Refusals: 400 `INVALID_INPUT` (`details.field`) for a date that is wrong, in the future, or a `from` after
+`to`.
 
