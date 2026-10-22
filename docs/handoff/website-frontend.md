@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Calls by slug** (section 10.15): `GET /journal/slug/:slug` and `GET /discover/shop/slug/:slug`; `GET /journal/topic/:id` takes a slug too; products carry `slug`; every article and product has its own. The calls by id still answer | **Can:** move article, topic and product links to slugs; old links by id keep working |
 | Oct 23 | **Listings become accounts** (section 10.14): approving a directory application makes the person a professional account (set-password email) and a page made from the listing; they keep the listing up to date (`GET`/`PUT /my/directory`) and manage their products (`/my/products`, shown at once) from the Access dashboard. Pages add `listing` (locations, hours, photos) | **Should:** in the dashboard, a "Directory listing" and a "Products" section; the approval email points to sign-in |
 | Oct 23 | **The directory** (section 10.13): `GET /directory/search` (our profiles and approved applications, by distance and filters), `GET /directory/listings/:id`, Google's listings near the visitor (`GET /directory/google`), and the claim flow (`/directory/google/search`, `/directory/google/places/:placeId`, then the application with `place_id`) | **Should:** replace the mock provider with these; "Claim this profile" and "Find my business on Google" prefill the apply form |
 | Oct 23 | **Ads** (section 10.12): `GET /ads?live=true` (with `slot` and `page`) answers only the ads to show now; `POST /ads/track` counts views and clicks | **Must:** send the ad slots' tracking to `${API}/ads/track`. **Should:** fetch `GET /ads?live=true&page=<page>` instead of every ad |
@@ -882,3 +883,22 @@ fields as the form sends them (not `email`, which is the sign-in, nor the form's
 
 A brand's products are its own make (`brand_id` is the brand). Refusals: 400 `INVALID_PRODUCT` with `details.field`;
 another account's product answers 404.
+
+### 10.15 Calls by slug (done Oct 23)
+
+Every page the website links to can be found by its slug, and the calls by id keep answering, so old links keep
+working:
+
+| Page | By slug | By id (as before) |
+| --- | --- | --- |
+| Article | **`GET /journal/slug/:slug`** (new): the same answer as by id; 404 `NOT_FOUND` when there is none (drafts for admins only) | `GET /journal/findJournalById/:id` |
+| Topic | `GET /journal/topic/:slug`: the same call takes a slug or an id | `GET /journal/topic/:id` |
+| Product | **`GET /discover/shop/slug/:slug`** (new): the same answer as by id | `GET /discover/shop/findById/:id` |
+| Professional or brand page | `GET /profiles/:slug` (section 10.6) | |
+| Video | `GET /videos/:slug` (section 10.9) | |
+| Issue | `GET /magazine/:slug` (section 10.10) | |
+
+Each article and product has a slug of its own, made from its title when it is added unless an admin gives one; it
+stays when the title changes, so links last. Products carry `slug` in every answer now (the shop's rows, a page's
+products, `/my/products`). Existing articles and products got theirs on Oct 23 (a slug an admin had typed was kept,
+written as a slug).

@@ -17,6 +17,8 @@ router.get("/admin", requireAdmin, journalController.getAllJournalsByAdmin);
 
 router.get("/findJournalById/:id", journalController.findJournalById);
 
+router.get("/slug/:slug", journalController.findJournalBySlug);
+
 router.put("/:id", requireAdmin, journalController.updateJournal);
 
 router.post("/delete", requireAdmin, journalController.deleteJournal);

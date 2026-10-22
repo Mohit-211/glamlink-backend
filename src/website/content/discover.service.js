@@ -5,6 +5,7 @@ const { paging } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
 const { matchFirst } = require("../../core/db/searchOrder");
 const { toSlug } = require("../../core/utils/slug");
+const { slugTaken } = require("../../core/db/freeSlug");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
 const { Event, Shop, JournalTopic, User } = require("../../models");
@@ -55,6 +56,17 @@ const withLinks = async (rows) => {
   return rows;
 };
 
+const refuseSlug = (message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, "INVALID_PRODUCT", { field: "slug" });
+
+// A product's slug from the admin form, written as a slug ("Glow Serum" is glow-serum); refused when another product
+// has it. A product added without one gets one from its title (shop.model.js).
+const productSlug = async (value, id = null) => {
+  const slug = toSlug(value).slice(0, 150);
+  if (slug.length < 2) throw refuseSlug("slug is at least 2 letters, digits and dashes.");
+  if (await slugTaken(Shop, slug, id)) throw refuseSlug("This slug is taken.");
+  return slug;
+};
+
 // A product's place in the home page's Shop Products row: a whole number.
 const featuredOrder = (value) => {
   const order = wholeNumber(value);
@@ -95,6 +107,7 @@ const createDiscover = async (type, reqBody, files) => {
         : null;
     obj.link = reqBody.link;
     obj.description = reqBody.description || null;
+    if (reqBody.slug) obj.slug = await productSlug(reqBody.slug);
     if (reqBody.owner_id !== undefined) obj.owner_id = await accountField(reqBody.owner_id, "owner_id");
     if (reqBody.brand_id !== undefined) obj.brand_id = await accountField(reqBody.brand_id, "brand_id");
     obj.is_featured = isYes(reqBody.is_featured);
@@ -128,7 +141,7 @@ const PUBLISHED = { is_active: true, status: "published" };
 
 // What a list shows of a product: all but the longer description.
 const PRODUCT_CARD = [
-  "id", "title", "short_description", "category", "brand", "owner_id", "brand_id", "price", "cover_image", "link",
+  "id", "slug", "title", "short_description", "category", "brand", "owner_id", "brand_id", "price", "cover_image", "link",
   "is_featured", "featured_order", "sort_order", "created_at", "updated_at",
 ];
 
@@ -238,13 +251,13 @@ const getAllDiscoverByAdmin = async (type) => {
   });
 };
 
-// A missing id answers 404. Drafts only for admins (the admin panel edits them).
-const findDiscoverById = async (type, id, { withDrafts = false } = {}) => {
+// A missing one answers 404. Drafts only for admins (the admin panel edits them).
+const findDiscover = async (type, where, { withDrafts = false } = {}) => {
   const Model = getModel(type);
 
   const query = {
     where: {
-      id,
+      ...where,
       is_active: true,
       ...(!withDrafts && { status: "published" }),
     },
@@ -272,6 +285,11 @@ const findDiscoverById = async (type, id, { withDrafts = false } = {}) => {
 
   return doc;
 };
+
+const findDiscoverById = (type, id, options) => findDiscover(type, { id }, options);
+
+// GET /discover/shop/slug/:slug: a product by its slug, as by its id (old links by id keep working).
+const findProductBySlug = (slug, options) => findDiscover("shop", { slug: String(slug) }, options);
 
 const updateDiscover = async (type, reqBody, id, files) => {
   const Model = getModel(type);
@@ -314,6 +332,11 @@ const updateDiscover = async (type, reqBody, id, files) => {
 
     if (reqBody.description !== undefined) {
       doc.description = reqBody.description || null;
+    }
+
+    // A product keeps its slug (its links) unless an admin gives another; an empty one changes nothing.
+    if (reqBody.slug) {
+      doc.slug = await productSlug(reqBody.slug, doc.id);
     }
 
     if (reqBody.owner_id !== undefined) {
@@ -547,6 +570,7 @@ module.exports = {
   PRODUCT_CARD,
   getAllDiscoverByAdmin,
   findDiscoverById,
+  findProductBySlug,
   updateDiscover,
   deleteDiscover,
   updateDiscoverSortOrder,

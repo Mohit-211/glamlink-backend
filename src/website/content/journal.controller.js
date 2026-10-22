@@ -38,6 +38,12 @@ const findJournalById = catchAsync(async (req, res) => {
   return responseWrapper(res, categoryDoc, "");
 });
 
+const findJournalBySlug = catchAsync(async (req, res) => {
+  const withDrafts = Boolean(await identifyAdmin(req));
+  const journalDoc = await journalService.findJournalBySlug(req.params.slug, { withDrafts });
+  return responseWrapper(res, journalDoc, "");
+});
+
 const updateJournal = catchAsync(async (req, res) => {
   const categoryDoc = await journalService.updateJournal(
     req.body,
@@ -291,6 +297,7 @@ module.exports = {
   getJournalsByCategory,
   getAllJournals,
   findJournalById,
+  findJournalBySlug,
   updateJournal,
   deleteJournal,
   uploadImage,

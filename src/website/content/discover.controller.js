@@ -54,6 +54,13 @@ const findDiscoverById = catchAsync(async (req, res) => {
 	return responseWrapper(res, data, "");
 });
 
+const findProductBySlug = catchAsync(async (req, res) => {
+	const withDrafts = Boolean(await identifyAdmin(req));
+	const data = await discoverService.findProductBySlug(req.params.slug, { withDrafts });
+
+	return responseWrapper(res, data, "");
+});
+
 const updateDiscover = catchAsync(async (req, res) => {
 	const data = await discoverService.updateDiscover(
 		req.params.type,
@@ -120,6 +127,7 @@ module.exports = {
 	getShopFilters,
 	getAllDiscoverByAdmin,
 	findDiscoverById,
+	findProductBySlug,
 	updateDiscover,
 	deleteDiscover,
 	updateDiscoverSortOrder,

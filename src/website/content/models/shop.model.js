@@ -1,5 +1,6 @@
 const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = require("../../../core/db/central.db");
+const { freeSlug } = require("../../../core/db/freeSlug");
 
 class Shop extends Model {}
 
@@ -14,6 +15,12 @@ Shop.init(
     title: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    // The product page's address (GET /discover/shop/slug/:slug), its own: made from the title when the product is
+    // added (below), kept when the title changes.
+    slug: {
+      type: DataTypes.STRING(160),
+      allowNull: true,
     },
 
     short_description: {
@@ -113,5 +120,17 @@ Shop.init(
     paranoid: true,
   },
 );
+
+// Every product added (by an admin, its owner or a CSV file) gets a slug from its title unless it was given one.
+Shop.beforeCreate(async (product) => {
+  if (!product.slug) product.slug = await freeSlug(Shop, product.title, { fallback: "product" });
+});
+Shop.beforeBulkCreate(async (products) => {
+  const taken = new Set();
+  for (const product of products) {
+    if (!product.slug) product.slug = await freeSlug(Shop, product.title, { fallback: "product", taken });
+    taken.add(product.slug);
+  }
+});
 
 module.exports = Shop;

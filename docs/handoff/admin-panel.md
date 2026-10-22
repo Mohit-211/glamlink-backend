@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Slugs** (section 8.12): every article and product has its own slug, made from the title unless an admin gives one; a taken one is refused; an empty one no longer clears it | **Can:** show and edit the slug on the article and product forms |
 | Oct 23 | **Listings become accounts** (section 8.5): approving a directory application makes (or finds) the person's account, links it and emails them how to sign in; they then edit their listing and their products themselves (shown at once). Admins also edit any listing (`PUT /directory/applications/:id`) and add one for someone (`POST /directory/applications/admin`). Products the owners add carry their `owner_id`; admins keep full edit, unpublish and delete | **New:** "Approve as brand", edit and add on the applications screen |
 | Oct 23 | **Ad counts** (section 8.11): the website now reports each ad's views and clicks. New `GET /ads/admin/stats` (every ad's totals, with a date range) and `GET /ads/:id/stats` (one ad by day). `GET /ads` still lists every ad; `?live=true` is the website's | **New:** views, clicks and click rate on the ads list; a per-day view for one ad |
 | Oct 23 | **What people search for** (section 8.10): `GET /search/admin/terms` lists the most searched terms, or (`?sort=empty`) the latest searches that found nothing | **New:** a search terms report, next to the home page's popular searches |
@@ -371,6 +372,14 @@ search). Terms are lower-cased; nothing about who searched is kept.
 | GET | `/ads/:id/stats` | the same | `{ ad_id, impressions, clicks, days: [{ day, impressions, clicks }] }` |
 
 An impression is counted once an ad is half in view on the website. Refusals: 400 `INVALID_AD_EVENT`; 404.
+
+### 8.12 Slugs for articles and products (done Oct 23)
+
+Articles (`POST /journal`, `PUT /journal/:id`) and products (`POST /discover/shop`, `PUT /discover/shop/:id`) take an
+optional `slug`, the page's address: written as a slug ("My Post" is my-post) and refused with 400 when another article
+(`INVALID_INPUT`) or product (`INVALID_PRODUCT`) has it, `details.field: "slug"`. Without one, an article or product
+gets one from its title when it is added, and keeps it when the title changes; an empty `slug` on an edit changes
+nothing (it used to clear it). Worth showing next to the title, with a field to change it.
 
 ## Appendix: every admin endpoint
 

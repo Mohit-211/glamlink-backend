@@ -48,6 +48,7 @@ Journal.init(
       allowNull: true,
     },
 
+    // The article's address (GET /journal/slug/:slug), its own: the one an admin gives, else made from the title.
     slug: {
       type: DataTypes.STRING(255),
       allowNull: true,

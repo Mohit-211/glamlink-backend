@@ -5,6 +5,8 @@ const { containing } = require("../../core/utils/like");
 const { matchFirst } = require("../../core/db/searchOrder");
 const { isUploadedImage } = require("../../core/http/uploadedFiles");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
+const { toSlug } = require("../../core/utils/slug");
+const { freeSlug, slugTaken } = require("../../core/db/freeSlug");
 const { indexMentions, mentionsOf, articleIdsFeaturing } = require("./mentions.service");
 const { videosOfTopic } = require("../watch");
 const {
@@ -32,6 +34,19 @@ const {
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
+const given = (value) => value !== undefined && value !== null && String(value).trim() !== "";
+const refuseSlug = (message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, "INVALID_INPUT", { field: "slug" });
+
+// An article's slug: the one an admin gives, written as a slug ("My Post" is my-post) and refused when another
+// article has it; else one made from the title. `id`: the article being edited.
+const articleSlug = async (value, title, id = null) => {
+  if (!given(value)) return freeSlug(Journal, title, { id, fallback: "article" });
+  const slug = toSlug(value).slice(0, 150);
+  if (slug.length < 2) throw refuseSlug("slug is at least 2 letters, digits and dashes.");
+  if (await slugTaken(Journal, slug, id)) throw refuseSlug("This slug is taken.");
+  return slug;
+};
+
 const createJournal = async (reqBody, files) => {
   const isPublished = reqBody.status === "published";
 
@@ -47,7 +62,7 @@ const createJournal = async (reqBody, files) => {
 
     seo_title: reqBody.seo_title || null,
     meta_description: reqBody.meta_description || null,
-    slug: reqBody.slug || null,
+    slug: await articleSlug(reqBody.slug, reqBody.title),
     created_at: new Date(),
   };
 
@@ -438,11 +453,12 @@ const getAllJournals = async () => {
   return journalDoc;
 };
 
-// Drafts only for admins (the admin panel edits them); anyone else gets published articles.
-const findJournalById = async (id, { withDrafts = false } = {}) => {
+// One article in full, with who it features. Drafts only for admins (the admin panel edits them); anyone else gets
+// published articles.
+const findJournal = async (where, { withDrafts = false } = {}) => {
   const journalDoc = await Journal.findOne({
     where: {
-      id,
+      ...where,
       is_active: true,
       ...(!withDrafts && { status: "published" }),
     },
@@ -514,10 +530,20 @@ const findJournalById = async (id, { withDrafts = false } = {}) => {
       [{ model: JournalDownload, as: "downloads" }, "sort_order", "ASC"],
     ],
   });
-  if (!journalDoc) return "No Journal Found";
+  if (!journalDoc) return null;
 
   // The people it features, linked to their pages.
   journalDoc.dataValues.mentions = await mentionsOf(journalDoc.id);
+  return journalDoc;
+};
+
+// GET /journal/findJournalById/:id answers as it always has, "No Journal Found" for a missing article.
+const findJournalById = async (id, options) => (await findJournal({ id }, options)) ?? "No Journal Found";
+
+// GET /journal/slug/:slug: the article by its slug (old links by id keep working); 404 when there is none.
+const findJournalBySlug = async (slug, options) => {
+  const journalDoc = await findJournal({ slug: String(slug) }, options);
+  if (!journalDoc) throw ApiError.withCode(httpStatus.NOT_FOUND, "Article not found.", "NOT_FOUND");
   return journalDoc;
 };
 
@@ -571,8 +597,9 @@ const updateJournal = async (reqBody, id, files) => {
     journalDoc.meta_description = reqBody.meta_description || null;
   }
 
-  if (reqBody.slug !== undefined) {
-    journalDoc.slug = reqBody.slug || null;
+  // An article keeps its slug (its links) unless an admin gives another; an empty one changes nothing.
+  if (given(reqBody.slug)) {
+    journalDoc.slug = await articleSlug(reqBody.slug, journalDoc.title, journalDoc.id);
   }
 
   if (files?.images?.length) {
@@ -1275,10 +1302,11 @@ const getAllJournalTopics = async (query = {}) => {
 };
 
 // withEmails: professionals' emails are for admins only (the public topic page leaves them out).
+// A topic by its id or its slug (GET /journal/topic/:id takes either).
 const getJournalTopicById = async (id, { withEmails = false } = {}) => {
   const topic = await JournalTopic.findOne({
     where: {
-      id,
+      ...(/^\d+$/.test(String(id)) ? { id } : { slug: String(id) }),
       is_active: true,
     },
     include: [
@@ -2080,6 +2108,7 @@ module.exports = {
   searchTopics,
   articlesOfAccount,
   findJournalById,
+  findJournalBySlug,
   updateJournal,
   deleteJournal,
   uploadImage,
