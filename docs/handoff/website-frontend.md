@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Home tiles and settings** (section 10.2): `GET /journal/topic?featured=true` lists the home page's topic tiles in their order (topics add `is_featured`, `featured_order`, `tile_image`); `GET /settings/home` answers the hero image, the popular searches and the "Find a Professional" image, set in admin | **Should:** build Explore Beauty + Wellness, the hero's image and chips, and the Find a Professional image from these (placeholders while an image is `null`) |
 | Oct 23 | **The journal list pages on the server** (section 10.1): `GET /journal` with `page`, `limit`, `category` (a slug), `search`, `exclude` or `featured=true` answers one page of light article cards, newest first, with the true `count`; without them it answers as before (its `count` now counts articles). Articles have `is_featured`, set in admin. `GET /journalCategory` adds `article_count` and `sort_order`; titles are trimmed and slugs made for URLs (`whats-new`). Drafts are no longer served by `findJournalById` or `journal/:category_id` (except to admins) | **Should:** move the Journal page, its hero, related articles and the home row to these calls (one request each instead of four full lists); use `journal_category.slug` in category URLs; hide categories whose `article_count` is 0 |
 | Oct 23 | The server steps for testing on test.glamlink.net are written (the backend's `docs/deploy.md`, section 7, "The website on test.glamlink.net"): the origin in `ACCESSDOMAINS`, `WEBSITE_URL` on the test site, Stripe and Shippo test keys, visitors' addresses from Cloudflare, and `www` redirected to `glamlink.net`. Responses no longer carry `X-Powered-By` | **Once Mohit has applied them:** test sign-up (the email link opens on test.glamlink.net), a payment and a keychain address there |
 | Oct 23 | `GET /user/profile/:userId` answers guests and other accounts with the public profile only: name, about, profession, ratings and counts, photo, albums, reels, posts, services, and reviews with each reviewer's name and photo. The email, phone, address, coordinates, Stripe, push and socket ids, referral code and settings (of the account and of its reviewers) go only to the owner and to admins. It no longer looks up the address with Google unless `latitude` and `longitude` are sent | Nothing: the website does not call it |
@@ -560,3 +561,22 @@ Dates are ISO strings.
 **Drafts:** `GET /journal/findJournalById/:id` of an unpublished article answers like a missing one (`"No Journal
 Found"`) unless an admin asks; `GET /journal/:category_id` lists published articles only. The full list's `count` now
 counts articles (it counted 79 for 66).
+
+### 10.2 Home page: topic tiles and settings (done Oct 23)
+
+**Explore Beauty + Wellness:** `GET /journal/topic?featured=true` answers the topics admins marked for the home page,
+in their order (a plain list, like `GET /journal/topic`). Topics add `is_featured`, `featured_order` and `tile_image`
+(a square image; `null` means use `cover_image`). A tile opens `/topics/<slug>`. On the live copy the six topics of
+the mockup (Skin, Aesthetic Treatments, Plastic Surgery, Hair, Wellness, Nails + Makeup) start as the tiles where a
+topic of that name exists; admins create the missing ones.
+
+**The parts admins set by hand:** `GET /settings/home` (no sign-in):
+
+```json
+{ "hero_image": "https://api.glamlink.net/images/…", "find_professional_image": null,
+  "popular_searches": ["Botox", "Skin Rejuvenation", "Weight Loss", "Facials", "Plastic Surgery"],
+  "updated_at": "2026-10-23T10:00:00.000Z" }
+```
+
+An image is `null` until an admin sets it: keep the placeholder until then. The popular searches start as the
+mockup's five; until the site-wide search exists, a chip can keep opening `/journal?search=<term>`.

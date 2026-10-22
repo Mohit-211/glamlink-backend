@@ -31,6 +31,22 @@ JournalTopic.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // A tile in the home page's "Explore Beauty + Wellness" row (GET /journal/topic?featured=true), in featured_order.
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    featured_order: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    // A square image for the tile; the tile uses cover_image without one.
+    tile_image: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
 
     is_active: {
       type: DataTypes.BOOLEAN,

@@ -21,6 +21,7 @@ const Blog = require('./blog.model');
 const BlogCategory = require('./blogCategory.model');
 const BlogCategoryMapping = require('./blogCategoryMapping.model');
 const BlogAttachment = require('./blogAttachment.model');
+const SiteSetting = require('./siteSetting.model');
 
 // The associations this module owns: the side that holds the foreign key. Called once every module's
 // models are loaded (src/models.js), with all of them by name.
@@ -310,4 +311,4 @@ const associate = ({ User }) => {
   });
 };
 
-module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, Author, PodcastSchedule, Education, Event, Shop, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment }, associate };
+module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, Author, PodcastSchedule, Education, Event, Shop, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment, SiteSetting }, associate };

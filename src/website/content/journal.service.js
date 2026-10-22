@@ -2,6 +2,7 @@ const httpStatus = require("../../core/http/status");
 const { Op, literal } = require("sequelize");
 const { paging, idList } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
+const { isUploadedImage } = require("../../core/http/uploadedFiles");
 const {
   Journal,
   Author,
@@ -1074,6 +1075,30 @@ const deleteJournalFaq = async (body) => {
 // Topic CRUD
 // ==========================
 
+// The home page tile fields an admin may send with a topic: is_featured, featured_order (whole number) and
+// tile_image (a link from POST /journal/upload, or empty to remove it).
+const topicTileFields = (body) => {
+  const fields = {};
+  if (body.is_featured !== undefined) fields.is_featured = isYes(body.is_featured);
+  if (body.featured_order !== undefined && body.featured_order !== "") {
+    const order = Number(body.featured_order);
+    if (!Number.isInteger(order)) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "featured_order must be a whole number");
+    }
+    fields.featured_order = order;
+  }
+  if (body.tile_image !== undefined) {
+    if (body.tile_image === null || body.tile_image === "") {
+      fields.tile_image = null;
+    } else if (isUploadedImage(body.tile_image)) {
+      fields.tile_image = body.tile_image;
+    } else {
+      throw new ApiError(httpStatus.BAD_REQUEST, "tile_image must be an image uploaded to the API (POST /journal/upload)");
+    }
+  }
+  return fields;
+};
+
 const createJournalTopic = async (body, files) => {
   const { name, slug, description } = body;
 
@@ -1121,6 +1146,7 @@ const createJournalTopic = async (body, files) => {
         slug: cleanSlug,
         description: description || null,
         is_active: true,
+        ...topicTileFields(body),
       };
 
       // ==========================
@@ -1146,6 +1172,7 @@ const createJournalTopic = async (body, files) => {
     slug: cleanSlug,
     description: description || null,
     is_active: true,
+    ...topicTileFields(body),
   };
 
   // ==========================
@@ -1160,11 +1187,14 @@ const createJournalTopic = async (body, files) => {
   return topic;
 };
 
+// Every active topic by name; with featured=true, the home page's tiles in their order.
 const getAllJournalTopics = async (query = {}) => {
   const { search = "" } = query;
+  const featured = isYes(query.featured);
 
   const where = {
     is_active: true,
+    ...(featured && { is_featured: true }),
   };
 
   // ==========================
@@ -1194,7 +1224,7 @@ const getAllJournalTopics = async (query = {}) => {
 
   const topics = await JournalTopic.findAll({
     where,
-    order: [["name", "ASC"]],
+    order: featured ? [["featured_order", "ASC"], ["name", "ASC"]] : [["name", "ASC"]],
   });
 
   return topics;
@@ -1468,6 +1498,7 @@ const updateJournalTopic = async (id, body, files) => {
   if (body.description !== undefined) {
     updateData.description = body.description || null;
   }
+  Object.assign(updateData, topicTileFields(body));
   // ==========================
   // Image
   // ==========================

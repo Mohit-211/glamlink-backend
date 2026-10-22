@@ -12,5 +12,6 @@ module.exports = {
         { path: '/podcast-schedule', router: require('./podcastSchedule.route') },
         { path: '/discover', router: require('./discover.route') },
         { path: '/ads', router: require('./ad.route') },
+        { path: '/settings', router: require('./siteSettings.route') },
     ],
 };
