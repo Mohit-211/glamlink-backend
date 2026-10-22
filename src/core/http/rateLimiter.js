@@ -59,6 +59,15 @@ const searchLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Ad views and clicks from the website: 300 a minute from one address (a page shows several ads). Production only.
+const adEventLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  message: { success: false, status: 429, code: 'TOO_MANY_REQUESTS', message: 'Too many ad events.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const productionOnly = (limiter) => (config.env === 'production' ? limiter : (req, res, next) => next());
 
 module.exports = {
@@ -66,4 +75,5 @@ module.exports = {
   limitGuestCards: productionOnly(guestCardLimiter),
   limitPublicForms: productionOnly(publicFormLimiter),
   limitSearches: productionOnly(searchLimiter),
+  limitAdEvents: productionOnly(adEventLimiter),
 };

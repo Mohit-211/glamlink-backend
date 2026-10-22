@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Ad counts** (section 8.11): the website now reports each ad's views and clicks. New `GET /ads/admin/stats` (every ad's totals, with a date range) and `GET /ads/:id/stats` (one ad by day). `GET /ads` still lists every ad; `?live=true` is the website's | **New:** views, clicks and click rate on the ads list; a per-day view for one ad |
 | Oct 23 | **What people search for** (section 8.10): `GET /search/admin/terms` lists the most searched terms, or (`?sort=empty`) the latest searches that found nothing | **New:** a search terms report, next to the home page's popular searches |
 | Oct 23 | **The magazine** (section 8.9): issues (title, number, cover, date, Publuu ids or a flipbook link, description, status, order, featured) and who appears in each (cover, featured, mentioned, page); the website's 14 issues are already loaded | **New screens:** issues (list, add, edit, delete) and their featured people |
 | Oct 23 | **Watch** (section 8.8): video series (name, YouTube playlist, order) and videos: the playlists import hourly once the server has `YOUTUBE_API_KEY`, or now with "Import playlists"; paste a YouTube link to add one; set each video's series, status, featuring, people and topics | **New screens:** series; videos (list, edit, people, topics, "Add from YouTube", "Import playlists") |
@@ -356,6 +357,15 @@ Refusals: 400 `INVALID_ISSUE` with `details.field`; 404 `NOT_FOUND`.
 `GET /search/admin/terms` (`sort` `top` or `empty`, `page`, `limit` 50): `[{ term, searches, last_results, last_searched_at }]`,
 the most searched first, or with `sort=empty` the latest searches that found nothing (worth a page, a topic or a popular
 search). Terms are lower-cased; nothing about who searched is kept.
+
+### 8.11 Ad counts (done Oct 23)
+
+| Method | Path | Query | Answers |
+| --- | --- | --- | --- |
+| GET | `/ads/admin/stats` | `from`, `to` (YYYY-MM-DD, optional) | `[{ ad_id, impressions, clicks, click_rate }]` (click rate in percent; null without views), for ads with any count |
+| GET | `/ads/:id/stats` | the same | `{ ad_id, impressions, clicks, days: [{ day, impressions, clicks }] }` |
+
+An impression is counted once an ad is half in view on the website. Refusals: 400 `INVALID_AD_EVENT`; 404.
 
 ## Appendix: every admin endpoint
 

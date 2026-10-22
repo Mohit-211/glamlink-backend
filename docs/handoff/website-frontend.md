@@ -26,8 +26,8 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
       policy page, so no template word is left.
 - [ ] The `/directory` featured carousel calls `businessCard/getAllBusinessCards`, which is admin-only: use the public
       `businessCard/getAllProfiles` (accepted cards only).
-- [ ] Ad tracking posts to the relative `/api/ads/track` (the website itself, always 404); it will point at the API
-      once the backend adds the endpoint (see the changelog).
+- [ ] Ad tracking posts to the relative `/api/ads/track` (the website itself, always 404): post it to the API's
+      `POST /ads/track` (section 10.12), and read ads with `GET /ads?live=true&page=<page>`.
 - [ ] Logged-out card purchase: keep the `card_token` from `POST /businessCard` and send it on every purchase call;
       signed-in owners send their access token instead (section 8).
 - [ ] A guest whose email has an account (`next_step: "sign_in"` or `ACCOUNT_EXISTS`): sign in, then claim the
@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Ads** (section 10.12): `GET /ads?live=true` (with `slot` and `page`) answers only the ads to show now; `POST /ads/track` counts views and clicks | **Must:** send the ad slots' tracking to `${API}/ads/track`. **Should:** fetch `GET /ads?live=true&page=<page>` instead of every ad |
 | Oct 23 | **Site-wide search** (section 10.11): `GET /search?q=` answers topics, professionals, brands, products, articles and videos (first rows and counts, exact matches first); `&type=<group>` pages one group | **Should:** point the hero search and its results page at it (instead of the journal search) |
 | Oct 23 | **The magazine** (section 10.10): the 14 issues from `src/data/issues.ts` are served by `GET /magazine` and `GET /magazine/:slug` (with who appears in each); profile pages list their issues | **Should:** read the magazine pages from these instead of `issues.ts`; keep `public/magazine` until the covers are copied to the API |
 | Oct 23 | **Watch** (section 10.9): `GET /video-series`, `GET /videos` (series, featured, search, paging), `GET /videos/:slug` (embed link, people, topics, related); profile pages and topics list their videos. The API imports each series' YouTube playlist hourly with its own key | **Should:** build Watch + Learn, the Watch page and the podcast page from these, then drop the browser's YouTube key |
@@ -799,3 +800,14 @@ ignore case; exact matches come first, then those starting with the search, then
 topic names; a page's name, tagline, specialties, city and state; product title, short description, brand and
 category; article title, short description, category and author; video title and description. A search is 2 to 100
 characters (else 400 `INVALID_SEARCH`, `details.field: "q"`); one address may search 60 times a minute.
+
+### 10.12 Ads: live ads and their counts (done Oct 23)
+
+**`GET /ads?live=true`** answers only the ads to show now: active, inside their start and end dates (whole days), in
+their order; `slot=<slot_id>` and `page=<page name>` (an ad lists its `pages`) narrow them. Without `live`, `GET /ads`
+answers every ad as before (the admin list).
+
+**`POST /ads/track`** `{ ad_id, type }` (`type`: `impression` or `click`): the payload the ad slots send today, now to
+the API (`${API}/ads/track`, not the website's own `/api/ads/track`). Answers `{ counted: true }`; 400
+`INVALID_AD_EVENT` (`details.field`) for an unknown ad or type. Counts are kept per ad and day for admins; one address
+may send 300 a minute.
