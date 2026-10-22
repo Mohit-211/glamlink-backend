@@ -2,6 +2,7 @@ const httpStatus = require("../../core/http/status");
 const { Op, literal } = require("sequelize");
 const { paging, idList } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
+const { matchFirst } = require("../../core/db/searchOrder");
 const { isUploadedImage } = require("../../core/http/uploadedFiles");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const { indexMentions, mentionsOf, articleIdsFeaturing } = require("./mentions.service");
@@ -300,7 +301,8 @@ const findCategory = (value) =>
 // GET /journal with list parameters: one page of published articles as cards, newest first.
 //   category  a category slug (or id); search  title, short description, category and author name;
 //   exclude  ids to leave out ("12,15"); featured=true  only featured articles; page, limit (12, at most 50).
-const listJournals = async (query = {}) => {
+//   rank (search results): titles matching the search exactly first, then those starting with it.
+const listJournals = async (query = {}, { rank = false } = {}) => {
   const { limit, offset } = paging(query);
   const where = { is_active: true, status: "published" };
 
@@ -333,11 +335,24 @@ const listJournals = async (query = {}) => {
       { model: Author, as: "journal_author", attributes: ["id", "name", "profile_image"] },
       { model: JournalCategory, as: "journal_category", attributes: ["id", "title", "slug"] },
     ],
-    order: NEWEST_FIRST,
+    order: rank && search ? [...matchFirst("`Journal`.`title`", search), ...NEWEST_FIRST] : NEWEST_FIRST,
     limit,
     offset,
     distinct: true,
   });
+};
+
+// Topics whose name matches the search, exact matches first (the site-wide search): light rows.
+const searchTopics = async ({ q, limit, offset }) => {
+  const term = containing(q);
+  const { count, rows } = await JournalTopic.findAndCountAll({
+    attributes: ["id", "name", "slug", "cover_image", "tile_image"],
+    where: { is_active: true, [Op.or]: [{ name: { [Op.like]: term } }, { slug: { [Op.like]: term } }] },
+    order: [...matchFirst("`JournalTopic`.`name`", q), ["name", "ASC"]],
+    limit,
+    offset,
+  });
+  return { count, rows };
 };
 
 // The published articles that feature an account (GET /profiles/:slug and /profiles/:slug/articles), as cards,
@@ -2062,6 +2077,7 @@ module.exports = {
   getJournalsByCategory,
   getAllJournals,
   listJournals,
+  searchTopics,
   articlesOfAccount,
   findJournalById,
   updateJournal,

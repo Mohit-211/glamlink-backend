@@ -6,6 +6,7 @@ const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
 const { paging } = require('../../core/http/paging');
 const { containing } = require('../../core/utils/like');
+const { matchFirst } = require('../../core/db/searchOrder');
 const { isYes } = require('../../core/utils/formValues');
 const { Video, VideoSeries, VideoPerson } = require('../../models');
 const { pageLinks } = require('../profiles');
@@ -35,8 +36,9 @@ const page = async (where, query, order = NEWEST) => {
 };
 
 // One page of published videos, newest first (featured=true: the featured ones in their order).
-//   series  a series' slug; search  title and description; page, limit (12, at most 50).
-const listVideos = async (query = {}) => {
+//   series  a series' slug; search  title and description; page, limit (12, at most 50); rank (search results):
+//   titles matching the search exactly first, then those starting with it.
+const listVideos = async (query = {}, { rank = false } = {}) => {
     const where = { status: 'published' };
     const featured = isYes(query.featured);
     if (featured) where.is_featured = true;
@@ -50,7 +52,8 @@ const listVideos = async (query = {}) => {
         const term = containing(search);
         where[Op.or] = [{ title: { [Op.like]: term } }, { description: { [Op.like]: term } }];
     }
-    return page(where, query, featured ? [['featured_order', 'ASC'], ...NEWEST] : NEWEST);
+    const order = featured ? [['featured_order', 'ASC'], ...NEWEST] : NEWEST;
+    return page(where, query, rank && search ? [...matchFirst('`Video`.`title`', search), ...order] : order);
 };
 
 // The people in a video who have a visible page: [{ id, slug, name, type, role }].

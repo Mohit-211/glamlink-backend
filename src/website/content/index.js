@@ -19,6 +19,10 @@ module.exports = {
     productsOfAccount: (userId, query) => require('./discover.service').productsOfAccount(userId, query),
     // the published articles that feature an account, as { count, rows } of article cards.
     articlesOfAccount: (userId, query) => require('./journal.service').articlesOfAccount(userId, query),
+    // the site-wide search's groups: { count, rows } with exact matches first.
+    searchTopics: (options) => require('./journal.service').searchTopics(options),
+    searchArticles: ({ q, limit, offset }) => require('./journal.service').listJournals({ search: q, limit, page: offset / limit + 1 }, { rank: true }),
+    searchProducts: ({ q, limit, offset }) => require('./discover.service').listShop({ search: q, limit, page: offset / limit + 1 }, { rank: true }),
     // For data migrations: the @handles in an article's HTML.
     handlesIn: require('./mentionText').handlesIn,
 };

@@ -3,6 +3,7 @@ const ApiError = require("../../core/http/ApiError");
 const { Op, literal } = require("sequelize");
 const { paging } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
+const { matchFirst } = require("../../core/db/searchOrder");
 const { toSlug } = require("../../core/utils/slug");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
@@ -146,7 +147,8 @@ const ADMIN_ORDER = [["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]];
 //   category  a slug from GET /discover/shop/filters (or the name); brand  a brand page's slug, or a brand name's
 //   slug from the filters; owner  the slug of the page of the account that put the product up; search  title, short
 //   description, brand and category; page, limit (12, at most 50).
-const listShop = async (query = {}) => {
+//   rank (search results): titles matching the search exactly first, then those starting with it.
+const listShop = async (query = {}, { rank = false } = {}) => {
   const { limit, offset } = paging(query);
   const where = { ...PUBLISHED };
   const and = [];
@@ -180,7 +182,7 @@ const listShop = async (query = {}) => {
   const result = await Shop.findAndCountAll({
     attributes: PRODUCT_CARD,
     where,
-    order: [...(featured ? [["featured_order", "ASC"]] : []), ...ADMIN_ORDER],
+    order: [...(rank && search ? matchFirst("`Shop`.`title`", search) : []), ...(featured ? [["featured_order", "ASC"]] : []), ...ADMIN_ORDER],
     limit,
     offset,
   });

@@ -45,10 +45,25 @@ const publicFormLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// The site-wide search: 60 a minute from one address (a person typing; not a scraper). Production only.
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  message: {
+    success: false,
+    status: 429,
+    code: 'TOO_MANY_REQUESTS',
+    message: 'Too many searches. Please wait a moment.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const productionOnly = (limiter) => (config.env === 'production' ? limiter : (req, res, next) => next());
 
 module.exports = {
   authLimiter,
   limitGuestCards: productionOnly(guestCardLimiter),
   limitPublicForms: productionOnly(publicFormLimiter),
+  limitSearches: productionOnly(searchLimiter),
 };

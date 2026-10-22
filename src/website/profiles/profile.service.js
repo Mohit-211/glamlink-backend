@@ -31,6 +31,12 @@ const listProfiles = async (query = {}) => {
     return { count, rows: rows.map(toRow) };
 };
 
+// The site-wide search's professionals or brands: { count, rows } of page rows, exact name matches first.
+const searchPages = async ({ q, type, limit, offset }) => {
+    const { count, rows } = await pageList({ type, search: q, limit, offset, ranked: true });
+    return { count, rows: rows.map(toRow) };
+};
+
 // The topics a professional is linked to (journal_topic_professional_mappings), in the admins' order.
 const topicsOf = async (userId) => {
     const [rows] = await sequelize.query(
@@ -86,4 +92,4 @@ const profileMagazine = async (slug, query = {}) => {
     return issuesOfAccount(row.id, query);
 };
 
-module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, visibleAccount, topicsOf, notFound };
+module.exports = { listProfiles, searchPages, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, visibleAccount, topicsOf, notFound };

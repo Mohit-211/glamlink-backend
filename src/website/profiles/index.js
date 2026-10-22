@@ -14,4 +14,6 @@ module.exports = {
     pageLinks: (userIds, options) => require('./profileQuery').pageLinks(userIds, options),
     // The account behind a visible page's slug, or null.
     visibleAccountId: (slug) => require('./profileQuery').visibleAccountId(slug),
+    // The site-wide search's professionals (type 'individual') or brands: { count, rows } of page rows.
+    searchPages: (options) => require('./profile.service').searchPages(options),
 };

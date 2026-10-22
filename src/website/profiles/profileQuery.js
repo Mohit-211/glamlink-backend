@@ -2,7 +2,7 @@
 // Access card (its newest, where old data holds several), or when an admin made it as a brand page; unlisted pages
 // are hidden. A page's name, image and tagline fall back from what is set on the page to the card and the account.
 const sequelize = require('../../core/db/central.db');
-const { containing } = require('../../core/utils/like');
+const { containing, startingWith } = require('../../core/utils/like');
 
 const LIVE_CARDS = `SELECT user_id, MAX(id) AS card_id FROM business_cards
     WHERE status = 'accepted' AND is_active = 1 AND deleted_at IS NULL AND user_id IS NOT NULL GROUP BY user_id`;
@@ -53,7 +53,8 @@ const query = async (sql, replacements) => (await sequelize.query(sql, { replace
 // One page of pages: { count, rows } of light rows (ROW), by name; featured ones in their featured order.
 //   type  'brand' or 'individual'; featured  only featured pages; search  name, tagline, specialties, city, state;
 //   admin  every page that exists, listed or not, and the accounts that only have a row.
-const pageList = async ({ type, featured, search, limit, offset, admin = false }) => {
+//   ranked (search results): names matching the search exactly first, then those starting with it.
+const pageList = async ({ type, featured, search, limit, offset, admin = false, ranked = false }) => {
     const where = [ACCOUNT, admin ? `(${EXISTS} OR pp.user_id IS NOT NULL)` : VISIBLE];
     const replacements = { limit, offset };
     if (type) {
@@ -64,13 +65,16 @@ const pageList = async ({ type, featured, search, limit, offset, admin = false }
     if (search) {
         where.push(SEARCH);
         replacements.term = containing(search);
+        replacements.exact = search;
+        replacements.prefix = startingWith(search);
     }
     const clause = `WHERE ${where.join(' AND ')}`;
     const extra = admin
         ? `, pp.user_id IS NOT NULL AS has_page, COALESCE(pp.is_listed, 1) AS is_listed, COALESCE(pp.created_by_admin, 0) AS created_by_admin,
            c.id IS NOT NULL AS has_live_card, (${VISIBLE}) AS visible, u.password IS NOT NULL AS claimed`
         : '';
-    const order = featured ? 'ORDER BY featured_order ASC, name ASC, u.id ASC' : 'ORDER BY name ASC, u.id ASC';
+    const rank = ranked && search ? `(${NAME} = :exact) DESC, (${NAME} LIKE :prefix) DESC, ` : '';
+    const order = featured ? `ORDER BY ${rank}featured_order ASC, name ASC, u.id ASC` : `ORDER BY ${rank}name ASC, u.id ASC`;
     const [{ count }] = await query(`SELECT COUNT(*) AS count ${FROM} ${clause}`, replacements);
     const rows = await query(`SELECT ${ROW}${extra} ${FROM} ${clause} ${order} LIMIT :limit OFFSET :offset`, replacements);
     return { count: Number(count), rows };

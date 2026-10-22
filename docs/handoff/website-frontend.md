@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Site-wide search** (section 10.11): `GET /search?q=` answers topics, professionals, brands, products, articles and videos (first rows and counts, exact matches first); `&type=<group>` pages one group | **Should:** point the hero search and its results page at it (instead of the journal search) |
 | Oct 23 | **The magazine** (section 10.10): the 14 issues from `src/data/issues.ts` are served by `GET /magazine` and `GET /magazine/:slug` (with who appears in each); profile pages list their issues | **Should:** read the magazine pages from these instead of `issues.ts`; keep `public/magazine` until the covers are copied to the API |
 | Oct 23 | **Watch** (section 10.9): `GET /video-series`, `GET /videos` (series, featured, search, paging), `GET /videos/:slug` (embed link, people, topics, related); profile pages and topics list their videos. The API imports each series' YouTube playlist hourly with its own key | **Should:** build Watch + Learn, the Watch page and the podcast page from these, then drop the browser's YouTube key |
 | Oct 23 | **Smaller images** (section 10.8): `/images/<file>?w=<width>` answers a WebP at most that wide (200, 400, 800, 1,200 or 1,600), for every uploaded image. `findById` of a product answers the product's public fields to anyone but an admin (as before, apart from bookkeeping columns such as `status` and `deleted_at`) | **Should:** ask for `?w=400` in grids and home tiles (a `next/image` loader in section 10.8) |
@@ -780,3 +781,21 @@ to the API; keep `public/magazine` until then. Dates and descriptions are empty 
 
 Profile pages list the issues an account appears in (`magazine`, each with its `role` and `page_number`) and
 `GET /profiles/:slug/magazine` pages them.
+
+### 10.11 Site-wide search (done Oct 23)
+
+**`GET /search?q=<text>`** (no sign-in): every group's first rows (`limit`, 5 by default, at most 10) with its count:
+
+```json
+{ "topics": { "count": 2, "rows": [] }, "professionals": { "count": 14, "rows": [] }, "brands": { "count": 1, "rows": [] },
+  "products": { "count": 6, "rows": [] }, "articles": { "count": 9, "rows": [] }, "videos": { "count": 3, "rows": [] } }
+```
+
+**`GET /search?q=<text>&type=<group>&page=1&limit=12`**: one group, paged (`{ count, rows }`), for "See all".
+
+Rows are each group's own light rows: topics `{ id, name, slug, cover_image, tile_image }`, professionals and brands
+as `GET /profiles` rows, products as the shop's, articles as the journal cards, videos as the video cards. Matches
+ignore case; exact matches come first, then those starting with the search, then the rest. What is matched:
+topic names; a page's name, tagline, specialties, city and state; product title, short description, brand and
+category; article title, short description, category and author; video title and description. A search is 2 to 100
+characters (else 400 `INVALID_SEARCH`, `details.field: "q"`); one address may search 60 times a minute.

@@ -30,4 +30,6 @@ module.exports = {
     videosOfAccount: (userId, query) => require('./video.service').videosOfAccount(userId, query),
     // a topic's published videos, as video cards.
     videosOfTopic: (topicId) => require('./video.service').videosOfTopic(topicId),
+    // the site-wide search's video group: { count, rows } with exact matches first.
+    searchVideos: ({ q, limit, offset }) => require('./video.service').listVideos({ search: q, limit, page: offset / limit + 1 }, { rank: true }),
 };
