@@ -20,6 +20,11 @@ Shop.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    // The product page's longer text; it shows short_description without one.
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
 
     category: {
       type: DataTypes.STRING,
@@ -49,6 +54,17 @@ Shop.init(
     status: {
       type: DataTypes.ENUM("draft", "published"),
       defaultValue: "published",
+    },
+    // The home page's Shop Products row (GET /discover/shop?featured=true), in featured_order.
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    featured_order: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
 
     sort_order: {

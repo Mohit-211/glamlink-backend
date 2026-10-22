@@ -1,12 +1,13 @@
 const httpStatus = require("../../core/http/status");
 const { JournalCategory, Journal } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
+const { wholeNumber } = require("../../core/utils/formValues");
 
 
 // The sidebar's order: a whole number (0 when not given).
 const sortOrder = (value) => {
-	const n = Number(value);
-	if (!Number.isInteger(n)) throw new ApiError(httpStatus.BAD_REQUEST, "sort_order must be a whole number");
+	const n = wholeNumber(value);
+	if (n === null) throw new ApiError(httpStatus.BAD_REQUEST, "sort_order must be a whole number");
 	return n;
 };
 const given = (value) => value !== undefined && value !== null && value !== "";

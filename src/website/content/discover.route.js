@@ -5,6 +5,9 @@ const { requireAdmin } = require('../../shared/admin');
 const discoverController = require("./discover.controller");
 
 
+// The shop's filter values: its categories and brands with counts.
+router.get("/shop/filters", discoverController.getShopFilters);
+
 router.post("/:type", requireAdmin, discoverController.createDiscover);
 router.get("/:type", discoverController.getAllDiscover);
 router.get("/:type/findById/:id", discoverController.findDiscoverById);

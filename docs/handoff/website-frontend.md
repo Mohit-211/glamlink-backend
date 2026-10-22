@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **The shop pages on the server** (section 10.3): `GET /discover/shop` with `page`, `limit`, `category`, `brand`, `search` or `featured=true` answers one page of products; without them, as before. New `GET /discover/shop/filters` (categories and brands with counts). Products have `is_featured`, `featured_order` and a longer `description`. `findById` answers 404 `NOT_FOUND` for a missing, removed or unpublished product (it answered 200 "No Record Found") | **Should:** the Shop page, its filters and the home row from these; the product page from `findById` (one product instead of the whole list, twice); treat 404 as not found |
 | Oct 23 | **Home tiles and settings** (section 10.2): `GET /journal/topic?featured=true` lists the home page's topic tiles in their order (topics add `is_featured`, `featured_order`, `tile_image`); `GET /settings/home` answers the hero image, the popular searches and the "Find a Professional" image, set in admin | **Should:** build Explore Beauty + Wellness, the hero's image and chips, and the Find a Professional image from these (placeholders while an image is `null`) |
 | Oct 23 | **The journal list pages on the server** (section 10.1): `GET /journal` with `page`, `limit`, `category` (a slug), `search`, `exclude` or `featured=true` answers one page of light article cards, newest first, with the true `count`; without them it answers as before (its `count` now counts articles). Articles have `is_featured`, set in admin. `GET /journalCategory` adds `article_count` and `sort_order`; titles are trimmed and slugs made for URLs (`whats-new`). Drafts are no longer served by `findJournalById` or `journal/:category_id` (except to admins) | **Should:** move the Journal page, its hero, related articles and the home row to these calls (one request each instead of four full lists); use `journal_category.slug` in category URLs; hide categories whose `article_count` is 0 |
 | Oct 23 | The server steps for testing on test.glamlink.net are written (the backend's `docs/deploy.md`, section 7, "The website on test.glamlink.net"): the origin in `ACCESSDOMAINS`, `WEBSITE_URL` on the test site, Stripe and Shippo test keys, visitors' addresses from Cloudflare, and `www` redirected to `glamlink.net`. Responses no longer carry `X-Powered-By` | **Once Mohit has applied them:** test sign-up (the email link opens on test.glamlink.net), a payment and a keychain address there |
@@ -580,3 +581,35 @@ topic of that name exists; admins create the missing ones.
 
 An image is `null` until an admin sets it: keep the placeholder until then. The popular searches start as the
 mockup's five; until the site-wide search exists, a chip can keep opening `/journal?search=<term>`.
+
+### 10.3 Shop (done Oct 23)
+
+`GET /discover/shop` with any of these parameters answers one page of published products, in the order admins
+arranged them (then by title):
+
+| Parameter | Meaning |
+| --- | --- |
+| `page`, `limit` | The page and its size (default 12, at most 50) |
+| `category`, `brand` | A `slug` from `GET /discover/shop/filters` (a name works too; "SkinMedica" and "skinmedica " count as one) |
+| `search` | Matches the title, short description, brand and category |
+| `featured` | `true`: only featured products, in their featured order (the home page's Shop Products row) |
+
+Each row: `id`, `title`, `short_description`, `category`, `brand` (still the text, as today), `price`, `cover_image`,
+`link`, `is_featured`, `featured_order`, `sort_order`, `created_at`, `updated_at`; no `description`.
+
+`GET /discover/shop/filters`, the values for the shop's filters (published products only, by name):
+
+```json
+{ "categories": [{ "slug": "serums", "name": "Serums", "count": 12 }],
+  "brands": [{ "slug": "skinmedica", "name": "SkinMedica", "count": 3 }] }
+```
+
+`GET /discover/shop/findById/:id`: one published product with its topics and a new `description` (show
+`short_description` when it is null). A missing, removed or unpublished product answers 404 `NOT_FOUND` (it answered
+200 `"No Record Found"`). The product's owner and its brand's page come with the profile pages (Phase 2).
+
+| For | Call |
+| --- | --- |
+| The Shop page | `GET /discover/shop?page=1&limit=12&category=<slug>&brand=<slug>&search=<text>` and the filters |
+| Shop Products (home) | `GET /discover/shop?featured=true&limit=5` |
+| A product page | `GET /discover/shop/findById/<id>` instead of the whole list |

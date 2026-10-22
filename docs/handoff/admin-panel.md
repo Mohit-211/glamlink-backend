@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Products for the home page** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `is_featured` (`"true"`/`"false"`), `featured_order` (a whole number) and `description` (the product page's longer text). `GET /discover/:type/findById/:id` (education, event, shop) answers 404 `NOT_FOUND` for a missing id (it answered 200 `"No Record Found"`) and serves drafts only with the admin token, which the panel sends | **New:** "Featured on the home page", its order and a description on the product form. **Must:** read a 404 from `findById` as "not found" |
 | Oct 23 | **The home page's tiles and settings** (section 8.2): topics take `is_featured`, `featured_order` and `tile_image` on create and edit (the "Explore Beauty + Wellness" tiles; the image is a link from `POST /journal/upload`). New `GET /settings/home` and `PUT /settings/home` (admin): the hero image, the popular searches under the search box (at most 10) and the "Find a Professional" image; a refusal is 400 `INVALID_SETTING` with `details.field` | **New:** "Show on the home page", an order and a tile image on the topic form; a "Home page" screen for the settings |
 | Oct 23 | **Journal hero and categories** (section 8.1): articles take `is_featured` on create and edit (`"true"`/`"false"`), the Journal hero's article; on the live copy the newest Cover Feature article starts as featured. Categories take `sort_order` (a whole number; the Journal sidebar's order) on create and edit, and `description` on create too; titles are trimmed on save and the slug is made from the title for URLs (`What's New` is `whats-new`). `GET /journalCategory` adds `article_count` (published articles) and lists by `sort_order`, then title. `findJournalById` serves drafts to admins only (the panel sends its token) | **New:** a "Featured (Journal hero)" switch on the article form; a sort order on the category form |
 | Oct 16 | A professional account made without a profession has none (`profession: null`); it used to get "Esthetician". The one app review that said "Counsellor" is removed, and Kate Sibley's second card (21, pending) is deleted (kept in the database, like an owner's delete) | **Can:** show an empty profession as blank |
@@ -247,6 +248,18 @@ lands.
 | `popular_searches` | A list of search terms (or that list as a JSON string): trimmed, repeats dropped, at most 10, each at most 60 characters |
 
 It answers the settings as saved. Refusals: 400 `INVALID_SETTING`, `details.field` naming the field.
+
+### 8.3 Products for the home page (done Oct 23)
+
+On `POST /discover/shop` and `PUT /discover/shop/:id`:
+
+| Field | Value |
+| --- | --- |
+| `is_featured` | `"true"` / `"false"`: shown in the home page's Shop Products row |
+| `featured_order` | A whole number: the row's order (lowest first) |
+| `description` | The product page's longer text (the page shows `short_description` without it) |
+
+The shop page follows the order set with `POST /discover/shop/sort-order` (then title); it used to ignore it.
 
 ## Appendix: every admin endpoint
 

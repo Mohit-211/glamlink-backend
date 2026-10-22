@@ -1,5 +1,10 @@
 const httpStatus = require("../../core/http/status");
 const ApiError = require("../../core/http/ApiError");
+const { Op, literal } = require("sequelize");
+const { paging } = require("../../core/http/paging");
+const { containing } = require("../../core/utils/like");
+const { toSlug } = require("../../core/utils/slug");
+const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
 const { Event, Shop, JournalTopic } = require("../../models");
 const sharp = require("sharp");
@@ -26,8 +31,14 @@ const getModel = (type) => {
   }
 };
 
+// A product's place in the home page's Shop Products row: a whole number.
+const featuredOrder = (value) => {
+  const order = wholeNumber(value);
+  if (order === null) throw new ApiError(httpStatus.BAD_REQUEST, "featured_order must be a whole number");
+  return order;
+};
+
 const createDiscover = async (type, reqBody, files) => {
-  console.log("files", files);
   const Model = getModel(type);
 
   const isPublished = reqBody.status === "published";
@@ -59,6 +70,11 @@ const createDiscover = async (type, reqBody, files) => {
         ? reqBody.price
         : null;
     obj.link = reqBody.link;
+    obj.description = reqBody.description || null;
+    obj.is_featured = isYes(reqBody.is_featured);
+    if (reqBody.featured_order !== undefined && reqBody.featured_order !== "") {
+      obj.featured_order = featuredOrder(reqBody.featured_order);
+    }
   }
 
   if (files?.images?.length) {
@@ -80,6 +96,76 @@ const getAllDiscover = async (type) => {
   });
 };
 
+const PUBLISHED = { is_active: true, status: "published" };
+
+// What a list shows of a product: all but the longer description.
+const PRODUCT_CARD = [
+  "id", "title", "short_description", "category", "brand", "price", "cover_image", "link", "is_featured",
+  "featured_order", "sort_order", "created_at", "updated_at",
+];
+
+// The texts of a free-text column (category, brand) that share this slug: "Skin Care" and "skin care " are one.
+const valuesWithSlug = async (column, slug) => {
+  const rows = await Shop.findAll({ attributes: [column], where: { ...PUBLISHED, [column]: { [Op.ne]: null } }, group: [column], raw: true });
+  return rows.map((row) => row[column]).filter((value) => toSlug(value) === toSlug(slug));
+};
+
+// GET /discover/shop with list parameters: one page of published products, in the admins' order then by title
+// (featured=true: only featured products, in their featured order).
+//   category, brand  a slug from GET /discover/shop/filters (or the name); search  title, short description,
+//   brand and category; page, limit (12, at most 50).
+const listShop = async (query = {}) => {
+  const { limit, offset } = paging(query);
+  const where = { ...PUBLISHED };
+  const featured = isYes(query.featured);
+  if (featured) where.is_featured = true;
+
+  for (const column of ["category", "brand"]) {
+    if (!query[column]) continue;
+    const values = await valuesWithSlug(column, query[column]);
+    if (!values.length) return { count: 0, rows: [] };
+    where[column] = values;
+  }
+
+  const search = String(query.search ?? "").trim();
+  if (search) {
+    const term = containing(search);
+    where[Op.or] = ["title", "short_description", "brand", "category"].map((column) => ({ [column]: { [Op.like]: term } }));
+  }
+
+  return Shop.findAndCountAll({
+    attributes: PRODUCT_CARD,
+    where,
+    order: [...(featured ? [["featured_order", "ASC"]] : []), ["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]],
+    limit,
+    offset,
+  });
+};
+
+// A free-text column's values among published products, as { slug, name, count }: spellings of one name (the same
+// slug) count as one, listed by name.
+const valuesOf = async (column) => {
+  const rows = await Shop.findAll({
+    attributes: [column, [literal("COUNT(*)"), "count"]],
+    where: { ...PUBLISHED, [column]: { [Op.ne]: null } },
+    group: [column],
+    raw: true,
+  });
+  const bySlug = new Map();
+  for (const row of rows) {
+    const name = String(row[column]).trim();
+    const slug = toSlug(name);
+    if (!slug) continue;
+    const entry = bySlug.get(slug) || { slug, name, count: 0 };
+    entry.count += Number(row.count);
+    bySlug.set(slug, entry);
+  }
+  return [...bySlug.values()].toSorted((a, b) => a.name.localeCompare(b.name));
+};
+
+// GET /discover/shop/filters: the shop's categories and brands; each slug is the list's filter value.
+const shopFilters = async () => ({ categories: await valuesOf("category"), brands: await valuesOf("brand") });
+
 const getAllDiscoverByAdmin = async (type) => {
   const Model = getModel(type);
 
@@ -91,13 +177,15 @@ const getAllDiscoverByAdmin = async (type) => {
   });
 };
 
-const findDiscoverById = async (type, id) => {
+// A missing id answers 404. Drafts only for admins (the admin panel edits them).
+const findDiscoverById = async (type, id, { withDrafts = false } = {}) => {
   const Model = getModel(type);
 
   const query = {
     where: {
       id,
       is_active: true,
+      ...(!withDrafts && { status: "published" }),
     },
   };
 
@@ -116,8 +204,9 @@ const findDiscoverById = async (type, id) => {
   }
 
   const doc = await Model.findOne(query);
+  if (!doc) throw ApiError.withCode(httpStatus.NOT_FOUND, "No Record Found", "NOT_FOUND");
 
-  return doc ? doc : "No Record Found";
+  return doc;
 };
 
 const updateDiscover = async (type, reqBody, id, files) => {
@@ -157,6 +246,18 @@ const updateDiscover = async (type, reqBody, id, files) => {
 
     if (reqBody.link !== undefined) {
       doc.link = reqBody.link || null;
+    }
+
+    if (reqBody.description !== undefined) {
+      doc.description = reqBody.description || null;
+    }
+
+    if (reqBody.is_featured !== undefined) {
+      doc.is_featured = isYes(reqBody.is_featured);
+    }
+
+    if (reqBody.featured_order !== undefined && reqBody.featured_order !== "") {
+      doc.featured_order = featuredOrder(reqBody.featured_order);
     }
   }
 
@@ -367,6 +468,8 @@ const bulkUploadShopCsv = async (filePath) => {
 module.exports = {
   createDiscover,
   getAllDiscover,
+  listShop,
+  shopFilters,
   getAllDiscoverByAdmin,
   findDiscoverById,
   updateDiscover,

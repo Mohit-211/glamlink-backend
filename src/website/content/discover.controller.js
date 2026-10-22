@@ -3,6 +3,11 @@ const ApiError = require("../../core/http/ApiError");
 const catchAsync = require("../../core/http/catchAsync");
 const responseWrapper = require("../../core/http/responseWrapper");
 const discoverService = require("./discover.service");
+const { identifyAdmin } = require("../../shared/admin");
+
+// With any list parameter, GET /discover/shop answers one page of products (discover.service.js listShop);
+// without, every published item, as before.
+const SHOP_LIST_PARAMETERS = ["page", "limit", "category", "brand", "search", "featured"];
 
 const createDiscover = catchAsync(async (req, res) => {
 	const data = await discoverService.createDiscover(
@@ -20,7 +25,14 @@ const createDiscover = catchAsync(async (req, res) => {
 });
 
 const getAllDiscover = catchAsync(async (req, res) => {
-	const data = await discoverService.getAllDiscover(req.params.type);
+	const paged = req.params.type === "shop" && SHOP_LIST_PARAMETERS.some((key) => req.query[key] !== undefined);
+	const data = paged ? await discoverService.listShop(req.query) : await discoverService.getAllDiscover(req.params.type);
+
+	return responseWrapper(res, data, "");
+});
+
+const getShopFilters = catchAsync(async (req, res) => {
+	const data = await discoverService.shopFilters();
 
 	return responseWrapper(res, data, "");
 });
@@ -32,9 +44,11 @@ const getAllDiscoverByAdmin = catchAsync(async (req, res) => {
 });
 
 const findDiscoverById = catchAsync(async (req, res) => {
+	const withDrafts = Boolean(await identifyAdmin(req));
 	const data = await discoverService.findDiscoverById(
 		req.params.type,
-		req.params.id
+		req.params.id,
+		{ withDrafts }
 	);
 
 	return responseWrapper(res, data, "");
@@ -103,6 +117,7 @@ const bulkUploadDiscoverCsv = catchAsync(async (req, res) => {
 module.exports = {
 	createDiscover,
 	getAllDiscover,
+	getShopFilters,
 	getAllDiscoverByAdmin,
 	findDiscoverById,
 	updateDiscover,

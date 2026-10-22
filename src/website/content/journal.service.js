@@ -3,6 +3,7 @@ const { Op, literal } = require("sequelize");
 const { paging, idList } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
 const { isUploadedImage } = require("../../core/http/uploadedFiles");
+const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const {
   Journal,
   Author,
@@ -27,9 +28,6 @@ const {
   BusinessHour,
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
-
-// Form fields arrive as strings: "true" and "1" are yes.
-const isYes = (value) => value === true || value === 1 || value === "true" || value === "1";
 
 const createJournal = async (reqBody, files) => {
   const isPublished = reqBody.status === "published";
@@ -1081,8 +1079,8 @@ const topicTileFields = (body) => {
   const fields = {};
   if (body.is_featured !== undefined) fields.is_featured = isYes(body.is_featured);
   if (body.featured_order !== undefined && body.featured_order !== "") {
-    const order = Number(body.featured_order);
-    if (!Number.isInteger(order)) {
+    const order = wholeNumber(body.featured_order);
+    if (order === null) {
       throw new ApiError(httpStatus.BAD_REQUEST, "featured_order must be a whole number");
     }
     fields.featured_order = order;
