@@ -1,5 +1,5 @@
 // Messages from the website: contact, partnership inquiries, podcast guest applications, newsletter sign-ups,
-// feature requests.
+// feature requests, directory applications.
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
@@ -10,5 +10,6 @@ module.exports = {
         { path: '/contactUs', router: require('./contactUs.route') },
         { path: '/newsletter', router: require('./newsletter.route') },
         { path: '/feature-request', router: require('./featureRequest.route') },
+        { path: '/directory', router: require('./directoryApplication.route') },
     ],
 };

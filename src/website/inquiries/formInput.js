@@ -31,4 +31,23 @@ const phone = (body, field = 'phone', { required = false } = {}) => {
     return value;
 };
 
-module.exports = { refuse, text, email, phone };
+// A list (or an object) sent as JSON, as multipart forms send them: parsed, checked for its kind and size.
+// Null when the field is empty.
+const json = (body, field, { kind = 'list', maxItems = 20, maxLength = 20000 } = {}) => {
+    let value = body[field];
+    if (value === undefined || value === null || value === '') return null;
+    if ((typeof value === 'string' ? value : JSON.stringify(value)).length > maxLength) throw refuse(field, `${field} is too long.`);
+    if (typeof value === 'string') {
+        try {
+            value = JSON.parse(value);
+        } catch {
+            throw refuse(field, `${field} must be JSON.`);
+        }
+    }
+    const fits = kind === 'list' ? Array.isArray(value) : value !== null && typeof value === 'object' && !Array.isArray(value);
+    if (!fits) throw refuse(field, `${field} must be ${kind === 'list' ? 'a list' : 'an object'}.`);
+    if (kind === 'list' && value.length > maxItems) throw refuse(field, `At most ${maxItems} items in ${field}.`);
+    return value;
+};
+
+module.exports = { refuse, text, email, phone, json };

@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Directory applications** (section 8.5): the website's directory form now stores applications for review instead of making cards. New: `GET /directory/applications`, `GET /directory/applications/:id`, `PUT /directory/applications/:id/status` (approved, rejected or pending, with a note), `POST /directory/applications/delete`; support@glamlink.net is emailed for each | **New screen:** directory applications (list by status, view, approve or reject, delete) |
 | Oct 23 | **Newsletter subscribers and feature requests** (section 8.4): the website's newsletter forms and "Apply for Feature" now store what they send. New: `GET /newsletter/list`, `GET /newsletter/export` (CSV), `POST /newsletter/delete`; `GET /feature-request/list`, `POST /feature-request/delete`. A new feature request also emails support@glamlink.net | **New screens:** newsletter subscribers (list, search, export, delete) and feature requests (list, search, delete) |
 | Oct 23 | **Products for the home page** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `is_featured` (`"true"`/`"false"`), `featured_order` (a whole number) and `description` (the product page's longer text). `GET /discover/:type/findById/:id` (education, event, shop) answers 404 `NOT_FOUND` for a missing id (it answered 200 `"No Record Found"`) and serves drafts only with the admin token, which the panel sends | **New:** "Featured on the home page", its order and a description on the product form. **Must:** read a 404 from `findById` as "not found" |
 | Oct 23 | **The home page's tiles and settings** (section 8.2): topics take `is_featured`, `featured_order` and `tile_image` on create and edit (the "Explore Beauty + Wellness" tiles; the image is a link from `POST /journal/upload`). New `GET /settings/home` and `PUT /settings/home` (admin): the hero image, the popular searches under the search box (at most 10) and the "Find a Professional" image; a refusal is 400 `INVALID_SETTING` with `details.field` | **New:** "Show on the home page", an order and a tile image on the topic form; a "Home page" screen for the settings |
@@ -271,6 +272,17 @@ The shop page follows the order set with `POST /discover/shop/sort-order` (then 
 | POST | `/newsletter/delete` | `{ ids: [...] }` | `{ deleted }`; the emails are removed from the list |
 | GET | `/feature-request/list` | `page`, `limit`, `search` (name, email, specialty or city), `interest` | `{ count, rows: [{ id, name, specialty, email, phone, city, interest, created_at }] }`, newest first |
 | POST | `/feature-request/delete` | `{ ids: [...] }` | `{ deleted }` |
+
+### 8.5 Directory applications (done Oct 23)
+
+| Method | Path | Query or body | Answers |
+| --- | --- | --- | --- |
+| GET | `/directory/applications` | `page`, `limit` (50, at most 50), `status` (`pending`, `approved`, `rejected`), `search` (name, email, handle, title, specialty) | `{ count, rows }`, newest first |
+| GET | `/directory/applications/:id` | | The application: the form's fields (lists and objects parsed), `profile_image`, `gallery` (`[{ url, caption, is_thumbnail, sort_order }]`), `wants_access_card`, `place_id`, `status`, `review_note`, `reviewed_by`, `reviewed_at`. 404 `NOT_FOUND` |
+| PUT | `/directory/applications/:id/status` | `{ status, note? }` | The application, with who reviewed it and when |
+| POST | `/directory/applications/delete` | `{ ids: [...] }` | `{ deleted }`; the photos are deleted too |
+
+Approving records the decision; listing approved applicants on /directory comes with the directory search.
 
 ## Appendix: every admin endpoint
 

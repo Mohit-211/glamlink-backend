@@ -40,10 +40,9 @@ Found by reviewing the website code (`glamlink_web`, Oct 16) against the new bac
       and the form skips the captcha without the key (then sign-up fails with `CAPTCHA_REQUIRED`). Testing mode:
       Cloudflare's always-pass test site key `1x00000000000000000000AA`.
 - [ ] The Stripe publishable key comes from the same account and mode as the API's secret key (test while testing).
-- [ ] `/directory-form-apply` (`directoryForm.tsx`) posts to `POST /businessCard` too: send the photos as
-      `profile_image` and `images` (it sends `profilePhoto` and `gallery_images`, which the API refuses with 400
-      "Unexpected field", as the old API did), and continue like `/access` after it (section 9.2): the card is a
-      hidden draft until a plan is chosen.
+- [ ] `/directory-form-apply` (`directoryForm.tsx`) posts to `POST /directory/applications` (section 10.5), not
+      `POST /businessCard`: the same fields, with the photos as `profile_image` and `images` (it sends `profilePhoto`
+      and `gallery_images`, which the API refuses with 400 "Unexpected field"). It no longer makes a card.
 
 ## Changelog
 
@@ -51,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Directory applications** (section 10.5): the directory form stays (Mohit) and gets its own `POST /directory/applications`, which keeps the form's fields as sent (long bios, walk-ins, service-area and virtual locations) for admins to review, instead of the card endpoint that refused every submission | **Must:** post `/directory-form-apply` to `POST /directory/applications`, with the photos as `profile_image` and `images`; send `place_id` from `?claim=` when there is one |
 | Oct 23 | **Newsletter and feature requests** (section 10.4): `POST /newsletter/subscribe` (`email`, `first_name`, `last_name`, `source`) and `POST /feature-request` (`name`, `specialty`, `email`, `phone`, `city`, `interest`) store what the forms send; refusals are 400 `INVALID_INPUT` with `details.field`. The guest application now keeps `businessName` and `instagram`, which the API dropped (it read `business_name` and `instagram_handle`; both spellings work) | **Should:** wire the newsletter popup (`source: "popup"`), the footer (`"footer"`), the podcast's Notify me (`"podcast"`) and Apply for Feature to these, and show success only on a 2xx |
 | Oct 23 | **The shop pages on the server** (section 10.3): `GET /discover/shop` with `page`, `limit`, `category`, `brand`, `search` or `featured=true` answers one page of products; without them, as before. New `GET /discover/shop/filters` (categories and brands with counts). Products have `is_featured`, `featured_order` and a longer `description`. `findById` answers 404 `NOT_FOUND` for a missing, removed or unpublished product (it answered 200 "No Record Found") | **Should:** the Shop page, its filters and the home row from these; the product page from `findById` (one product instead of the whole list, twice); treat 404 as not found |
 | Oct 23 | **Home tiles and settings** (section 10.2): `GET /journal/topic?featured=true` lists the home page's topic tiles in their order (topics add `is_featured`, `featured_order`, `tile_image`); `GET /settings/home` answers the hero image, the popular searches and the "Find a Professional" image, set in admin | **Should:** build Explore Beauty + Wellness, the hero's image and chips, and the Find a Professional image from these (placeholders while an image is `null`) |
@@ -388,9 +388,9 @@ only the fields it sends.
 
   It never attaches the card to an existing account any more (before, anyone could create a card on someone else's
   account by typing their email).
-- **Both card forms make drafts.** `/access` and `/directory-form-apply` post to the same `POST /businessCard`; the old
-  API made the directory form's card public at once, the new one keeps it a draft like any guest card. After the
-  directory form, follow `next_step` as `/access` does (choose Free, or sign in and claim), or the card never goes live.
+- **The directory form is not a card form** (since Oct 23): `/directory-form-apply` posts to
+  `POST /directory/applications` (section 10.5), which keeps the application for admins to review. Only `/access`
+  makes cards.
 - **The email already has an account** (`account_exists: true`, `next_step: "sign_in"`): the plan and payment calls
   answer 409 `ACCOUNT_EXISTS`. Send the person to sign in, then:
 
@@ -629,3 +629,24 @@ you! We received your request."; support@glamlink.net is emailed.
 
 Both refuse with 400 `INVALID_INPUT` and `details.field` naming the field. One address may send 20 submissions an hour
 across these forms, then 429 `TOO_MANY_REQUESTS`.
+
+### 10.5 Directory applications (done Oct 23)
+
+Mohit (Oct 23): the directory form stays, as the way people without an account or an Access card get onto the
+directory; its format may change later. So it no longer posts to the card endpoint (whose rules refused every
+submission): **`POST /directory/applications`** (no sign-in, multipart) keeps the form's fields as sent, for admins
+to review.
+
+| Field | Rule |
+| --- | --- |
+| `name`, `email` | Required (name up to 100 characters; a valid email) |
+| `professional_title`, `phone`, `bio` (up to 2,000 characters), `custom_handle`, `website`, `booking_link`, `preferred_booking_method` (any text, `Walk-ins welcome` included), `primary_specialty`, `promotion_details` | Optional text |
+| `specialties`, `locations` (up to 10; any `location_type`, `service_area` and `virtual` included), `business_hours`, `excites_about_glamlink`, `biggest_pain_points` | Lists as JSON strings, as the form sends them |
+| `social_media` | An object as a JSON string |
+| `profile_image` (1 file), `images` (up to 10), `gallery_meta` | The photos (not `profilePhoto` and `gallery_images`), and a caption, cover and order per photo |
+| `offer_promotion`, `elite_setup`, `createAccessCard` | `"true"` / `"false"` |
+| `place_id` | Optional: the listing being claimed (the directory's `?claim=` value) |
+
+Answers 201 `{ id, status: "pending" }`, "Thank you! Your application is in for review."; support@glamlink.net is
+emailed. Refusals: 400 `INVALID_INPUT` with `details.field`; 20 submissions an hour per address across the public
+forms. How approved applications show on /directory comes with the directory search.

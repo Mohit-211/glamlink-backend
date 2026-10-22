@@ -918,6 +918,30 @@ The request is in the admin panel's feature requests.
   }
 };
 
+// An application from the website's directory form, for support to review in the admin panel.
+const sendDirectoryApplicationEmail = async (data) => {
+  try {
+    const subject = "New Directory Application";
+
+    const text = `
+Someone applied to be listed in the Glamlink directory.
+
+Name: ${data.name}
+Title: ${data.professional_title || "-"}
+Specialty: ${data.primary_specialty || "-"}
+Email: ${data.email}
+Phone: ${data.phone || "-"}
+Wants a free Access card: ${data.wants_access_card ? "yes" : "no"}
+
+Review it in the admin panel's directory applications.
+`;
+
+    await sendEmail("support@glamlink.net", subject, text);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
+};
+
 const sendBusinessCardSubscriptionCancelledEmail = async (data) => {
   try {
     const subject = "Your Glamlink Subscription Has Been Cancelled";
@@ -1068,6 +1092,7 @@ module.exports = {
   sendBusinessCardApprovedEmail,
   sendGuestApplicationEmail,
   sendFeatureRequestEmail,
+  sendDirectoryApplicationEmail,
   sendBusinessCardSubscriptionCancelledEmail,
   sendBusinessCardPurchaseAdminEmail,
   sendNewAccessUserEmail,
