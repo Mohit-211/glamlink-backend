@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **The magazine** (section 8.9): issues (title, number, cover, date, Publuu ids or a flipbook link, description, status, order, featured) and who appears in each (cover, featured, mentioned, page); the website's 14 issues are already loaded | **New screens:** issues (list, add, edit, delete) and their featured people |
 | Oct 23 | **Watch** (section 8.8): video series (name, YouTube playlist, order) and videos: the playlists import hourly once the server has `YOUTUBE_API_KEY`, or now with "Import playlists"; paste a YouTube link to add one; set each video's series, status, featuring, people and topics | **New screens:** series; videos (list, edit, people, topics, "Add from YouTube", "Import playlists") |
 | Oct 23 | **Who an article features** (section 8.7): saving an article (`POST /journal`, `PUT /journal/:id`) answers `unmatched_mentions`, the @handles that match no page or card; new `GET`/`POST /journal/:id/mentions` and `PUT`/`DELETE /journal/:id/mentions/:mentionId` to see, add and set aside the people an article features | **New:** after saving an article, show the unmatched handles (likely typos); a "Featured people" panel on the article form |
 | Oct 23 | **Product owner and brand** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `owner_id` (a professional or brand account) and `brand_id` (a brand account), or `""` to clear; the product then shows on those accounts' pages | **New:** owner and brand pickers on the product form (accounts from `GET /profiles/admin/list`) |
@@ -335,6 +336,19 @@ Refusals: 400 `INVALID_MENTION` with `details.field`; 404 `NOT_FOUND`.
 
 Refusals: 400 `INVALID_VIDEO` with `details.field`; 503 `YOUTUBE_NOT_CONFIGURED` (no key on the server); 502
 `YOUTUBE_UNAVAILABLE`.
+
+### 8.9 The magazine (done Oct 23)
+
+| Method | Path | Body or query | Answers |
+| --- | --- | --- | --- |
+| GET | `/magazine/admin/list` | `status`, `search` (title), `page`, `limit` (50) | `{ count, rows }`: issues with `status` and `sort_order` |
+| GET | `/magazine/admin/:id` | | The issue with `features` (`[{ user_id, role, page_number }]`) |
+| POST | `/magazine/admin` | A form: `title` (required), `slug`?, `issue_number`, `publish_date` (YYYY-MM-DD), `publuu_account_id`, `publuu_flipbook_id`, `flipbook_url`, `short_description`, `status`, `sort_order` (the list runs highest first; the issue number when not given), `is_featured`; the cover as `images` (one file) or `cover_image` (an uploaded image's link) | 201, the issue |
+| PUT | `/magazine/admin/:id` | The same fields | The issue |
+| DELETE | `/magazine/admin/:id` | | `{ deleted: true }` |
+| PUT | `/magazine/admin/:id/features` | `{ features: [{ user_id, role, page_number? }] }`, role `cover`, `featured` or `mentioned`: professional or brand accounts | The issue |
+
+Refusals: 400 `INVALID_ISSUE` with `details.field`; 404 `NOT_FOUND`.
 
 ## Appendix: every admin endpoint
 

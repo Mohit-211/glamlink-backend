@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **The magazine** (section 10.10): the 14 issues from `src/data/issues.ts` are served by `GET /magazine` and `GET /magazine/:slug` (with who appears in each); profile pages list their issues | **Should:** read the magazine pages from these instead of `issues.ts`; keep `public/magazine` until the covers are copied to the API |
 | Oct 23 | **Watch** (section 10.9): `GET /video-series`, `GET /videos` (series, featured, search, paging), `GET /videos/:slug` (embed link, people, topics, related); profile pages and topics list their videos. The API imports each series' YouTube playlist hourly with its own key | **Should:** build Watch + Learn, the Watch page and the podcast page from these, then drop the browser's YouTube key |
 | Oct 23 | **Smaller images** (section 10.8): `/images/<file>?w=<width>` answers a WebP at most that wide (200, 400, 800, 1,200 or 1,600), for every uploaded image. `findById` of a product answers the product's public fields to anyone but an admin (as before, apart from bookkeeping columns such as `status` and `deleted_at`) | **Should:** ask for `?w=400` in grids and home tiles (a `next/image` loader in section 10.8) |
 | Oct 23 | **Mentions** (section 10.7): `findJournalById` answers `mentions` (`[{ handle, slug, name, type }]`, the people the article features who have a page); a page's `journal` lists the articles that feature it, and `GET /profiles/:slug/articles` pages them. Product and mention links carry the page's `type` | **Should:** link @handles from `mentions` (and turn off the test mode that links every handle to one card); show the articles on profile pages |
@@ -691,8 +692,8 @@ null when hidden; both null without a card); `access_card` is null without a liv
 answers 404 `NOT_FOUND`. `products` holds the first 4 products the account put up or makes (rows as the shop lists
 them); **`GET /profiles/:slug/products`** pages them all (`page`, `limit`). `journal` holds the first 3 articles that
 feature the account (section 10.7); **`GET /profiles/:slug/articles`** pages them all. `videos` holds the first 4
-videos the account appears in (section 10.9); **`GET /profiles/:slug/videos`** pages them. `magazine` fills in with the
-magazine issues.
+videos the account appears in (section 10.9); **`GET /profiles/:slug/videos`** pages them. `magazine` holds the first 3
+issues the account appears in, each with its `role` (section 10.10); **`GET /profiles/:slug/magazine`** pages them.
 
 **The owner's page:** `GET /my/profile` and `PUT /my/profile` (a signed-in professional or brand, Free too) answer
 `{ user_id, slug, page, visible, hidden_because, public }`: `page` is what is set on the page (null fields fall back to
@@ -760,3 +761,22 @@ A video card: `{ id, slug, title, youtube_id, thumbnail, published_at, duration_
 Profile pages list the videos an account appears in (`videos`, and `GET /profiles/:slug/videos`), and a topic
 (`GET /journal/topic/:id`) adds its `videos`. Once the server's key is set and the first import ran, the website can
 drop `NEXT_PUBLIC_YOUTUBE_API_KEY` (the audit item "YouTube key in the browser").
+
+### 10.10 The magazine (done Oct 23)
+
+The 14 issues the website listed in `src/data/issues.ts` (104 to 117) are in the API, with who appears in each
+(admins set it).
+
+| Call | Answers |
+| --- | --- |
+| `GET /magazine` | One page of published issues, newest first (`featured=true`: featured ones; `page`, `limit`) |
+| `GET /magazine/:slug` | One issue (`issue-117`) and `features`: `[{ id, slug, name, type, role, page_number }]`, role `cover`, `featured` or `mentioned`, those with a page, cover first |
+
+An issue: `{ id, slug, title, issue_number, cover_image, publish_date, short_description, is_featured, flipbook }`.
+`flipbook` is `{ publuu_account_id, publuu_flipbook_id, url }` (the embed link the digital page builds today:
+`https://publuu.com/flip-book/<account>/<flipbook>/page/1?embed`) or `{ url }` for a flipbook given as a link; null
+without one. Covers point at the website's own files (`https://glamlink.net/magazine/…`) until the backend copies them
+to the API; keep `public/magazine` until then. Dates and descriptions are empty until admins fill them in.
+
+Profile pages list the issues an account appears in (`magazine`, each with its `role` and `page_number`) and
+`GET /profiles/:slug/magazine` pages them.

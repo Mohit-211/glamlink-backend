@@ -27,6 +27,7 @@
     "check:server": "node scripts/check-server.js",
     "stripe:setup": "node scripts/stripe-setup.js",
     "stripe:reconcile": "node scripts/stripe-reconcile.js",
+    "magazine:covers": "node scripts/magazine-covers.js",
     "test": "node --test --test-concurrency=1 --test-global-setup=test/setup.js \"test/**/*.test.js\""
   },
   "dependencies": {

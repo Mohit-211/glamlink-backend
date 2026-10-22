@@ -29,6 +29,11 @@ const profileVideos = catchAsync(async (req, res) => {
     return responseWrapper(res, data, '');
 });
 
+const profileMagazine = catchAsync(async (req, res) => {
+    const data = await profileService.profileMagazine(req.params.slug, req.query);
+    return responseWrapper(res, data, '');
+});
+
 const adminListPages = catchAsync(async (req, res) => {
     const data = await profileAdminService.listPages(req.query);
     return responseWrapper(res, data, '');
@@ -54,4 +59,4 @@ const invite = catchAsync(async (req, res) => {
     return responseWrapper(res, data, 'Email sent.');
 });
 
-module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite };
+module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite };

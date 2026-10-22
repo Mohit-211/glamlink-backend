@@ -13,6 +13,7 @@ const modules = [
     require('./website/professional-form/models'),
     require('./website/profiles/models'),
     require('./website/watch/models'),
+    require('./website/magazine/models'),
     require('./mobile/social/models'),
     require('./mobile/bookings/models'),
     require('./mobile/commerce/models'),

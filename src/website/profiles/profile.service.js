@@ -6,11 +6,12 @@ const { paging } = require('../../core/http/paging');
 const { isYes } = require('../../core/utils/formValues');
 const { productsOfAccount, articlesOfAccount } = require('../content');
 const { videosOfAccount } = require('../watch');
+const { issuesOfAccount } = require('../magazine');
 const { pageList, visiblePage } = require('./profileQuery');
 const { toRow, toDetail } = require('./profilePublic');
 
 // How many rows of each list a page carries; "see all" pages the rest.
-const FIRST_ROWS = { products: 4, journal: 3, videos: 4 };
+const FIRST_ROWS = { products: 4, journal: 3, videos: 4, magazine: 3 };
 
 const TYPES = ['brand', 'individual'];
 
@@ -51,13 +52,14 @@ const visibleAccount = async (slug) => {
 // One page: what the page, its card and its account show, with its topics and the first rows of its content.
 const getProfile = async (slug) => {
     const row = await visibleAccount(slug);
-    const [topics, products, journal, videos] = await Promise.all([
+    const [topics, products, journal, videos, magazine] = await Promise.all([
         topicsOf(row.id),
         productsOfAccount(row.id, { limit: FIRST_ROWS.products }),
         articlesOfAccount(row.id, { limit: FIRST_ROWS.journal }),
         videosOfAccount(row.id, { limit: FIRST_ROWS.videos }),
+        issuesOfAccount(row.id, { limit: FIRST_ROWS.magazine }),
     ]);
-    return toDetail(row, { topics, products, journal, videos });
+    return toDetail(row, { topics, products, journal, videos, magazine });
 };
 
 // GET /profiles/:slug/products: the products the account put up or makes, paged.
@@ -78,4 +80,10 @@ const profileVideos = async (slug, query = {}) => {
     return videosOfAccount(row.id, query);
 };
 
-module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, visibleAccount, topicsOf, notFound };
+// GET /profiles/:slug/magazine: the issues the account appears in, newest first, paged.
+const profileMagazine = async (slug, query = {}) => {
+    const row = await visibleAccount(slug);
+    return issuesOfAccount(row.id, query);
+};
+
+module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, visibleAccount, topicsOf, notFound };

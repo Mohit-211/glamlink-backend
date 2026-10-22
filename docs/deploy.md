@@ -258,6 +258,16 @@ Late evening, in this order:
 9. When it has run well for a day, stop the old process (`pm2 stop glamlink-backend`; keep its folder and database):
    its scheduled jobs would otherwise keep changing the old database.
 
+### Once, with the Oct 23 code: the magazine covers
+
+The website's 14 magazine issues are loaded with covers on the website's own host (`https://glamlink.net/magazine/…`).
+Copy them to the API's uploads while the website still serves them:
+
+```bash
+npm run magazine:covers -- --dry-run   # what it would copy
+npm run magazine:covers
+```
+
 ## 9. After every later pull
 
 ```bash
