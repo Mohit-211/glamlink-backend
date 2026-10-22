@@ -9,4 +9,6 @@ module.exports = {
     // For other modules (loaded when called, so this file stays light): the published issues an account appears in,
     // as { count, rows } of issue cards with the account's role.
     issuesOfAccount: (userId, query) => require('./magazine.service').issuesOfAccount(userId, query),
+    // the sitemap's published issues: [{ id, slug, updated_at }].
+    sitemapIssues: () => require('./magazine.service').sitemapIssues(),
 };

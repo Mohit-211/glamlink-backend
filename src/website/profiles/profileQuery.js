@@ -149,4 +149,16 @@ const slugTaken = async (slug, userId = null) => {
     return rows.length > 0;
 };
 
-module.exports = { pageList, visiblePage, visibleAccountId, pageOf, pageLinks, slugTaken, DIRECTORY_PROFILES };
+// The sitemap's pages: every visible page's account id, slug, type and date of last change (its page's, card's,
+// listing's or account profile's, whichever changed last).
+const NEVER = "TIMESTAMP('1000-01-01')";
+const LAST_CHANGE = `NULLIF(GREATEST(${['pp', 'c', 'da', 'pr'].map((t) => `COALESCE(${t}.updated_at, ${NEVER})`).join(', ')}), ${NEVER})`;
+const sitemapPages = async () => {
+    const rows = await query(
+        `SELECT u.id, ${SLUG} AS slug, u.professional_type AS type, ${LAST_CHANGE} AS updated_at ${FROM}
+         WHERE ${ACCOUNT} AND ${VISIBLE} AND ${SLUG} IS NOT NULL ORDER BY u.id`,
+    );
+    return rows.map((row) => ({ id: Number(row.id), slug: row.slug, type: row.type, updated_at: row.updated_at }));
+};
+
+module.exports = { pageList, visiblePage, visibleAccountId, pageOf, pageLinks, slugTaken, sitemapPages, DIRECTORY_PROFILES };

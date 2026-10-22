@@ -32,4 +32,6 @@ module.exports = {
     videosOfTopic: (topicId) => require('./video.service').videosOfTopic(topicId),
     // the site-wide search's video group: { count, rows } with exact matches first.
     searchVideos: ({ q, limit, offset }) => require('./video.service').listVideos({ search: q, limit, page: offset / limit + 1 }, { rank: true }),
+    // the sitemap's published videos: [{ id, slug, updated_at }].
+    sitemapVideos: () => require('./video.service').sitemapVideos(),
 };

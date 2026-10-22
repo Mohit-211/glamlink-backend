@@ -78,4 +78,8 @@ const issuesOfAccount = async (userId, query = {}) => {
     return { count, rows: rows.map((issue) => ({ ...toCard(issue), role: byIssue.get(issue.id).role, page_number: byIssue.get(issue.id).page_number })) };
 };
 
-module.exports = { listIssues, getIssue, issuesOfAccount, featuresOf, toCard, CARD, ORDER };
+// The sitemap's issues: every published issue's id, slug and date of last change.
+const sitemapIssues = () =>
+    MagazineIssue.findAll({ attributes: ['id', 'slug', 'updated_at'], where: { status: 'published' }, order: [['id', 'ASC']], raw: true });
+
+module.exports = { listIssues, getIssue, issuesOfAccount, featuresOf, sitemapIssues, toCard, CARD, ORDER };

@@ -125,4 +125,7 @@ const videosOfTopic = async (topicId) => {
     return videos.toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map(toCard);
 };
 
-module.exports = { listVideos, getVideo, listSeries, videosOfAccount, videosOfTopic, toCard, CARD, SERIES };
+// The sitemap's videos: every published video's id, slug and date of last change.
+const sitemapVideos = () => Video.findAll({ attributes: ['id', 'slug', 'updated_at'], where: { status: 'published' }, order: [['id', 'ASC']], raw: true });
+
+module.exports = { listVideos, getVideo, listSeries, videosOfAccount, videosOfTopic, sitemapVideos, toCard, CARD, SERIES };

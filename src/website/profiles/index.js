@@ -19,6 +19,8 @@ module.exports = {
     // SQL selecting the directory's profile rows (kind, id, slug, name, image, tagline, city, state, specialty,
     // specialties, latitude, longitude).
     directoryProfilesSql: () => require('./profileQuery').DIRECTORY_PROFILES,
+    // The sitemap's pages: [{ id, slug, type, updated_at }] of every visible page.
+    sitemapPages: () => require('./profileQuery').sitemapPages(),
     // An explicit page slug for an account (its card's handle, else free from its name), for a listing's account.
     ensurePageSlug: (userId, name) => require('./profileAdmin.service').ensurePageSlug(userId, name),
 };

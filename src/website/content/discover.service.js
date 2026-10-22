@@ -147,6 +147,10 @@ const PRODUCT_CARD = [
 
 const EMPTY_LIST = () => ({ count: 0, rows: [] });
 
+// The sitemap's products: every published product's id, slug and date of last change.
+const sitemapProducts = () =>
+  Shop.findAll({ attributes: ["id", "slug", "updated_at"], where: PUBLISHED, order: [["id", "ASC"]], raw: true });
+
 // The texts of a free-text column (category, brand) that share this slug: "Skin Care" and "skin care " are one.
 const valuesWithSlug = async (column, slug) => {
   const rows = await Shop.findAll({ attributes: [column], where: { ...PUBLISHED, [column]: { [Op.ne]: null } }, group: [column], raw: true });
@@ -571,6 +575,7 @@ module.exports = {
   getAllDiscoverByAdmin,
   findDiscoverById,
   findProductBySlug,
+  sitemapProducts,
   updateDiscover,
   deleteDiscover,
   updateDiscoverSortOrder,

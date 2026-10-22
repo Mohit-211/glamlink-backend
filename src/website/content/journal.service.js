@@ -537,6 +537,13 @@ const findJournal = async (where, { withDrafts = false } = {}) => {
   return journalDoc;
 };
 
+// The sitemap's articles and topics: every published article's and every topic's id, slug and date of last change.
+const SITEMAP_ROW = ["id", "slug", "updated_at"];
+const sitemapArticles = () =>
+  Journal.findAll({ attributes: SITEMAP_ROW, where: { is_active: true, status: "published" }, order: [["id", "ASC"]], raw: true });
+const sitemapTopics = () =>
+  JournalTopic.findAll({ attributes: SITEMAP_ROW, where: { is_active: true }, order: [["id", "ASC"]], raw: true });
+
 // GET /journal/findJournalById/:id answers as it always has, "No Journal Found" for a missing article.
 const findJournalById = async (id, options) => (await findJournal({ id }, options)) ?? "No Journal Found";
 
@@ -2109,6 +2116,8 @@ module.exports = {
   articlesOfAccount,
   findJournalById,
   findJournalBySlug,
+  sitemapArticles,
+  sitemapTopics,
   updateJournal,
   deleteJournal,
   uploadImage,
