@@ -7,6 +7,8 @@ const httpStatus = require('./src/core/http/status');
 const path = require('path');
 const app = express();
 app.set("trust proxy", 1);
+// No "X-Powered-By: Express" on responses (only helmet's CSP is used, so helmet does not remove it).
+app.disable("x-powered-by");
 // Express 5 defaults to the simple parser; keep nested query params (a[b]=1) parsed as objects.
 app.set("query parser", "extended");
 

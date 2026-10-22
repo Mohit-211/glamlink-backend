@@ -77,8 +77,8 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 | `NODE_ENV` | `production` | Both stages |
 | `PORT` | `5001` | The old backend has 5000 |
 | `API_BASE_URL` | `https://api.glamlink.net` | Stored file links are rewritten to it by the migrations: set it before migrating |
-| `WEBSITE_URL`, `ADMIN_URL` | `https://glamlink.net`, `https://admin.glamlink.net` | Links in emails |
-| `ACCESSDOMAINS` | `https://glamlink.net,https://www.glamlink.net,https://admin.glamlink.net` | Add `http://localhost:3000` (and the admin panel's dev URL) while the frontends are tested from a laptop |
+| `WEBSITE_URL`, `ADMIN_URL` | `https://test.glamlink.net` while the website is tested there, `https://admin.glamlink.net` | Links in emails (verify email, reset password) and new cards' public links open on `WEBSITE_URL`. Live: `https://glamlink.net` |
+| `ACCESSDOMAINS` | `https://glamlink.net,https://www.glamlink.net,https://admin.glamlink.net,https://test.glamlink.net` | The website's origins: without `https://test.glamlink.net` the API refuses the test site with 403. Add `http://localhost:3000` (and the admin panel's dev URL) while the frontends are tested from a laptop |
 | `JOBS_ENABLED` | `false` | Live: `true` |
 | `MAIL_TRANSPORT` | `log` | Emails are written to the log, never sent. Live: `smtp` |
 | `CENTRAL_MYSQL_HOST/PORT/DB/USER/PASSWORD` | `127.0.0.1`, `3306`, `glamlink_api`, `glamlink_api`, the password from step 2 | |
@@ -141,10 +141,25 @@ Logs: `pm2 logs glamlink-api`, and `/var/www/storage/logs`.
 
 `/etc/nginx/sites-available/api.glamlink.net`:
 
+api.glamlink.net is behind Cloudflare, so nginx sees Cloudflare's addresses, not the visitors'. Take the visitor's
+address from Cloudflare's `CF-Connecting-IP` header, trusted only from Cloudflare's own ranges (published at
+cloudflare.com/ips), so the API's per-visitor limits (sign-in attempts, guest cards) see visitors:
+
+```bash
+{ for ip in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
+    echo "set_real_ip_from $ip;"; done; echo "real_ip_header CF-Connecting-IP;"; } \
+  | sudo tee /etc/nginx/snippets/cloudflare-real-ip.conf
+```
+
+`/etc/nginx/sites-available/api.glamlink.net`:
+
 ```nginx
 server {
     listen 80;
     server_name api.glamlink.net;
+
+    # The visitor's address from Cloudflare (above).
+    include snippets/cloudflare-real-ip.conf;
 
     # Card forms and admin galleries send several photos and a video in one request.
     client_max_body_size 100m;
@@ -168,6 +183,10 @@ sudo certbot --nginx -d api.glamlink.net
 ```
 
 The API trusts exactly one proxy in front of it (nginx), which gives it the visitor's address for rate limits.
+Check: requests in today's log (`/var/www/storage/logs/<date>.log`) start with visitors' addresses, not
+Cloudflare's (`104.x`, `172.64.x`–`172.71.x`, `162.158.x`, …).
+
+Cloudflare's ranges change rarely; run the command again if Cloudflare announces new ones.
 
 ## 7. Check it works
 
@@ -185,6 +204,25 @@ Then the frontends are changed against it (the handoff notes in `docs/handoff/`)
 refresh token in a cookie for glamlink.net only: test sign-in with the website on a glamlink.net address or with the
 API running locally. The admin panel can test against the API from a laptop (its origin in `ACCESSDOMAINS`).
 
+### The website on test.glamlink.net
+
+The website is tested on `https://test.glamlink.net` against this API before the switch. For sign-up, a payment and
+a keychain address to work end to end there:
+
+1. `.env`: `https://test.glamlink.net` in `ACCESSDOMAINS`, `WEBSITE_URL=https://test.glamlink.net` (section 3), and the
+   test keys: `STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY` `sk_test_…`/`pk_test_…`, `SHIPPO_API_KEY` `shippo_test_…`,
+   the Turnstile test secret, with `npm run stripe:setup` and the test webhook (section 5). Then
+   `pm2 reload glamlink-api --update-env` and `npm run check:server -- --online` (it should say `test mode`).
+2. nginx: the Cloudflare real-IP include (section 6).
+3. `www.glamlink.net`: one address for the website. Either a Cloudflare redirect rule (Rules > Redirect Rules: host
+   equals `www.glamlink.net` → `https://glamlink.net` + the same path and query, 301), or keep it in
+   `ACCESSDOMAINS` (it is in the value above). The redirect is better: one address for search engines and visitors.
+4. The website's test build uses the matching keys: Stripe's publishable key comes from the API; the Turnstile site
+   key is Cloudflare's test key `1x00000000000000000000AA`.
+
+Cards made while testing get `test.glamlink.net` links, and their QR codes point there. That is fine: the switch
+(section 8) starts again from a fresh copy of the live data.
+
 A test purchase: the website in test mode, Stripe's test card `4242 4242 4242 4242`; the card goes live and the seat
 shows in `GET /access/admin/subscriptions`. With `MAIL_TRANSPORT=log` no email leaves the server: each one is logged
 with its website links, so the verify-email and reset-password links are in
@@ -199,7 +237,8 @@ Late evening, in this order:
    drafts). The testing data goes with the old copy.
 2. `rsync -a /var/www/backend/public/uploads/ /var/www/storage/uploads/` again, for files uploaded since.
 3. `.env` to live: Stripe live keys, `MAIL_TRANSPORT=smtp`, `JOBS_ENABLED=true`, `FIREBASE_*`, Shippo live key,
-   the real Turnstile secret. Remove the localhost origins from `ACCESSDOMAINS`.
+   the real Turnstile secret, `WEBSITE_URL=https://glamlink.net`. Remove the localhost origins and
+   `https://test.glamlink.net` from `ACCESSDOMAINS`.
 4. `npm run stripe:setup` with the live keys; create the live webhook endpoint (section 5) and put its secret in
    `.env`; in Stripe, disable the old backend's endpoint. Point the Shippo webhook at the new URL.
 5. `pm2 start glamlink-api --update-env`, then `npm run check:server -- --online` (it should say `live mode`).

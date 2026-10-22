@@ -28,6 +28,7 @@ machine yet, so the contract check waits for one; the tests cover each change.
 
 | Item | Status |
 | --- | --- |
+| Test-site settings and testing-mode keys (urgent; server settings) | Written for Mohit to apply: deploy.md section 7, "The website on test.glamlink.net" (the origin, `WEBSITE_URL`, test keys, Cloudflare real IP in nginx, the `www` redirect); `X-Powered-By` turned off in the code |
 | The database port | Done: the app's connection reads `CENTRAL_MYSQL_PORT` (it always used 3306; the server uses 3306) (`7b7a2f6`) |
 | Lock down `GET /user/profile/:userId` (urgent) | Done: guests and other accounts get the public profile, built from allowed fields (`shared/users/userPublic.js`); the owner and admins get the whole account; admins' tokens work there; Google geocodes the address only when the caller sends coordinates. The app's professional screen reads the address and coordinates: in the app phase, take them from the card's locations, which respect the owner's exact-or-city choice. Tests: `test/profilePrivacy.test.js` |
 

@@ -24,6 +24,11 @@ test('health check answers', async () => {
     assert.deepEqual(res.body, { response: 'ok' });
 });
 
+test('responses do not say what the server runs on', async () => {
+    const res = await app.request('GET', '/api/healthcheck');
+    assert.equal(res.headers.get('x-powered-by'), null);
+});
+
 test('unknown routes return the JSON 404', async () => {
     const res = await app.request('GET', '/api/v1/no-such-route');
     assert.equal(res.status, 404);
