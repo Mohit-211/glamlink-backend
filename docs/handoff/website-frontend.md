@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Smaller images** (section 10.8): `/images/<file>?w=<width>` answers a WebP at most that wide (200, 400, 800, 1,200 or 1,600), for every uploaded image. `findById` of a product answers the product's public fields to anyone but an admin (as before, apart from bookkeeping columns such as `status` and `deleted_at`) | **Should:** ask for `?w=400` in grids and home tiles (a `next/image` loader in section 10.8) |
 | Oct 23 | **Mentions** (section 10.7): `findJournalById` answers `mentions` (`[{ handle, slug, name, type }]`, the people the article features who have a page); a page's `journal` lists the articles that feature it, and `GET /profiles/:slug/articles` pages them. Product and mention links carry the page's `type` | **Should:** link @handles from `mentions` (and turn off the test mode that links every handle to one card); show the articles on profile pages |
 | Oct 23 | **Products have an owner and a brand** (sections 10.3, 10.6): product answers add `owner` and `brand_profile` (`{ id, slug, name }` of their pages, null without one) and `owner_id`, `brand_id`; `brand` stays the text. `GET /discover/shop?brand=` also takes a brand page's slug, and `?owner=<slug>` filters by owner. A page lists its first 4 products; `GET /profiles/:slug/products` pages them | **Can:** link a product's brand and owner to their pages; show the products on profile pages |
 | Oct 23 | **Professional and brand pages** (section 10.6): `GET /profiles` (type, featured, search, paging), `GET /profiles/:slug` (the page with its card's details, links and topics; products and articles come next), and the owner's `GET`/`PUT /my/profile` | **Can:** build Find a Brand, the Inside the Industry row (`?type=brand&featured=true`), the profile pages, and page editing in the dashboard |
@@ -714,3 +715,21 @@ never @mentions, and set a mention aside.
 (`handle` is null for someone an editor added). Link each `@handle` in the text to its page with this list instead of
 one `getBusinessCard` call per handle; a handle that is not in it has no page, so leave it as text. Pages list the
 articles that feature them (section 10.6: `journal`, `GET /profiles/:slug/articles`).
+
+### 10.8 Smaller images, and what public answers hold (done Oct 23)
+
+**Any uploaded image, smaller:** add `?w=<width>` to an image link on the API host
+(`https://api.glamlink.net/images/<file>?w=400`) and the API answers a WebP at most that wide (never wider than the
+original). Widths snap up to 200, 400, 800, 1,200 or 1,600, so ask for what the slot needs: 400 for grid cards and
+home tiles, 800 to 1,200 for heroes. Copies are made on their first request and kept, with a one-year cache header.
+Image fields stay plain links, so this works for every image already uploaded (cards, products, topics, articles,
+pages). Files in subfolders (QR codes) and GIFs answer as they are. With `next/image`, a loader does it:
+
+```ts
+const apiImage = ({ src, width }: { src: string; width: number }) => `${src}?w=${width}`;
+// <Image loader={apiImage} src={product.cover_image} width={400} height={400} alt="" />
+```
+
+**Public answers are built from allowed fields:** the pages (`/profiles`), the article cards, the product cards, and a
+product for anyone but an admin (`findById`: the card's fields, `description` and its topics) list the fields they
+show; a column added later stays private until it is listed.

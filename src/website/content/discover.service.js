@@ -249,6 +249,8 @@ const findDiscoverById = async (type, id, { withDrafts = false } = {}) => {
   };
 
   if (type === "shop") {
+    // What anyone sees of a product (admins, who edit it, get every column).
+    if (!withDrafts) query.attributes = [...PRODUCT_CARD, "description"];
     query.include = [
       {
         model: JournalTopic,

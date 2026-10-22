@@ -283,7 +283,8 @@ A nightly copy of the database and the uploads, kept 14 days, for example in `cr
 30 3 * * * mariadb-dump --single-transaction glamlink_api | gzip > /var/backups/glamlink_api-$(date +\%F).sql.gz && find /var/backups -name 'glamlink_api-*' -mtime +14 -delete
 ```
 
-plus the uploads folder (`/var/www/storage/uploads`) copied off the server.
+plus the uploads folder (`/var/www/storage/uploads`) copied off the server. `uploads/images/.sized` holds the smaller
+copies of images the API makes on request (`?w=`); they are made again when asked for, so a backup can skip it.
 
 ## 12. Later: the admin panel on this server
 

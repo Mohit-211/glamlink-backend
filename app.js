@@ -27,6 +27,7 @@ const { UPLOADS_DIR } = require('./src/core/config/paths');
 
 
 const handleFileUploads = require('./src/core/http/uploads.js');
+const { imageSizes } = require('./src/core/http/imageSizes.js');
 const jobs = require('./src/jobs');
 
 
@@ -121,6 +122,8 @@ app.use('/api/v1', handleFileUploads, routes);
 
 
 // Uploaded files. Stored URLs look like <API_BASE_URL>/images/<file>, so keep these paths stable.
+// /images/<file>?w=400: a smaller copy (core/http/imageSizes.js).
+app.use('/images', imageSizes);
 ['images', 'videos', 'gifs', 'docs', 'audios', 'csv'].forEach((folder) => {
   app.use(`/${folder}`, express.static(path.join(UPLOADS_DIR, folder)));
 });
