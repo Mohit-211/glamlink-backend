@@ -1,5 +1,6 @@
 const catchAsync = require('../../core/http/catchAsync');
 const userService = require('./user.service');
+const { toPublicProfile } = require('./userPublic');
 const pick = require('../../core/utils/pick');
 const responseWrapper = require('../../core/http/responseWrapper');
 
@@ -26,11 +27,14 @@ const updateProfile = catchAsync(async (req, res) => {
     return responseWrapper(res, response, 'Profile Updated Successfully.');
 });
 
+// The whole account for its owner and admins; anyone else gets the public profile (userPublic.js).
 const getProfileById = catchAsync(async (req, res) => {
     const body = pick(req.body, ['user']);
     const query = pick(req.query, ['latitude', 'longitude']);
-    const response = await userService.getProfileById(body, req.params, query, req.isGuest);
-    return responseWrapper(res, response, '');
+    // An admin has no follows or likes of their own to show.
+    const response = await userService.getProfileById(body, req.params, query, req.isGuest || Boolean(req.isAdmin));
+    const ownerOrAdmin = req.isAdmin || (req.user && String(req.user.id) === String(req.params.userId));
+    return responseWrapper(res, ownerOrAdmin ? response : toPublicProfile(response), '');
 });
 
 const getAllTimezone = catchAsync(async (req, res) => {

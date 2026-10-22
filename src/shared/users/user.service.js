@@ -1018,7 +1018,6 @@ const addLinkTreeLink = async (body) => {
 };
 
 const getProfileById = async (body, params, query, isGuest) => {
-  console.log(body, "body");
   const { user } = body;
   const { userId } = params;
   const { latitude, longitude } = query;
@@ -1354,10 +1353,10 @@ const getProfileById = async (body, params, query, isGuest) => {
     userDoc.dataValues.reviews = reviewDoc || [];
   }
 
-  // Address + distance
-  const userAddressDoc = await UserAddress.findOne({
+  // Distance from the caller, when they send where they are (each one costs two Google calls)
+  const userAddressDoc = latitude && longitude ? await UserAddress.findOne({
     where: { role_id: userDoc.role_id, user_id: userDoc.id, is_active: true },
-  });
+  }) : null;
   if (userAddressDoc?.address_line_1) {
     let addressText = userAddressDoc.address_line_1;
 
@@ -1375,7 +1374,7 @@ const getProfileById = async (body, params, query, isGuest) => {
     }
 
     const location = await getCoordinates(addressText);
-    if (location && latitude && longitude && location.lat && location.lng) {
+    if (location && location.lat && location.lng) {
       const distance = await getRouteInfo(
         latitude,
         longitude,

@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | `GET /user/profile/:userId` answers guests and other accounts with the public profile only: name, about, profession, ratings and counts, photo, albums, reels, posts, services, and reviews with each reviewer's name and photo. The email, phone, address, coordinates, Stripe, push and socket ids, referral code and settings (of the account and of its reviewers) go only to the owner and to admins. It no longer looks up the address with Google unless `latitude` and `longitude` are sent | Nothing: the website does not call it |
 | Oct 16 | A professional account made without a `profession` has none (`null`); it used to get "Esthetician". The website does not read it today | Nothing |
 | Oct 16 | **Ready to run on api.glamlink.net** (the backend's `docs/deploy.md`). Stored file links (card photos, QR codes, gallery, journal covers and bodies) point at `https://api.glamlink.net/images/…` and `/videos/…` instead of `node.glamlink.net`; the files are copied. Sign-up in production needs the Turnstile token (an API without its secret key answers 503 `CAPTCHA_NOT_CONFIGURED` rather than letting sign-ups through). One address may create 10 guest cards an hour (`POST /businessCard`; refused attempts don't count), then 429 `TOO_MANY_REQUESTS`. A URL with a double slash (`/api/v1//journal`) now reaches its route | **Must:** the Turnstile site key in the build, and the directory form's fields (checklist). Nothing else: image URLs come from the API as before |
 | Oct 16 | **The plan's features are enforced by the API** (section 9.6): once a card is live, its owner on Free can still change the details (text, links, hours, locations) but not the photos, the video or the profile image, and cannot run a special offer: 403 `UPGRADE_REQUIRED` with `details.feature` (`edit_media`, `special_offers`, or `edit_details` if an admin turns Free editing off). Pro may do all of it. Public cards show an offer only while the owner is Pro. Drafts, cards waiting for review and rejected cards can always be edited | **Should:** let Free owners edit their details (today the Edit button sends them to the plans), keep photos, video and offers behind Pro; show the offer fields to Pro owners; on `UPGRADE_REQUIRED`, offer the upgrade |
@@ -269,7 +270,7 @@ Before, most of these let guests through and then failed with `500`. Website and
 | GET | `/form/getAllQuestions` | public |
 | POST | `/form/submitForm` | authenticate |
 | GET | `/user/profile` | authenticate |
-| GET | `/user/profile/:userId` | optionalAuth |
+| GET | `/user/profile/:userId` | optionalAuth (the public profile; the whole account for its owner or an admin) |
 | POST | `/user/profile`, `PUT /user/username`, `POST /user/addLinkTreeLink`, `POST /user/notifications`, `DELETE /user/deactivate` | authenticate |
 | GET | `/user/list`, `/user/list/random-professionals`, `/user/list/timezones`; POST `/user/list/nearby-professionals`, `/user/search` | optionalAuth |
 | GET | `/payment/stripe/stripe-key` | optionalAuth |

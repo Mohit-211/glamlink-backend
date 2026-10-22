@@ -2,7 +2,36 @@
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one.
 
-## Go-live preparation (Oct 16, branch `phase5/security`; current)
+## Phase 6: the website's requests (from Oct 23, branch `phase6/website-requests`; current)
+
+The website's list, "Glamlink Backend Requests — Home Page and Pending Work" (Claude Docs, Oct 22; link in
+README.md): 22 requests for the new home page, the professional and brand pages, and the takeovers left from Phase
+2b. Built in its order; each item lands with tests and an entry in the handoff notes, and its row in that list is
+marked done.
+
+Mohit's decisions (Oct 23):
+
+- **Public pages:** every professional or brand with a live Access card gets one; admins can unlist any page, and
+  create one for a brand that has no login yet (claimed later through the "Set your password" email). There is no
+  "industry" yet; it may come later as a filter on the brands and professionals pages.
+- **Brands:** a brand is a professional type, a professional who shows their business name rather than their own.
+  Nothing else differs yet.
+- **The directory application form stays:** it is how people without an account or an Access card get onto the
+  directory. Its submissions are stored apart from cards, for admins to review; how approved ones show on
+  /directory is settled with the directory search.
+- **Newsletter:** subscribers are stored (admin list, delete, CSV export); Mailchimp sync comes once its key and
+  audience are set.
+- **The old API** (node.glamlink.net) has the same profile leak: Mohit handles the old server.
+
+Development moved to Linux (Oct 23): a portable MariaDB 10.11 for the tests. No copy of the live data is on this
+machine yet, so the contract check waits for one; the tests cover each change.
+
+| Item | Status |
+| --- | --- |
+| The database port | Done: the app's connection reads `CENTRAL_MYSQL_PORT` (it always used 3306; the server uses 3306) (`7b7a2f6`) |
+| Lock down `GET /user/profile/:userId` (urgent) | Done: guests and other accounts get the public profile, built from allowed fields (`shared/users/userPublic.js`); the owner and admins get the whole account; admins' tokens work there; Google geocodes the address only when the caller sends coordinates. The app's professional screen reads the address and coordinates: in the app phase, take them from the card's locations, which respect the owner's exact-or-city choice. Tests: `test/profilePrivacy.test.js` |
+
+## Go-live preparation (Oct 16, branch `phase5/security`)
 
 Mohit (Oct 16): security is fixed, so the first version goes live next; the remaining frontend takeovers come
 after it. The server runbook is deploy.md.

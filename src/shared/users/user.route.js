@@ -2,10 +2,18 @@ const express = require('express');
 const router = express.Router();
 
 const userController = require('./user.controller');
-const { authenticate, optionalAuth } = require('../identity');
+const catchAsync = require('../../core/http/catchAsync');
+const { authenticate, optionalAuth, identify } = require('../identity');
+const { identifyAdmin } = require('../admin');
+
+// An admin, a signed-in user, or a guest (an admin token is not a user token, so check it first).
+const adminOrOptionalAuth = catchAsync(async (req, res, next) => {
+    if (!(await identifyAdmin(req))) await identify(req);
+    next();
+});
 
 router.get('/profile', [authenticate], userController.getProfile);
-router.get('/profile/:userId', [optionalAuth], userController.getProfileById);
+router.get('/profile/:userId', [adminOrOptionalAuth], userController.getProfileById);
 router.put('/username', [authenticate], userController.updateUsername);
 router.post('/addLinkTreeLink', [authenticate], userController.addLinkTreeLink);
 router.post('/profile', [authenticate], userController.updateProfile);

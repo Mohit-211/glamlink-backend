@@ -20,6 +20,7 @@ Outside the repo (Claude Docs):
 - Glamlink Backend Roadmap (change log): https://claude.ai/artifact/93UGzDxXcQhS4QbSDRy68D
 - Glamlink API Go-Live Plan: https://claude.ai/code/artifact/af714945-e9fa-4ac0-80f2-739e6d572a3a
 - Admin panel security: backend changes and questions (answered Oct 16): https://claude.ai/code/artifact/7cf1fb80-6241-4282-b8a6-9966c6290ed9
+- Glamlink Backend Requests — Home Page and Pending Work (the website's list, Oct 22; Phase 6): https://claude.ai/artifact/WHStxu52YddaR7CpPZRBNg
 
 ## Ground rules
 
