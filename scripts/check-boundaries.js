@@ -19,7 +19,8 @@ const { execSync } = require('child_process');
 const exceptions = require('./boundary-exceptions');
 
 const root = path.join(__dirname, '..');
-const files = execSync('git ls-files "src/*.js"', { cwd: root }).toString().trim().split(/\r?\n/)
+// Tracked files and new ones not yet added (git-ignored files aside), so new code is checked before its commit.
+const files = execSync('git ls-files --cached --others --exclude-standard "src/*.js"', { cwd: root }).toString().trim().split(/\r?\n/)
     .filter((f) => fs.existsSync(path.join(root, f)));
 const set = new Set(files);
 

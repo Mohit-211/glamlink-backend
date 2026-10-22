@@ -13,6 +13,4 @@ module.exports = {
         { path: '/discover', router: require('./discover.route') },
         { path: '/ads', router: require('./ad.route') },
     ],
-    // For data migrations.
-    toSlug: require('./slugs').toSlug,
 };

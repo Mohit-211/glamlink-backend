@@ -3,7 +3,7 @@
 // Categories get a `sort_order` for the sidebar, titles without the trailing spaces eight of them had, and slugs
 // made from the title the way URLs need them ("What's New" was what's-new, now whats-new, as the website writes
 // it). The titles and slugs before are kept in journal_category_backup, and `down` puts them back.
-const { toSlug } = require('../../../website/content');
+const { toSlug } = require('../../utils/slug');
 
 module.exports = {
     up: async ({ sequelize, log = console.log }) => {

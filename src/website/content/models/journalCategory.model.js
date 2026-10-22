@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../../../core/db/central.db');
-const { toSlug } = require('../slugs');
+const { toSlug } = require('../../../core/utils/slug');
 
 class JournalCategory extends Model { };
 JournalCategory.init(
