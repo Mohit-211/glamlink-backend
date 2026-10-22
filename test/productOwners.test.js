@@ -45,7 +45,7 @@ before(async () => {
 after(() => app.close());
 
 const edit = (id, body) => app.request('PUT', `/api/v1/discover/shop/${id}`, { body, headers: auth });
-const link = (id, slug, name) => ({ id, slug, name });
+const link = (id, slug, name, type) => ({ id, slug, name, type });
 const mine = (rows) => rows.filter((row) => Object.values(products).includes(row.id));
 const list = async (query) => {
     const res = await app.request('GET', `/api/v1/discover/shop?limit=50&${query}`);
@@ -71,10 +71,10 @@ describe('admins set owners and brands', () => {
 });
 
 describe('products link to pages', () => {
-    test('every product answer carries its owner and brand as { id, slug, name }, null without a visible page', async () => {
+    test('every product answer carries its owner and brand as { id, slug, name, type }, null without a visible page', async () => {
         const one = await app.request('GET', `/api/v1/discover/shop/findById/${products.mask}`);
-        assert.deepEqual(one.body.data.brand_profile, link(ids.brand, slugs.brand, `SkinMed ${stamp}`));
-        assert.deepEqual(one.body.data.owner, link(ids.pro, slugs.pro, `Lash Pro ${stamp}`));
+        assert.deepEqual(one.body.data.brand_profile, link(ids.brand, slugs.brand, `SkinMed ${stamp}`, 'brand'));
+        assert.deepEqual(one.body.data.owner, link(ids.pro, slugs.pro, `Lash Pro ${stamp}`, 'individual'));
         const all = mine((await app.request('GET', '/api/v1/discover/shop')).body.data.rows);
         assert.equal(all.find((row) => row.id === products.hiddenOne).brand_profile, null, 'an unlisted brand page is not linked');
         assert.equal(all.find((row) => row.id === products.serum).owner, null);

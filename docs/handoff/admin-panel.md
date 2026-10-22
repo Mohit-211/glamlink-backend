@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Who an article features** (section 8.7): saving an article (`POST /journal`, `PUT /journal/:id`) answers `unmatched_mentions`, the @handles that match no page or card; new `GET`/`POST /journal/:id/mentions` and `PUT`/`DELETE /journal/:id/mentions/:mentionId` to see, add and set aside the people an article features | **New:** after saving an article, show the unmatched handles (likely typos); a "Featured people" panel on the article form |
 | Oct 23 | **Product owner and brand** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `owner_id` (a professional or brand account) and `brand_id` (a brand account), or `""` to clear; the product then shows on those accounts' pages | **New:** owner and brand pickers on the product form (accounts from `GET /profiles/admin/list`) |
 | Oct 23 | **Professional and brand pages** (section 8.6): every account with a live Access card has a public page; admins list every page and how it stands, unlist, feature (with an order), give a page its own slug and fields, make a brand page for a brand with no login (it shows without a card) and email it a "Set your password" link | **New screens:** pages (list, edit, feature), "New brand page" with "Send claim email" |
 | Oct 23 | **Directory applications** (section 8.5): the website's directory form now stores applications for review instead of making cards. New: `GET /directory/applications`, `GET /directory/applications/:id`, `PUT /directory/applications/:id/status` (approved, rejected or pending, with a note), `POST /directory/applications/delete`; support@glamlink.net is emailed for each | **New screen:** directory applications (list by status, view, approve or reject, delete) |
@@ -301,6 +302,20 @@ Approving records the decision; listing approved applicants on /directory comes 
 | POST | `/profiles/admin/:userId/invite` | | Emails a "Set your password" link (7 days) so the brand can sign in. 409 `ALREADY_CLAIMED` when the account has a password |
 
 Refusals: 400 `INVALID_PAGE` with `details.field`.
+
+### 8.7 Who an article features (done Oct 23)
+
+Saving an article answers `unmatched_mentions`: the @handles in its text that match no page slug or card handle
+(likely typos). The people it features:
+
+| Method | Path | Body | Answers |
+| --- | --- | --- | --- |
+| GET | `/journal/:id/mentions` | | `{ mentions: [{ id, source, handle, excluded, account }], unmatched: [handle] }`. `source`: `text` (an @handle in the article) or `editor` (added here); `account`: `{ id, slug, name, type, visible }`, null when the handle matches no one |
+| POST | `/journal/:id/mentions` | `{ user_id }` (a professional or brand account) | The same, with the account added: for an article about someone it never @mentions |
+| PUT | `/journal/:id/mentions/:mentionId` | `{ excluded }` | The same. A text mention set aside stays aside when the article is saved again; `false` brings it back |
+| DELETE | `/journal/:id/mentions/:mentionId` | | The same: an added account is removed; a text mention is set aside |
+
+Refusals: 400 `INVALID_MENTION` with `details.field`; 404 `NOT_FOUND`.
 
 ## Appendix: every admin endpoint
 

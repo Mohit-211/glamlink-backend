@@ -62,6 +62,18 @@ router.get("/:id/faqs", journalController.getJournalFaqMappings);
 router.post("/:id/faqs", requireAdmin, journalController.updateJournalFaqMappings);
 
 // ==========================================
+// Mentions: who an article features
+// ==========================================
+
+router.get("/:id/mentions", requireAdmin, journalController.getArticleMentions);
+
+router.post("/:id/mentions", requireAdmin, journalController.addArticleMention);
+
+router.put("/:id/mentions/:mentionId", requireAdmin, journalController.updateArticleMention);
+
+router.delete("/:id/mentions/:mentionId", requireAdmin, journalController.removeArticleMention);
+
+// ==========================================
 // Journal Topic Mapping
 // ==========================================
 

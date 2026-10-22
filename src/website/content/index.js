@@ -17,4 +17,8 @@ module.exports = {
     // For other modules (loaded when called, so this file stays light):
     // the published products an account owns or makes, as { count, rows } (rows as the shop lists them).
     productsOfAccount: (userId, query) => require('./discover.service').productsOfAccount(userId, query),
+    // the published articles that feature an account, as { count, rows } of article cards.
+    articlesOfAccount: (userId, query) => require('./journal.service').articlesOfAccount(userId, query),
+    // For data migrations: the @handles in an article's HTML.
+    handlesIn: require('./mentionText').handlesIn,
 };

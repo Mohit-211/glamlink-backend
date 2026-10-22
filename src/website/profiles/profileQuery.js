@@ -102,12 +102,19 @@ const pageOf = async (userId) => {
     return rows[0] || null;
 };
 
-// { id, slug, name } of each visible page among these accounts, by account id: for linking to pages from products.
-const pageLinks = async (userIds) => {
+// { id, slug, name, type } of each visible page among these accounts, by account id: for linking to pages from
+// products and articles. With `hidden`, every professional account among them, with `visible` (for admins).
+const pageLinks = async (userIds, { hidden = false } = {}) => {
     const ids = [...new Set(userIds.filter(Boolean).map(Number))];
     if (!ids.length) return new Map();
-    const rows = await query(`SELECT u.id, ${SLUG} AS slug, ${NAME} AS name ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND u.id IN (:ids)`, { ids });
-    return new Map(rows.map((row) => [Number(row.id), { id: Number(row.id), slug: row.slug, name: row.name }]));
+    const rows = await query(
+        `SELECT u.id, ${SLUG} AS slug, ${NAME} AS name, u.professional_type AS type, (${VISIBLE}) AS visible ${FROM}
+         WHERE ${ACCOUNT} ${hidden ? '' : `AND ${VISIBLE}`} AND u.id IN (:ids)`,
+        { ids },
+    );
+    return new Map(rows.map((row) => [Number(row.id), {
+        id: Number(row.id), slug: row.slug, name: row.name, type: row.type, ...(hidden && { visible: Boolean(Number(row.visible)) }),
+    }]));
 };
 
 // Is this slug used by a page or a card of an account other than `userId`? (Deleted cards keep their handle.)

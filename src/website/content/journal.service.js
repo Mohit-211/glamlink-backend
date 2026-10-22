@@ -4,6 +4,7 @@ const { paging, idList } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
 const { isUploadedImage } = require("../../core/http/uploadedFiles");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
+const { indexMentions, mentionsOf, articleIdsFeaturing } = require("./mentions.service");
 const {
   Journal,
   Author,
@@ -207,6 +208,9 @@ const createJournal = async (reqBody, files) => {
     await JournalDownload.bulkCreate(downloadData);
   }
 
+  // Who it features; the editor sees the @handles that match no one.
+  journalDoc.dataValues.unmatched_mentions = await indexMentions(journalDoc.id, journalDoc.content);
+
   return journalDoc;
 };
 
@@ -324,6 +328,26 @@ const listJournals = async (query = {}) => {
   return Journal.findAndCountAll({
     attributes: CARD_ATTRIBUTES,
     where,
+    include: [
+      { model: Author, as: "journal_author", attributes: ["id", "name", "profile_image"] },
+      { model: JournalCategory, as: "journal_category", attributes: ["id", "title", "slug"] },
+    ],
+    order: NEWEST_FIRST,
+    limit,
+    offset,
+    distinct: true,
+  });
+};
+
+// The published articles that feature an account (GET /profiles/:slug and /profiles/:slug/articles), as cards,
+// newest first.
+const articlesOfAccount = async (userId, query = {}) => {
+  const ids = await articleIdsFeaturing(userId);
+  if (!ids.length) return { count: 0, rows: [] };
+  const { limit, offset } = paging(query);
+  return Journal.findAndCountAll({
+    attributes: CARD_ATTRIBUTES,
+    where: { id: ids, is_active: true, status: "published" },
     include: [
       { model: Author, as: "journal_author", attributes: ["id", "name", "profile_image"] },
       { model: JournalCategory, as: "journal_category", attributes: ["id", "title", "slug"] },
@@ -474,8 +498,11 @@ const findJournalById = async (id, { withDrafts = false } = {}) => {
       [{ model: JournalDownload, as: "downloads" }, "sort_order", "ASC"],
     ],
   });
+  if (!journalDoc) return "No Journal Found";
 
-  return journalDoc ? journalDoc : "No Journal Found";
+  // The people it features, linked to their pages.
+  journalDoc.dataValues.mentions = await mentionsOf(journalDoc.id);
+  return journalDoc;
 };
 
 const updateJournal = async (reqBody, id, files) => {
@@ -780,6 +807,9 @@ const updateJournal = async (reqBody, id, files) => {
 
     await JournalDownload.bulkCreate(downloadData);
   }
+
+  // Who it features; the editor sees the @handles that match no one.
+  journalDoc.dataValues.unmatched_mentions = await indexMentions(journalDoc.id, journalDoc.content);
 
   return journalDoc;
 };
@@ -2028,6 +2058,7 @@ module.exports = {
   getJournalsByCategory,
   getAllJournals,
   listJournals,
+  articlesOfAccount,
   findJournalById,
   updateJournal,
   deleteJournal,

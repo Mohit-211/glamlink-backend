@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Mentions** (section 10.7): `findJournalById` answers `mentions` (`[{ handle, slug, name, type }]`, the people the article features who have a page); a page's `journal` lists the articles that feature it, and `GET /profiles/:slug/articles` pages them. Product and mention links carry the page's `type` | **Should:** link @handles from `mentions` (and turn off the test mode that links every handle to one card); show the articles on profile pages |
 | Oct 23 | **Products have an owner and a brand** (sections 10.3, 10.6): product answers add `owner` and `brand_profile` (`{ id, slug, name }` of their pages, null without one) and `owner_id`, `brand_id`; `brand` stays the text. `GET /discover/shop?brand=` also takes a brand page's slug, and `?owner=<slug>` filters by owner. A page lists its first 4 products; `GET /profiles/:slug/products` pages them | **Can:** link a product's brand and owner to their pages; show the products on profile pages |
 | Oct 23 | **Professional and brand pages** (section 10.6): `GET /profiles` (type, featured, search, paging), `GET /profiles/:slug` (the page with its card's details, links and topics; products and articles come next), and the owner's `GET`/`PUT /my/profile` | **Can:** build Find a Brand, the Inside the Industry row (`?type=brand&featured=true`), the profile pages, and page editing in the dashboard |
 | Oct 23 | A card is found by its handle (`getBusinessCard/:slug`), whatever host its stored link names, so existing cards open on test.glamlink.net while the API's `WEBSITE_URL` points there; a card made there gets a test.glamlink.net link (the test data is thrown away at the switch) | Nothing |
@@ -686,8 +687,9 @@ the card's title), `city` and `state` the card's main location.
 `about` is rich text cleaned like the card bio; `email` and `phone` are the card's, as the card shows them (`phone`
 null when hidden; both null without a card); `access_card` is null without a live card. A hidden or unknown page
 answers 404 `NOT_FOUND`. `products` holds the first 4 products the account put up or makes (rows as the shop lists
-them); **`GET /profiles/:slug/products`** pages them all (`page`, `limit`). `journal` fills in with the mention index;
-`magazine` and `videos` in Phase 3.
+them); **`GET /profiles/:slug/products`** pages them all (`page`, `limit`). `journal` holds the first 3 articles that
+feature the account (section 10.7); **`GET /profiles/:slug/articles`** pages them all. `magazine` and `videos` fill in
+with Phase 3.
 
 **The owner's page:** `GET /my/profile` and `PUT /my/profile` (a signed-in professional or brand, Free too) answer
 `{ user_id, slug, page, visible, hidden_because, public }`: `page` is what is set on the page (null fields fall back to
@@ -696,3 +698,19 @@ the card), `public` the page as everyone sees it, `hidden_because` `"no_live_car
 `social` (a JSON list of `{ title, url }`, up to 10; empty: the card's links), and the images as files:
 `profile_image` (the image: a logo or photo) and `images` (one: the cover), or `image` / `cover_image` `""` to remove
 one. Refusals: 400 `INVALID_PAGE` with `details.field`.
+
+### 10.7 Who an article features (done Oct 23)
+
+Each article's @handles are kept on every save and matched to accounts when read (a page's slug or a card's handle),
+so a professional who gets a card after an article was written is found then. Editors also add accounts an article
+never @mentions, and set a mention aside.
+
+**`GET /journal/findJournalById/:id`** adds `mentions`: the people the article features who have a visible page,
+
+```json
+"mentions": [{ "handle": "nikicapobianco", "slug": "niki-capobianco", "name": "Niki Capobianco", "type": "individual" }]
+```
+
+(`handle` is null for someone an editor added). Link each `@handle` in the text to its page with this list instead of
+one `getBusinessCard` call per handle; a handle that is not in it has no page, so leave it as text. Pages list the
+articles that feature them (section 10.6: `journal`, `GET /profiles/:slug/articles`).

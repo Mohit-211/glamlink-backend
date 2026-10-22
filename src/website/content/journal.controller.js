@@ -1,6 +1,7 @@
 const httpStatus = require("../../core/http/status");
 const catchAsync = require("../../core/http/catchAsync");
 const journalService = require("./journal.service");
+const mentionsService = require("./mentions.service");
 const responseWrapper = require("../../core/http/responseWrapper");
 const { identifyAdmin } = require("../../shared/admin");
 
@@ -75,6 +76,30 @@ const updateJournalSortOrder = catchAsync(async (req, res) => {
     "Journal order updated successfully.",
     httpStatus.OK,
   );
+});
+
+// ==========================
+// Mentions: who an article features (admin)
+// ==========================
+
+const getArticleMentions = catchAsync(async (req, res) => {
+  const data = await mentionsService.adminMentions(req.params.id);
+  return responseWrapper(res, data, "");
+});
+
+const addArticleMention = catchAsync(async (req, res) => {
+  const data = await mentionsService.addMention(req.params.id, req.body);
+  return responseWrapper(res, data, "Mention added.");
+});
+
+const updateArticleMention = catchAsync(async (req, res) => {
+  const data = await mentionsService.updateMention(req.params.id, req.params.mentionId, req.body);
+  return responseWrapper(res, data, "Mention updated.");
+});
+
+const removeArticleMention = catchAsync(async (req, res) => {
+  const data = await mentionsService.removeMention(req.params.id, req.params.mentionId);
+  return responseWrapper(res, data, "Mention removed.");
 });
 
 // ==========================
@@ -258,6 +283,10 @@ const updateJournalTopicParagraphs = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  getArticleMentions,
+  addArticleMention,
+  updateArticleMention,
+  removeArticleMention,
   createJournal,
   getJournalsByCategory,
   getAllJournals,
