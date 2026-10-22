@@ -3,6 +3,7 @@ const sequelize = require('../../core/db/central.db');
 const config = require('../../core/config/config');
 const logger = require('../../core/logger');
 const { stripe } = require('../../integrations/stripe');
+const { refreshWebsite } = require('../../integrations/websiteRefresh');
 const { AccessCheckout, AccessSubscription, AccessOrder, BusinessCard, Payment, User, UserAddress } = require('../../models');
 const { accessCardOwner, setPasswordLink } = require('../../shared/identity');
 const {
@@ -183,6 +184,8 @@ const activate = async (checkoutId, { invoice, intent }) => {
         }, { transaction });
         mail = { owner, created, card, order: keychain ? order : null, type };
     });
+    // A card that went live shows on the website (its card page, its page among the pages).
+    if (mail?.card) refreshWebsite(['cards', 'profiles']);
     if (mail) await sendPurchaseEmails(mail);
 };
 

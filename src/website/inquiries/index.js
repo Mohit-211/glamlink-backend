@@ -3,15 +3,16 @@
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
-    // the functions below never pulls in its routes.
+    // the functions below never pulls in its routes. `refresh`: the website's data their changes touch
+    // (its cache-refresh hook).
     routes: () => [
         { path: '/guest-application', router: require('./guestApplication.route') },
         { path: '/partnership-inquiry', router: require('./partnershipInquiry.route') },
         { path: '/contactUs', router: require('./contactUs.route') },
         { path: '/newsletter', router: require('./newsletter.route') },
         { path: '/feature-request', router: require('./featureRequest.route') },
-        { path: '/directory', router: require('./directoryApplication.route') },
-        { path: '/my/directory', router: require('./myDirectory.route') },
+        { path: '/directory', router: require('./directoryApplication.route'), refresh: ['directory', 'profiles'] },
+        { path: '/my/directory', router: require('./myDirectory.route'), refresh: ['directory', 'profiles'] },
     ],
     // For scripts: coordinates for an application's main location when it has none. Loaded when called.
     geocodeApplication: (application) => require('./directoryApplication.service').geocodeApplication(application),

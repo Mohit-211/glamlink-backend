@@ -4,9 +4,10 @@ const { publicLink } = require('./cardLinks');
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
-    // the functions below never pulls in its routes.
+    // the functions below never pulls in its routes. `refresh`: the website's data their changes touch
+    // (its cache-refresh hook).
     routes: () => [
-        { path: '/businessCard', router: require('./businessCard.route') },
+        { path: '/businessCard', router: require('./businessCard.route'), refresh: ['cards', 'profiles'] },
         { path: '/order', router: require('./cardAddress.route') },
         { path: '/access-card/analytics', router: require('./accessCardAnalytics.route') },
         { path: '/access', router: require('./access.route') },

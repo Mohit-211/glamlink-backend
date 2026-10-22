@@ -3,10 +3,11 @@
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
-    // the functions below never pulls in its routes.
+    // the functions below never pulls in its routes. `refresh`: the website's data their changes touch
+    // (its cache-refresh hook).
     routes: () => [
-        { path: '/profiles', router: require('./profile.route') },
-        { path: '/my/profile', router: require('./myProfile.route') },
+        { path: '/profiles', router: require('./profile.route'), refresh: ['profiles'] },
+        { path: '/my/profile', router: require('./myProfile.route'), refresh: ['profiles'] },
     ],
     // For other modules (loaded when called, so this file stays light):
     // { id, slug, name, type } of the visible pages among these accounts, by account id ({ hidden: true }: every

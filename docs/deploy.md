@@ -78,6 +78,7 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 | `PORT` | `5001` | The old backend has 5000 |
 | `API_BASE_URL` | `https://api.glamlink.net` | Stored file links are rewritten to it by the migrations: set it before migrating |
 | `WEBSITE_URL`, `ADMIN_URL` | `https://test.glamlink.net` while the website is tested there, `https://admin.glamlink.net` | Links in emails (verify email, reset password) and new cards' public links open on `WEBSITE_URL`. Live: `https://glamlink.net` |
+| `WEBSITE_REFRESH_URL`, `WEBSITE_REFRESH_SECRET` | Empty until the website has its receiving route; then its address (for example `https://test.glamlink.net/api/revalidate`) and a secret shared with the website (`openssl rand -hex 32`) | After each change the API tells the website which data changed (website handoff, section 10.18). Empty: off, and cached pages wait for their own expiry |
 | `ACCESSDOMAINS` | `https://glamlink.net,https://www.glamlink.net,https://admin.glamlink.net,https://test.glamlink.net` | The website's origins: without `https://test.glamlink.net` the API refuses the test site with 403. Add `http://localhost:3000` (and the admin panel's dev URL) while the frontends are tested from a laptop |
 | `JOBS_ENABLED` | `false` | Live: `true` |
 | `MAIL_TRANSPORT` | `log` | Emails are written to the log, never sent. Live: `smtp` |

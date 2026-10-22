@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Cache-refresh hook** (section 10.18): after each change made through the API, the website is told which data changed: `POST` to its route, `{ tags }`, with a shared secret | **New:** the receiving route; tag cached fetches with the data they show; send us the route's address and the secret |
 | Oct 23 | **Page analytics** (section 10.17): `POST /profiles/:slug/events` counts page views and clicks (website, Access card, products, booking, social, email, phone); `GET /my/profile/analytics` gives the owner the numbers in the card analytics' shape | **Should:** report views and clicks on the page as on the card; a numbers screen in the dashboard |
 | Oct 23 | **Sitemap feed** (section 10.16): `GET /sitemap`, every public page's id, slug and date of last change by kind (articles, topics, profiles, products, videos, issues) | **Should:** build sitemap.xml from it instead of downloading full lists |
 | Oct 23 | **Calls by slug** (section 10.15): `GET /journal/slug/:slug` and `GET /discover/shop/slug/:slug`; `GET /journal/topic/:id` takes a slug too; products carry `slug`; every article and product has its own. The calls by id still answer | **Can:** move article, topic and product links to slugs; old links by id keep working |
@@ -958,4 +959,43 @@ dates are today when not given) answers in the shape of the card's analytics:
 As for cards, days without events are left out of the daily lists. `top_targets` holds the 10 most clicked links and
 products. Refusals: 400 `INVALID_INPUT` (`details.field`) for a date that is wrong, in the future, or a `from` after
 `to`.
+
+### 10.18 The cache-refresh hook (done Oct 23)
+
+After each change made through the API (an admin's, or a signed-in owner's: their page, listing, products or card),
+the API tells the website which of its data changed, so the website can keep pages cached for hours and still show
+changes within seconds. **The website adds the receiving route:**
+
+```
+POST <WEBSITE_REFRESH_URL>                      the address the website gives us, e.g. https://glamlink.net/api/revalidate
+Authorization: Bearer <WEBSITE_REFRESH_SECRET>  a secret both sides keep: refuse calls without it
+Content-Type: application/json
+
+{ "tags": ["journal", "topics"] }
+```
+
+Answer 2xx. Changes close together come in one call, a second after the first. A call that fails is not repeated, so
+keep an expiry on cached pages too (an hour, say).
+
+| Tag | What changed |
+| --- | --- |
+| `journal` | Articles, their categories, authors and FAQs, who they feature |
+| `topics` | Topics and what they link |
+| `shop` | Products (their owners' changes too) |
+| `discover` | Education and events |
+| `profiles` | Professional and brand pages: the page, its card, its directory listing |
+| `cards` | Access cards (a paid card going live too) |
+| `directory` | Directory listings |
+| `videos` | Videos and series (the hourly YouTube import too) |
+| `magazine` | Issues and who appears in them |
+| `ads` | Ads |
+| `home` | The home page's settings |
+| `podcasts` | The podcast schedule |
+| `blog` | The blog |
+
+Tag each cached fetch with the data it shows: a profile page shows products, articles, videos and issues, so
+`profiles`, `shop`, `journal`, `videos` and `magazine`. Tags name data, not single pages: editing one product refreshes
+every page that shows products, which is cheap at this size (if per-page tags such as `profile:<slug>` become worth
+it, ask). Changes made outside the API's calls (account details edited in the app, a plan ending) show when the cache
+expires. Once the route is live, send us its address and the secret for the server's settings.
 

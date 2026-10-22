@@ -92,6 +92,9 @@ module.exports = {
     API_BASE_URL: envVars.API_BASE_URL,
     // The website, for links in emails (verify email, reset password)
     WEBSITE_URL: envVars.WEBSITE_URL,
+    // The website's cache-refresh hook (integrations/websiteRefresh.js): its address and the secret both sides share.
+    WEBSITE_REFRESH_URL: envVars.WEBSITE_REFRESH_URL,
+    WEBSITE_REFRESH_SECRET: envVars.WEBSITE_REFRESH_SECRET,
     // The admin panel, for links in admin emails (an Access order)
     ADMIN_URL: envVars.ADMIN_URL,
     DEFAULT_TIMEZONE: envVars.DEFAULT_TIMEZONE,

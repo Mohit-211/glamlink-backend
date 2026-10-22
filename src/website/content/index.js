@@ -2,18 +2,19 @@
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
-    // the functions below never pulls in its routes.
+    // the functions below never pulls in its routes. `refresh`: the website's data their changes touch
+    // (its cache-refresh hook).
     routes: () => [
-        { path: '/journalCategory', router: require('./journalCategory.route') },
-        { path: '/author', router: require('./author.route') },
-        { path: '/journal', router: require('./journal.route') },
-        { path: '/blog-category', router: require('./blogCategory.route') },
-        { path: '/blog', router: require('./blog.route') },
-        { path: '/podcast-schedule', router: require('./podcastSchedule.route') },
-        { path: '/discover', router: require('./discover.route') },
-        { path: '/ads', router: require('./ad.route') },
-        { path: '/settings', router: require('./siteSettings.route') },
-        { path: '/my/products', router: require('./myProducts.route') },
+        { path: '/journalCategory', router: require('./journalCategory.route'), refresh: ['journal'] },
+        { path: '/author', router: require('./author.route'), refresh: ['journal'] },
+        { path: '/journal', router: require('./journal.route'), refresh: ['journal', 'topics'] },
+        { path: '/blog-category', router: require('./blogCategory.route'), refresh: ['blog'] },
+        { path: '/blog', router: require('./blog.route'), refresh: ['blog'] },
+        { path: '/podcast-schedule', router: require('./podcastSchedule.route'), refresh: ['podcasts'] },
+        { path: '/discover', router: require('./discover.route'), refresh: ['shop', 'discover'] },
+        { path: '/ads', router: require('./ad.route'), refresh: ['ads'] },
+        { path: '/settings', router: require('./siteSettings.route'), refresh: ['home'] },
+        { path: '/my/products', router: require('./myProducts.route'), refresh: ['shop'] },
     ],
     // For other modules (loaded when called, so this file stays light):
     // the published products an account owns or makes, as { count, rows } (rows as the shop lists them).
