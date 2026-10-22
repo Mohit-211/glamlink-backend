@@ -35,6 +35,15 @@ Shop.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // The account that put the product up (null: Glamlink's own pick), and the brand account that makes it.
+    owner_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    brand_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
 
     price: {
       type: DataTypes.DECIMAL(10, 2),

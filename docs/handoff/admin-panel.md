@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Product owner and brand** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `owner_id` (a professional or brand account) and `brand_id` (a brand account), or `""` to clear; the product then shows on those accounts' pages | **New:** owner and brand pickers on the product form (accounts from `GET /profiles/admin/list`) |
 | Oct 23 | **Professional and brand pages** (section 8.6): every account with a live Access card has a public page; admins list every page and how it stands, unlist, feature (with an order), give a page its own slug and fields, make a brand page for a brand with no login (it shows without a card) and email it a "Set your password" link | **New screens:** pages (list, edit, feature), "New brand page" with "Send claim email" |
 | Oct 23 | **Directory applications** (section 8.5): the website's directory form now stores applications for review instead of making cards. New: `GET /directory/applications`, `GET /directory/applications/:id`, `PUT /directory/applications/:id/status` (approved, rejected or pending, with a note), `POST /directory/applications/delete`; support@glamlink.net is emailed for each | **New screen:** directory applications (list by status, view, approve or reject, delete) |
 | Oct 23 | **Newsletter subscribers and feature requests** (section 8.4): the website's newsletter forms and "Apply for Feature" now store what they send. New: `GET /newsletter/list`, `GET /newsletter/export` (CSV), `POST /newsletter/delete`; `GET /feature-request/list`, `POST /feature-request/delete`. A new feature request also emails support@glamlink.net | **New screens:** newsletter subscribers (list, search, export, delete) and feature requests (list, search, delete) |
@@ -261,8 +262,12 @@ On `POST /discover/shop` and `PUT /discover/shop/:id`:
 | `is_featured` | `"true"` / `"false"`: shown in the home page's Shop Products row |
 | `featured_order` | A whole number: the row's order (lowest first) |
 | `description` | The product page's longer text (the page shows `short_description` without it) |
+| `owner_id` | The account that put the product up: a professional or brand account's id, or `""` for none (Glamlink's own pick) |
+| `brand_id` | The brand account that makes it: a brand account's id, or `""`. The free-text `brand` stays the name shown |
 
-The shop page follows the order set with `POST /discover/shop/sort-order` (then title); it used to ignore it.
+The shop page follows the order set with `POST /discover/shop/sort-order` (then title); it used to ignore it. A wrong
+owner or brand is 400 `INVALID_PRODUCT` with `details.field`. Pick the accounts from `GET /profiles/admin/list`
+(section 8.6; `?type=brand` for brands).
 
 ### 8.4 Newsletter subscribers and feature requests (done Oct 23)
 

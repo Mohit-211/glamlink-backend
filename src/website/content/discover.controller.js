@@ -7,7 +7,7 @@ const { identifyAdmin } = require("../../shared/admin");
 
 // With any list parameter, GET /discover/shop answers one page of products (discover.service.js listShop);
 // without, every published item, as before.
-const SHOP_LIST_PARAMETERS = ["page", "limit", "category", "brand", "search", "featured"];
+const SHOP_LIST_PARAMETERS = ["page", "limit", "category", "brand", "owner", "search", "featured"];
 
 const createDiscover = catchAsync(async (req, res) => {
 	const data = await discoverService.createDiscover(

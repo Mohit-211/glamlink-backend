@@ -5,6 +5,7 @@ const profileController = require('./profile.controller');
 
 // Public
 router.get('/', profileController.listProfiles);
+router.get('/:slug/products', profileController.profileProducts);
 
 // Admin. (A page's own lists, /:slug/products and /:slug/articles, come before these, so a page whose slug is
 // "admin" still has them.)

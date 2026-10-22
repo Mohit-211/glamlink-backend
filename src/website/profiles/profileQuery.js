@@ -86,6 +86,16 @@ const visiblePage = async (slug) => {
     return rows[0] || null;
 };
 
+// The account behind a visible page's slug (its own slug or its live card's handle), or null.
+const visibleAccountId = async (slug) => {
+    const rows = await query(
+        `SELECT u.id, (pp.slug = :slug) AS own ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND (pp.slug = :slug OR ${ci('c.slug')} = :slug)
+         ORDER BY own DESC LIMIT 1`,
+        { slug: String(slug) },
+    );
+    return rows[0] ? Number(rows[0].id) : null;
+};
+
 // One account's page as the detail needs it, shown or not (for its owner and admins), or null.
 const pageOf = async (userId) => {
     const rows = await query(`SELECT ${DETAIL}, (${VISIBLE}) AS visible, ${EXISTS} AS page_exists ${FROM} WHERE ${ACCOUNT} AND u.id = :id`, { id: userId });
@@ -110,4 +120,4 @@ const slugTaken = async (slug, userId = null) => {
     return rows.length > 0;
 };
 
-module.exports = { pageList, visiblePage, pageOf, pageLinks, slugTaken };
+module.exports = { pageList, visiblePage, visibleAccountId, pageOf, pageLinks, slugTaken };

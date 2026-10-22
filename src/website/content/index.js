@@ -14,4 +14,7 @@ module.exports = {
         { path: '/ads', router: require('./ad.route') },
         { path: '/settings', router: require('./siteSettings.route') },
     ],
+    // For other modules (loaded when called, so this file stays light):
+    // the published products an account owns or makes, as { count, rows } (rows as the shop lists them).
+    productsOfAccount: (userId, query) => require('./discover.service').productsOfAccount(userId, query),
 };

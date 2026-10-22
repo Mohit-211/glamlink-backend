@@ -8,4 +8,9 @@ module.exports = {
         { path: '/profiles', router: require('./profile.route') },
         { path: '/my/profile', router: require('./myProfile.route') },
     ],
+    // For other modules (loaded when called, so this file stays light):
+    // { id, slug, name } of the visible pages among these accounts, by account id.
+    pageLinks: (userIds) => require('./profileQuery').pageLinks(userIds),
+    // The account behind a visible page's slug, or null.
+    visibleAccountId: (slug) => require('./profileQuery').visibleAccountId(slug),
 };

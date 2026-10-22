@@ -6,7 +6,8 @@ const { containing } = require("../../core/utils/like");
 const { toSlug } = require("../../core/utils/slug");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
-const { Event, Shop, JournalTopic } = require("../../models");
+const { Event, Shop, JournalTopic, User } = require("../../models");
+const { pageLinks, visibleAccountId } = require("../profiles");
 const sharp = require("sharp");
 const { parse } = require("csv-parse/sync");
 const path = require("path");
@@ -29,6 +30,28 @@ const getModel = (type) => {
     default:
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid discover type");
   }
+};
+
+// owner_id / brand_id from the admin form: an active professional account (a brand account for brand_id), or ""
+// to clear it.
+const accountField = async (value, field) => {
+  if (value === null || value === "") return null;
+  const id = wholeNumber(value);
+  const account = id && (await User.findOne({ where: { id, account_type: "professional", is_active: true }, attributes: ["id", "professional_type"] }));
+  if (!account || (field === "brand_id" && account.professional_type !== "brand")) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, `${field} must be ${field === "brand_id" ? "a brand" : "a professional"} account.`, "INVALID_PRODUCT", { field });
+  }
+  return account.id;
+};
+
+// Each product with links to its owner's and its brand's pages: { id, slug, name }, null without a visible page.
+const withLinks = async (rows) => {
+  const links = await pageLinks(rows.flatMap((row) => [row.owner_id, row.brand_id]));
+  for (const row of rows) {
+    row.dataValues.owner = links.get(Number(row.owner_id)) ?? null;
+    row.dataValues.brand_profile = links.get(Number(row.brand_id)) ?? null;
+  }
+  return rows;
 };
 
 // A product's place in the home page's Shop Products row: a whole number.
@@ -71,6 +94,8 @@ const createDiscover = async (type, reqBody, files) => {
         : null;
     obj.link = reqBody.link;
     obj.description = reqBody.description || null;
+    if (reqBody.owner_id !== undefined) obj.owner_id = await accountField(reqBody.owner_id, "owner_id");
+    if (reqBody.brand_id !== undefined) obj.brand_id = await accountField(reqBody.brand_id, "brand_id");
     obj.is_featured = isYes(reqBody.is_featured);
     if (reqBody.featured_order !== undefined && reqBody.featured_order !== "") {
       obj.featured_order = featuredOrder(reqBody.featured_order);
@@ -87,22 +112,26 @@ const createDiscover = async (type, reqBody, files) => {
 const getAllDiscover = async (type) => {
   const Model = getModel(type);
 
-  return await Model.findAndCountAll({
+  const result = await Model.findAndCountAll({
     where: {
       is_active: true,
       status: "published",
     },
      order: [["title", "ASC"]],
   });
+  if (type === "shop") await withLinks(result.rows);
+  return result;
 };
 
 const PUBLISHED = { is_active: true, status: "published" };
 
 // What a list shows of a product: all but the longer description.
 const PRODUCT_CARD = [
-  "id", "title", "short_description", "category", "brand", "price", "cover_image", "link", "is_featured",
-  "featured_order", "sort_order", "created_at", "updated_at",
+  "id", "title", "short_description", "category", "brand", "owner_id", "brand_id", "price", "cover_image", "link",
+  "is_featured", "featured_order", "sort_order", "created_at", "updated_at",
 ];
+
+const EMPTY_LIST = () => ({ count: 0, rows: [] });
 
 // The texts of a free-text column (category, brand) that share this slug: "Skin Care" and "skin care " are one.
 const valuesWithSlug = async (column, slug) => {
@@ -110,36 +139,66 @@ const valuesWithSlug = async (column, slug) => {
   return rows.map((row) => row[column]).filter((value) => toSlug(value) === toSlug(slug));
 };
 
+const ADMIN_ORDER = [["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]];
+
 // GET /discover/shop with list parameters: one page of published products, in the admins' order then by title
 // (featured=true: only featured products, in their featured order).
-//   category, brand  a slug from GET /discover/shop/filters (or the name); search  title, short description,
-//   brand and category; page, limit (12, at most 50).
+//   category  a slug from GET /discover/shop/filters (or the name); brand  a brand page's slug, or a brand name's
+//   slug from the filters; owner  the slug of the page of the account that put the product up; search  title, short
+//   description, brand and category; page, limit (12, at most 50).
 const listShop = async (query = {}) => {
   const { limit, offset } = paging(query);
   const where = { ...PUBLISHED };
+  const and = [];
   const featured = isYes(query.featured);
   if (featured) where.is_featured = true;
 
-  for (const column of ["category", "brand"]) {
-    if (!query[column]) continue;
-    const values = await valuesWithSlug(column, query[column]);
-    if (!values.length) return { count: 0, rows: [] };
-    where[column] = values;
+  if (query.category) {
+    const values = await valuesWithSlug("category", query.category);
+    if (!values.length) return EMPTY_LIST();
+    where.category = values;
+  }
+  if (query.brand) {
+    const [account, names] = await Promise.all([visibleAccountId(query.brand), valuesWithSlug("brand", query.brand)]);
+    const either = [...(account ? [{ brand_id: account }] : []), ...(names.length ? [{ brand: names }] : [])];
+    if (!either.length) return EMPTY_LIST();
+    and.push({ [Op.or]: either });
+  }
+  if (query.owner) {
+    const account = await visibleAccountId(query.owner);
+    if (!account) return EMPTY_LIST();
+    where.owner_id = account;
   }
 
   const search = String(query.search ?? "").trim();
   if (search) {
     const term = containing(search);
-    where[Op.or] = ["title", "short_description", "brand", "category"].map((column) => ({ [column]: { [Op.like]: term } }));
+    and.push({ [Op.or]: ["title", "short_description", "brand", "category"].map((column) => ({ [column]: { [Op.like]: term } })) });
   }
+  if (and.length) where[Op.and] = and;
 
-  return Shop.findAndCountAll({
+  const result = await Shop.findAndCountAll({
     attributes: PRODUCT_CARD,
     where,
-    order: [...(featured ? [["featured_order", "ASC"]] : []), ["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]],
+    order: [...(featured ? [["featured_order", "ASC"]] : []), ...ADMIN_ORDER],
     limit,
     offset,
   });
+  return { count: result.count, rows: await withLinks(result.rows) };
+};
+
+// The published products an account put up or makes, in the admins' order: a page's products
+// (GET /profiles/:slug and /profiles/:slug/products).
+const productsOfAccount = async (userId, query = {}) => {
+  const { limit, offset } = paging(query);
+  const result = await Shop.findAndCountAll({
+    attributes: PRODUCT_CARD,
+    where: { ...PUBLISHED, [Op.or]: [{ owner_id: userId }, { brand_id: userId }] },
+    order: ADMIN_ORDER,
+    limit,
+    offset,
+  });
+  return { count: result.count, rows: await withLinks(result.rows) };
 };
 
 // A free-text column's values among published products, as { slug, name, count }: spellings of one name (the same
@@ -205,6 +264,7 @@ const findDiscoverById = async (type, id, { withDrafts = false } = {}) => {
 
   const doc = await Model.findOne(query);
   if (!doc) throw ApiError.withCode(httpStatus.NOT_FOUND, "No Record Found", "NOT_FOUND");
+  if (type === "shop") await withLinks([doc]);
 
   return doc;
 };
@@ -250,6 +310,14 @@ const updateDiscover = async (type, reqBody, id, files) => {
 
     if (reqBody.description !== undefined) {
       doc.description = reqBody.description || null;
+    }
+
+    if (reqBody.owner_id !== undefined) {
+      doc.owner_id = await accountField(reqBody.owner_id, "owner_id");
+    }
+
+    if (reqBody.brand_id !== undefined) {
+      doc.brand_id = await accountField(reqBody.brand_id, "brand_id");
     }
 
     if (reqBody.is_featured !== undefined) {
@@ -469,6 +537,7 @@ module.exports = {
   createDiscover,
   getAllDiscover,
   listShop,
+  productsOfAccount,
   shopFilters,
   getAllDiscoverByAdmin,
   findDiscoverById,

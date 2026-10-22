@@ -4,8 +4,12 @@ const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
 const { paging } = require('../../core/http/paging');
 const { isYes } = require('../../core/utils/formValues');
+const { productsOfAccount } = require('../content');
 const { pageList, visiblePage } = require('./profileQuery');
 const { toRow, toDetail } = require('./profilePublic');
+
+// How many rows of each list a page carries; "see all" pages the rest.
+const FIRST_ROWS = { products: 4 };
 
 const TYPES = ['brand', 'individual'];
 
@@ -46,7 +50,14 @@ const visibleAccount = async (slug) => {
 // One page: what the page, its card and its account show, with its topics and the first rows of its content.
 const getProfile = async (slug) => {
     const row = await visibleAccount(slug);
-    return toDetail(row, { topics: await topicsOf(row.id) });
+    const [topics, products] = await Promise.all([topicsOf(row.id), productsOfAccount(row.id, { limit: FIRST_ROWS.products })]);
+    return toDetail(row, { topics, products });
 };
 
-module.exports = { listProfiles, getProfile, visibleAccount, topicsOf, notFound };
+// GET /profiles/:slug/products: the products the account put up or makes, paged.
+const profileProducts = async (slug, query = {}) => {
+    const row = await visibleAccount(slug);
+    return productsOfAccount(row.id, query);
+};
+
+module.exports = { listProfiles, getProfile, profileProducts, visibleAccount, topicsOf, notFound };
