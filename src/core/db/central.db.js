@@ -4,6 +4,7 @@ const logger = require('../logger.js');
 
 const sequelizeOptions = {
     host: config.databases.central.host,
+    port: config.databases.central.port,
     dialect: 'mysql',
     supportBigNumbers: true,
     // Production is MariaDB, where JSON columns are text with a json_valid check. mysql2 >= 3.23 parses
