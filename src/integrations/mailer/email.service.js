@@ -918,6 +918,27 @@ The request is in the admin panel's feature requests.
   }
 };
 
+// A brand page an admin made: the brand sets a password (the link is good for 7 days) to sign in and edit it.
+const sendProfileInviteEmail = async ({ to, name, link }) => {
+  try {
+    const subject = "Your Glamlink page is ready";
+
+    const text = `
+Hello${name ? ` ${name}` : ""},
+
+Glamlink has made a page for ${name || "your brand"}. Set your password to sign in and make it yours:
+
+${link}
+
+The link works for 7 days. If it runs out, reply to this email and we will send a new one.
+`;
+
+    await sendEmail(to, subject, text);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
+};
+
 // An application from the website's directory form, for support to review in the admin panel.
 const sendDirectoryApplicationEmail = async (data) => {
   try {
@@ -1093,6 +1114,7 @@ module.exports = {
   sendGuestApplicationEmail,
   sendFeatureRequestEmail,
   sendDirectoryApplicationEmail,
+  sendProfileInviteEmail,
   sendBusinessCardSubscriptionCancelledEmail,
   sendBusinessCardPurchaseAdminEmail,
   sendNewAccessUserEmail,

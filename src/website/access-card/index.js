@@ -1,5 +1,6 @@
 // Access cards: cards and their public pages, plans and subscriptions, NFC orders, the logged-out purchase addresses, analytics, the directory.
 const { sanitizeBio, bioMarkupRemoved } = require('./cardBio');
+const { publicLink } = require('./cardLinks');
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
@@ -15,4 +16,5 @@ module.exports = {
     // For other modules and data migrations.
     sanitizeBio,
     bioMarkupRemoved,
+    publicLink,
 };

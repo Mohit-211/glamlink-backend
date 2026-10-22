@@ -11,6 +11,7 @@ const modules = [
     require('./website/content/models'),
     require('./website/inquiries/models'),
     require('./website/professional-form/models'),
+    require('./website/profiles/models'),
     require('./mobile/social/models'),
     require('./mobile/bookings/models'),
     require('./mobile/commerce/models'),

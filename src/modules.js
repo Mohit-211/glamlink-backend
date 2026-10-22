@@ -12,6 +12,7 @@ module.exports = [
     require('./website/content'),
     require('./website/inquiries'),
     require('./website/professional-form'),
+    require('./website/profiles'),
     require('./mobile/social'),
     require('./mobile/commerce'),
     require('./mobile/promotions'),

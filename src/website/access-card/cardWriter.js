@@ -3,13 +3,13 @@ const path = require('path');
 const QRCode = require('qrcode');
 const { Op } = require('sequelize');
 const sequelize = require('../../core/db/central.db');
-const config = require('../../core/config/config');
 const logger = require('../../core/logger');
 const { UPLOADS_DIR } = require('../../core/config/paths');
-const { BusinessCard, BusinessLocation, BusinessHour, BusinessGalleryMedia } = require('../../models');
+const { BusinessCard, BusinessLocation, BusinessHour, BusinessGalleryMedia, ProfilePage } = require('../../models');
 const { readCard } = require('./cardFields');
 const { planMedia } = require('./cardMedia');
 const { checkOwnerEdit, checkNewCard } = require('./entitlements');
+const { publicLink, qrUrl, slugOf } = require('./cardLinks');
 
 // Writing a card: one path for every way a card is created or edited (the website's guest and signed-in forms,
 // the admin panel), so the same fields and checks apply everywhere (docs/access.md section 1).
@@ -19,12 +19,9 @@ const { checkOwnerEdit, checkNewCard } = require('./entitlements');
 const MEDIA_LIMITS = { photos: 4, videos: 1 };
 const limitsOf = (rights) => (rights ? { photos: rights.photos, videos: rights.videos } : MEDIA_LIMITS);
 
-const publicLink = (slug) => `${config.WEBSITE_URL}/access/${slug}`;
-const qrUrl = (slug) => `${config.API_BASE_URL}/images/qr/${slug}.png`;
-const slugOf = (link) => String(link || '').split('/access/')[1] || null;
 
 // A free public link: the card's name in lowercase letters and digits, numbered when taken. Links of deleted
-// cards stay taken, so a printed QR code never leads to someone else's card.
+// cards stay taken, so a printed QR code never leads to someone else's card; so does another account's profile page.
 const freeSlug = async (card, transaction) => {
     const base = (card.name || card.business_name || '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'business';
     for (let n = 0; ; n++) {
@@ -33,6 +30,10 @@ const freeSlug = async (card, transaction) => {
             where: { slug, id: { [Op.ne]: card.id } },
             attributes: ['id'],
             paranoid: false,
+            transaction,
+        }) || await ProfilePage.findOne({
+            where: { slug, user_id: { [Op.ne]: card.user_id || 0 } },
+            attributes: ['user_id'],
             transaction,
         });
         if (!taken) return slug;

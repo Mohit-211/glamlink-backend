@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Professional and brand pages** (section 8.6): every account with a live Access card has a public page; admins list every page and how it stands, unlist, feature (with an order), give a page its own slug and fields, make a brand page for a brand with no login (it shows without a card) and email it a "Set your password" link | **New screens:** pages (list, edit, feature), "New brand page" with "Send claim email" |
 | Oct 23 | **Directory applications** (section 8.5): the website's directory form now stores applications for review instead of making cards. New: `GET /directory/applications`, `GET /directory/applications/:id`, `PUT /directory/applications/:id/status` (approved, rejected or pending, with a note), `POST /directory/applications/delete`; support@glamlink.net is emailed for each | **New screen:** directory applications (list by status, view, approve or reject, delete) |
 | Oct 23 | **Newsletter subscribers and feature requests** (section 8.4): the website's newsletter forms and "Apply for Feature" now store what they send. New: `GET /newsletter/list`, `GET /newsletter/export` (CSV), `POST /newsletter/delete`; `GET /feature-request/list`, `POST /feature-request/delete`. A new feature request also emails support@glamlink.net | **New screens:** newsletter subscribers (list, search, export, delete) and feature requests (list, search, delete) |
 | Oct 23 | **Products for the home page** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `is_featured` (`"true"`/`"false"`), `featured_order` (a whole number) and `description` (the product page's longer text). `GET /discover/:type/findById/:id` (education, event, shop) answers 404 `NOT_FOUND` for a missing id (it answered 200 `"No Record Found"`) and serves drafts only with the admin token, which the panel sends | **New:** "Featured on the home page", its order and a description on the product form. **Must:** read a 404 from `findById` as "not found" |
@@ -283,6 +284,18 @@ The shop page follows the order set with `POST /discover/shop/sort-order` (then 
 | POST | `/directory/applications/delete` | `{ ids: [...] }` | `{ deleted }`; the photos are deleted too |
 
 Approving records the decision; listing approved applicants on /directory comes with the directory search.
+
+### 8.6 Professional and brand pages (done Oct 23)
+
+| Method | Path | Body or query | Answers |
+| --- | --- | --- | --- |
+| GET | `/profiles/admin/list` | `search`, `type` (`brand`, `individual`), `featured`, `page`, `limit` (50) | `{ count, rows }` by name: the public row plus `featured_order`, `is_listed`, `created_by_admin`, `has_live_card`, `visible`, `claimed` (the account has a password) |
+| GET | `/profiles/admin/:userId` | | `{ user_id, slug, page, visible, hidden_because, public }`: what is set on the page, whether it shows (`hidden_because`: `no_live_card`, `unlisted`) and the page as the public sees it |
+| PUT | `/profiles/admin/:userId` | `slug` (3 to 60 letters, digits and dashes; free), `is_listed`, `is_featured`, `featured_order`, `tagline`, `about`, `website`, `social` (`[{ title, url }]`), `image`, `cover_image` (links from `POST /journal/upload`, or `""`) | The same view |
+| POST | `/profiles/admin/brands` | `name`, `email` (required), and any field above | 201, the view. The brand's account has no password; its page shows without a card. 409 `ACCOUNT_EXISTS` (`details.user_id`) when the email has an account: edit that account's page |
+| POST | `/profiles/admin/:userId/invite` | | Emails a "Set your password" link (7 days) so the brand can sign in. 409 `ALREADY_CLAIMED` when the account has a password |
+
+Refusals: 400 `INVALID_PAGE` with `details.field`.
 
 ## Appendix: every admin endpoint
 

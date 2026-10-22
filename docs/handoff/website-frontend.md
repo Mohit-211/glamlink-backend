@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Professional and brand pages** (section 10.6): `GET /profiles` (type, featured, search, paging), `GET /profiles/:slug` (the page with its card's details, links and topics; products and articles come next), and the owner's `GET`/`PUT /my/profile` | **Can:** build Find a Brand, the Inside the Industry row (`?type=brand&featured=true`), the profile pages, and page editing in the dashboard |
 | Oct 23 | A card is found by its handle (`getBusinessCard/:slug`), whatever host its stored link names, so existing cards open on test.glamlink.net while the API's `WEBSITE_URL` points there; a card made there gets a test.glamlink.net link (the test data is thrown away at the switch) | Nothing |
 | Oct 23 | **Directory applications** (section 10.5): the directory form stays (Mohit) and gets its own `POST /directory/applications`, which keeps the form's fields as sent (long bios, walk-ins, service-area and virtual locations) for admins to review, instead of the card endpoint that refused every submission | **Must:** post `/directory-form-apply` to `POST /directory/applications`, with the photos as `profile_image` and `images`; send `place_id` from `?claim=` when there is one |
 | Oct 23 | **Newsletter and feature requests** (section 10.4): `POST /newsletter/subscribe` (`email`, `first_name`, `last_name`, `source`) and `POST /feature-request` (`name`, `specialty`, `email`, `phone`, `city`, `interest`) store what the forms send; refusals are 400 `INVALID_INPUT` with `details.field`. The guest application now keeps `businessName` and `instagram`, which the API dropped (it read `business_name` and `instagram_handle`; both spellings work) | **Should:** wire the newsletter popup (`source: "popup"`), the footer (`"footer"`), the podcast's Notify me (`"podcast"`) and Apply for Feature to these, and show success only on a 2xx |
@@ -651,3 +652,40 @@ to review.
 Answers 201 `{ id, status: "pending" }`, "Thank you! Your application is in for review."; support@glamlink.net is
 emailed. Refusals: 400 `INVALID_INPUT` with `details.field`; 20 submissions an hour per address across the public
 forms. How approved applications show on /directory comes with the directory search.
+
+### 10.6 Professional and brand pages (Oct 23; products and articles on them come next)
+
+Mohit (Oct 23): every professional or brand with a live Access card has a page, shown while the card is live; admins
+can unlist any page and make one for a brand with no login yet (it shows without a card). A brand is a professional
+who shows their business name. There is no "industry" yet.
+
+**`GET /profiles`** (no sign-in): one page of pages, by name. `type` (`brand` or `individual`), `featured=true` (the
+home rows, in the admins' order), `search` (name, tagline, specialties, city, state), `page`, `limit` (12, at most 50).
+Each row: `{ id, slug, type, name, image, tagline, city, state, specialty, is_featured }`: `name` is a brand's
+business name or an individual's name, `image` the page's image (else the card's photo), `tagline` the page's (else
+the card's title), `city` and `state` the card's main location.
+
+**`GET /profiles/:slug`**: the page, found by its own slug or its card's handle (link with the `slug` it answers):
+
+```json
+{ "id": 812, "slug": "revance", "type": "brand", "name": "Revance", "image": "…", "cover_image": "…",
+  "tagline": "…", "about": "<p>…</p>", "website": "https://…", "social": [{ "title": "Instagram", "url": "https://…" }],
+  "location": { "city": "…", "state": "…" }, "specialties": ["…"], "email": "…", "phone": null, "booking_link": "…",
+  "is_featured": false, "city": "…", "state": "…", "specialty": "…",
+  "access_card": { "slug": "revance", "url": "https://glamlink.net/access/revance" },
+  "topics": [{ "id": 3, "name": "Skin", "slug": "skin" }],
+  "products": { "count": 0, "rows": [] }, "journal": { "count": 0, "rows": [] },
+  "magazine": { "count": 0, "rows": [] }, "videos": { "count": 0, "rows": [] } }
+```
+
+`about` is rich text cleaned like the card bio; `email` and `phone` are the card's, as the card shows them (`phone`
+null when hidden; both null without a card); `access_card` is null without a live card. A hidden or unknown page
+answers 404 `NOT_FOUND`. `products` and `journal` fill in with the next two items; `magazine` and `videos` in Phase 3.
+
+**The owner's page:** `GET /my/profile` and `PUT /my/profile` (a signed-in professional or brand, Free too) answer
+`{ user_id, slug, page, visible, hidden_because, public }`: `page` is what is set on the page (null fields fall back to
+the card), `public` the page as everyone sees it, `hidden_because` `"no_live_card"` or `"unlisted"` when it is hidden.
+`PUT` (JSON or a form) takes `tagline` (150 characters), `about` (rich text, 2,000 characters of text), `website`,
+`social` (a JSON list of `{ title, url }`, up to 10; empty: the card's links), and the images as files:
+`profile_image` (the image: a logo or photo) and `images` (one: the cover), or `image` / `cover_image` `""` to remove
+one. Refusals: 400 `INVALID_PAGE` with `details.field`.
