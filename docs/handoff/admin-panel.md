@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Journal hero and categories** (section 8.1): articles take `is_featured` on create and edit (`"true"`/`"false"`), the Journal hero's article; on the live copy the newest Cover Feature article starts as featured. Categories take `sort_order` (a whole number; the Journal sidebar's order) on create and edit, and `description` on create too; titles are trimmed on save and the slug is made from the title for URLs (`What's New` is `whats-new`). `GET /journalCategory` adds `article_count` (published articles) and lists by `sort_order`, then title. `findJournalById` serves drafts to admins only (the panel sends its token) | **New:** a "Featured (Journal hero)" switch on the article form; a sort order on the category form |
 | Oct 16 | A professional account made without a profession has none (`profession: null`); it used to get "Esthetician". The one app review that said "Counsellor" is removed, and Kate Sibley's second card (21, pending) is deleted (kept in the database, like an owner's delete) | **Can:** show an empty profession as blank |
 | Oct 16 | **Template names gone from the data:** the admin permissions of the professionals section are now `professional`, `create-professional`, `view-professional`, `update-professional`, `delete-professional` ("Professional", was "Esthetician"); GlamCoin rules 11 and 12 are titled "Follow a Professional/User" and "Unfollow a Professional/User" (rules are still found by `action`) | **Must:** if the panel matches a permission slug, use the new ones (it does not today). Also the checklist's item on template words |
 | Oct 16 | **Admin sign-in** (the panel's security questions, answered in that doc): a failed login is 401 `INVALID_CREDENTIALS` "Invalid email or password." for an unknown email, a wrong password and a deactivated admin alike (it was 400 "User not found." or another message). Tokens last 12 hours (`ADMIN_TOKEN_HOURS`; it was 5 days). New `POST /admin/auth/logout` ends every session of that admin; changing or resetting the password does too (the next call answers 401 `ADMIN_SESSION_EXPIRED`). `POST /admin/auth/otp` answers the same for any email. The app's admin screens (`/admin/posts`, `/admin/reels`, `/admin/services`, `/admin/home/appointments/all`, `/admin/user/promoted`, `/admin/service-list`, `/category` writes) now use the same check as every admin route: Bearer accepted, a deactivated admin refused, 401 with a code instead of 400 or 500 (`jwt expired`) | **Must:** show the login error; call logout on sign-out; after a password change, show sign-in |
@@ -212,6 +213,19 @@ with `details.field`, 404, 409 `DISCOUNT_OVERLAPS`.
 
 Shippo's webhook then updates `tracking_status` (PRE_TRANSIT, TRANSIT, DELIVERED, RETURNED, FAILURE) and moves
 the order to `shipped` and `delivered` (never backwards).
+
+## 8. The website's requests (Phase 6)
+
+What the backend added for the website's new pages that admins set. Each part is logged in the changelog when it
+lands.
+
+### 8.1 Journal hero and categories (done Oct 23)
+
+| Where | Field | What it does |
+| --- | --- | --- |
+| `POST /journal`, `PUT /journal/:id` | `is_featured` (`"true"` / `"false"`) | The Journal hero shows the newest featured article |
+| `POST /journalCategory`, `PUT /journalCategory/:id` | `sort_order` (whole number, default 0), `description` | The order of the Journal page's category list (lowest first, then by title) |
+| `GET /journalCategory` | `article_count`, `sort_order` in each row | Published articles in the category |
 
 ## Appendix: every admin endpoint
 

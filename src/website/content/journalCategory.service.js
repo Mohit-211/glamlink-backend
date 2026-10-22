@@ -3,9 +3,19 @@ const { JournalCategory, Journal } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
 
+// The sidebar's order: a whole number (0 when not given).
+const sortOrder = (value) => {
+	const n = Number(value);
+	if (!Number.isInteger(n)) throw new ApiError(httpStatus.BAD_REQUEST, "sort_order must be a whole number");
+	return n;
+};
+const given = (value) => value !== undefined && value !== null && value !== "";
+
 const createCategory = async (reqBody) => {
 	const categoryObj = {
 		title: reqBody.title,
+		...(given(reqBody.description) && { description: reqBody.description }),
+		...(given(reqBody.sort_order) && { sort_order: sortOrder(reqBody.sort_order) }),
 		created_at: new Date(),
 	};
 
@@ -19,10 +29,12 @@ const createCategory = async (reqBody) => {
 	return categoryDoc;
 };
 
+// Every category in the sidebar's order, each with `article_count`: its published articles, so the website can
+// hide empty ones.
 const getAllCategories = async () => {
 	const categoryDoc = await JournalCategory.findAndCountAll({
 		where: { is_active: true },
-          order: [["title", "ASC"]], 
+		order: [["sort_order", "ASC"], ["title", "ASC"]],
 	});
 
 	if (!categoryDoc) {
@@ -31,6 +43,10 @@ const getAllCategories = async () => {
 			"Failed to get all Category",
 		);
 	}
+
+	const counts = await Journal.count({ where: { is_active: true, status: "published" }, group: ["category_id"] });
+	const byCategory = new Map(counts.map(({ category_id, count }) => [Number(category_id), Number(count)]));
+	for (const category of categoryDoc.rows) category.dataValues.article_count = byCategory.get(Number(category.id)) ?? 0;
 
 	return categoryDoc;
 };
@@ -61,6 +77,9 @@ const updateCategory = async (reqBody, id) => {
 		reqBody.description !== ""
 	) {
 		categoryDoc["description"] = reqBody.description;
+	}
+	if (given(reqBody.sort_order)) {
+		categoryDoc["sort_order"] = sortOrder(reqBody.sort_order);
 	}
 
 	await categoryDoc.save();

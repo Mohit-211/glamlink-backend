@@ -56,6 +56,12 @@ Journal.init(
       type: DataTypes.ENUM("draft", "published"),
       defaultValue: "published",
     },
+    // The Journal hero's article (GET /journal?featured=true&limit=1), set in admin.
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,

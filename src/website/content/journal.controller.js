@@ -21,13 +21,19 @@ const getJournalsByCategory = catchAsync(async (req, res) => {
   return responseWrapper(res, categorys, "");
 });
 
+// With any list parameter, one page of article cards (journal.service.js listJournals); without, every published
+// article in full, as before.
+const LIST_PARAMETERS = ["page", "limit", "category", "search", "exclude", "featured"];
+
 const getAllJournals = catchAsync(async (req, res) => {
-  const categorys = await journalService.getAllJournals();
-  return responseWrapper(res, categorys, "");
+  const paged = LIST_PARAMETERS.some((key) => req.query[key] !== undefined);
+  const journals = paged ? await journalService.listJournals(req.query) : await journalService.getAllJournals();
+  return responseWrapper(res, journals, "");
 });
 
 const findJournalById = catchAsync(async (req, res) => {
-  const categoryDoc = await journalService.findJournalById(req.params.id);
+  const withDrafts = Boolean(await identifyAdmin(req));
+  const categoryDoc = await journalService.findJournalById(req.params.id, { withDrafts });
   return responseWrapper(res, categoryDoc, "");
 });
 

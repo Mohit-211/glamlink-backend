@@ -1,5 +1,7 @@
 const httpStatus = require("../../core/http/status");
-const { Op } = require("sequelize");
+const { Op, literal } = require("sequelize");
+const { paging, idList } = require("../../core/http/paging");
+const { containing } = require("../../core/utils/like");
 const {
   Journal,
   Author,
@@ -25,6 +27,9 @@ const {
 } = require("../../models");
 const ApiError = require("../../core/http/ApiError");
 
+// Form fields arrive as strings: "true" and "1" are yes.
+const isYes = (value) => value === true || value === 1 || value === "true" || value === "1";
+
 const createJournal = async (reqBody, files) => {
   const isPublished = reqBody.status === "published";
 
@@ -34,6 +39,7 @@ const createJournal = async (reqBody, files) => {
     category_id: reqBody.category_id || null,
     short_description: reqBody.short_description,
     status: isPublished ? "published" : "draft",
+    is_featured: isYes(reqBody.is_featured),
     publish_date: reqBody.publish_date || null,
     content: reqBody.content,
 
@@ -213,8 +219,11 @@ const getJournalsByCategory = async (category_id) => {
   const journalDoc = await Journal.findAndCountAll({
     where: {
       is_active: true,
+      status: "published",
       category_id: category_id,
     },
+    // Count articles, not the rows their downloads and products multiply them into.
+    distinct: true,
     include: [
       {
         model: Author,
@@ -270,12 +279,71 @@ const getJournalsByCategory = async (category_id) => {
   return journalDoc;
 };
 
+// What a list shows of an article: the Journal grid and hero, the home page's latest articles, related articles,
+// the sitemap. No body, products or downloads.
+const CARD_ATTRIBUTES = ["id", "slug", "title", "short_description", "cover_image", "publish_date", "is_featured", "created_at", "updated_at"];
+
+// Newest first: by publish date, or by the date it was written when it has none.
+const NEWEST_FIRST = [[literal("COALESCE(`Journal`.`publish_date`, `Journal`.`created_at`)"), "DESC"], ["id", "DESC"]];
+
+// A category by its slug (pro-spotlight) or its id.
+const findCategory = (value) =>
+  JournalCategory.findOne({
+    where: /^\d+$/.test(String(value)) ? { id: value, is_active: true } : { slug: String(value).trim(), is_active: true },
+    attributes: ["id"],
+  });
+
+// GET /journal with list parameters: one page of published articles as cards, newest first.
+//   category  a category slug (or id); search  title, short description, category and author name;
+//   exclude  ids to leave out ("12,15"); featured=true  only featured articles; page, limit (12, at most 50).
+const listJournals = async (query = {}) => {
+  const { limit, offset } = paging(query);
+  const where = { is_active: true, status: "published" };
+
+  if (isYes(query.featured)) where.is_featured = true;
+
+  const exclude = idList(query.exclude);
+  if (exclude.length) where.id = { [Op.notIn]: exclude };
+
+  if (query.category) {
+    const category = await findCategory(query.category);
+    if (!category) return { count: 0, rows: [] };
+    where.category_id = category.id;
+  }
+
+  const search = String(query.search ?? "").trim();
+  if (search) {
+    const term = containing(search);
+    where[Op.or] = [
+      { title: { [Op.like]: term } },
+      { short_description: { [Op.like]: term } },
+      { "$journal_category.title$": { [Op.like]: term } },
+      { "$journal_author.name$": { [Op.like]: term } },
+    ];
+  }
+
+  return Journal.findAndCountAll({
+    attributes: CARD_ATTRIBUTES,
+    where,
+    include: [
+      { model: Author, as: "journal_author", attributes: ["id", "name", "profile_image"] },
+      { model: JournalCategory, as: "journal_category", attributes: ["id", "title", "slug"] },
+    ],
+    order: NEWEST_FIRST,
+    limit,
+    offset,
+    distinct: true,
+  });
+};
+
 const getAllJournals = async () => {
   const journalDoc = await Journal.findAndCountAll({
     where: {
       is_active: true,
       status: "published",
     },
+    // Count articles, not the rows their downloads and products multiply them into.
+    distinct: true,
     include: [
       {
         model: Author,
@@ -331,11 +399,13 @@ const getAllJournals = async () => {
   return journalDoc;
 };
 
-const findJournalById = async (id) => {
+// Drafts only for admins (the admin panel edits them); anyone else gets published articles.
+const findJournalById = async (id, { withDrafts = false } = {}) => {
   const journalDoc = await Journal.findOne({
     where: {
       id,
       is_active: true,
+      ...(!withDrafts && { status: "published" }),
     },
     include: [
       {
@@ -445,6 +515,10 @@ const updateJournal = async (reqBody, id, files) => {
 
   if (reqBody.status) {
     journalDoc.status = reqBody.status;
+  }
+
+  if (reqBody.is_featured !== undefined) {
+    journalDoc.is_featured = isYes(reqBody.is_featured);
   }
 
   if (reqBody.seo_title !== undefined) {
@@ -1924,6 +1998,7 @@ module.exports = {
   createJournal,
   getJournalsByCategory,
   getAllJournals,
+  listJournals,
   findJournalById,
   updateJournal,
   deleteJournal,

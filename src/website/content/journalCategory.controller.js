@@ -6,7 +6,7 @@ const responseWrapper = require('../../core/http/responseWrapper');
 
 
 const createCategory = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['title']);
+    const body = pick(req.body, ['title', 'description', 'sort_order']);
     const categoryDoc = await journalCategoryService.createCategory(body);
     return responseWrapper(res, categoryDoc, 'New category Created Successfully', httpStatus.CREATED);
 });
@@ -18,7 +18,7 @@ const getAllCategories = catchAsync(async (req, res) => {
 });
 
 const updateCategory = catchAsync(async (req, res) => {
-    const body = pick(req.body, ['title', 'description']);
+    const body = pick(req.body, ['title', 'description', 'sort_order']);
     const categoryDoc = await journalCategoryService.updateCategory(body, req.params.id);
     return responseWrapper(res, categoryDoc, 'Category Update Successfully');
 });

@@ -1,6 +1,6 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('../../../core/db/central.db');
-const slugify = require('slugify');
+const { toSlug } = require('../slugs');
 
 class JournalCategory extends Model { };
 JournalCategory.init(
@@ -21,6 +21,12 @@ JournalCategory.init(
         description: {
             type: DataTypes.TEXT,
             allowNull: true,
+        },
+        // The order of the Journal page's category list.
+        sort_order: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
         },
         is_active: {
             type: DataTypes.BOOLEAN,
@@ -52,17 +58,19 @@ JournalCategory.init(
     }
 );
 
-JournalCategory.beforeValidate((journalCategory) => {
+// The title without stray spaces, and the slug the website filters by made from it.
+const tidy = (journalCategory) => {
     if (journalCategory.title) {
-        journalCategory.slug = slugify(journalCategory.title, { lower: true });
+        journalCategory.title = journalCategory.title.trim();
+        journalCategory.slug = toSlug(journalCategory.title);
     }
-});
+};
+
+JournalCategory.beforeValidate(tidy);
 
 JournalCategory.beforeUpdate((journalCategory) => {
     journalCategory.updated_at = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-    if (journalCategory.title) {
-        journalCategory.slug = slugify(journalCategory.title, { lower: true });
-    }
+    tidy(journalCategory);
 });
 
 JournalCategory.beforeDestroy((journalCategory) => {

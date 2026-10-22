@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **The journal list pages on the server** (section 10.1): `GET /journal` with `page`, `limit`, `category` (a slug), `search`, `exclude` or `featured=true` answers one page of light article cards, newest first, with the true `count`; without them it answers as before (its `count` now counts articles). Articles have `is_featured`, set in admin. `GET /journalCategory` adds `article_count` and `sort_order`; titles are trimmed and slugs made for URLs (`whats-new`). Drafts are no longer served by `findJournalById` or `journal/:category_id` (except to admins) | **Should:** move the Journal page, its hero, related articles and the home row to these calls (one request each instead of four full lists); use `journal_category.slug` in category URLs; hide categories whose `article_count` is 0 |
 | Oct 23 | The server steps for testing on test.glamlink.net are written (the backend's `docs/deploy.md`, section 7, "The website on test.glamlink.net"): the origin in `ACCESSDOMAINS`, `WEBSITE_URL` on the test site, Stripe and Shippo test keys, visitors' addresses from Cloudflare, and `www` redirected to `glamlink.net`. Responses no longer carry `X-Powered-By` | **Once Mohit has applied them:** test sign-up (the email link opens on test.glamlink.net), a payment and a keychain address there |
 | Oct 23 | `GET /user/profile/:userId` answers guests and other accounts with the public profile only: name, about, profession, ratings and counts, photo, albums, reels, posts, services, and reviews with each reviewer's name and photo. The email, phone, address, coordinates, Stripe, push and socket ids, referral code and settings (of the account and of its reviewers) go only to the owner and to admins. It no longer looks up the address with Google unless `latitude` and `longitude` are sent | Nothing: the website does not call it |
 | Oct 16 | A professional account made without a `profession` has none (`null`); it used to get "Esthetician". The website does not read it today | Nothing |
@@ -510,3 +511,52 @@ Refused edits answer 403 `UPGRADE_REQUIRED` with `details.feature`. Sending the 
 unchanged (as the edit page does) is fine; only real changes count. A draft, a card waiting for review and a
 rejected card can always be edited, and an admin can change anything. A public card shows its offer only while
 its owner is Pro (the offer is kept, and shows again if they subscribe again).
+
+## 10. The website's requests (Phase 6)
+
+The backend's answers to "Glamlink Backend Requests — Home Page and Pending Work" (Oct 22), with the final shapes.
+Each part is logged in the changelog when it lands. Every new list answers `{ count, rows }` (`count`: all matching
+rows) for `page` (from 1) and `limit` (default 12, at most 50). Without any list parameter, the existing calls
+answer exactly as before.
+
+### 10.1 Journal (done Oct 23)
+
+`GET /journal` with any of these parameters answers one page of article cards, newest first (by `publish_date`, or
+`created_at` when an article has none). Only published articles.
+
+| Parameter | Meaning |
+| --- | --- |
+| `page`, `limit` | The page (from 1) and its size (default 12, at most 50) |
+| `category` | A category's `slug` (`pro-spotlight`) or id. An unknown one answers no rows |
+| `search` | Matches the title, short description, category title and author name (any case; `%` and `_` are plain characters) |
+| `exclude` | Ids to leave out: `12` or `12,15` |
+| `featured` | `true`: only featured articles (set in admin) |
+
+```json
+{ "success": true, "status": 200, "message": "", "data": { "count": 66, "rows": [
+  { "id": 94, "slug": "the-new-cover-story", "title": "…", "short_description": "…",
+    "cover_image": "https://api.glamlink.net/images/…", "publish_date": "2026-10-05T00:00:00.000Z",
+    "is_featured": true, "created_at": "…", "updated_at": "…",
+    "journal_category": { "id": 4, "title": "Cover Feature", "slug": "cover-feature" },
+    "journal_author": { "id": 1, "name": "…", "profile_image": "…" } } ] } }
+```
+
+No `content`, `shops` or `downloads`: the article page still reads them from `GET /journal/findJournalById/:id`.
+Dates are ISO strings.
+
+| For | Call |
+| --- | --- |
+| The Journal page (6 a page) | `GET /journal?page=1&limit=6&category=<slug>&search=<text>&exclude=<the hero's id>` |
+| The Journal hero | `GET /journal?featured=true&limit=1` (the newest featured article; on the live copy, the newest Cover Feature article starts as featured) |
+| Latest from Glamlink (home) | `GET /journal?limit=3` |
+| Related articles | `GET /journal?category=<slug>&limit=3&exclude=<this article's id>` |
+| The sitemap | `GET /journal?limit=50&page=<n>` until a page comes back short (a lighter feed comes with the "Later" items) |
+
+**Categories** (`GET /journalCategory`): each row adds `article_count` (its published articles; hide categories with
+0) and `sort_order`; rows come in the admins' order, then by title. Titles have no trailing spaces any more, and
+`slug` is made from the title as a URL needs it (`whats-new`, `nails-makeup`: the same as the website's
+`slugify(title, { strict: true })`), so `slug` can be the `?category=` value.
+
+**Drafts:** `GET /journal/findJournalById/:id` of an unpublished article answers like a missing one (`"No Journal
+Found"`) unless an admin asks; `GET /journal/:category_id` lists published articles only. The full list's `count` now
+counts articles (it counted 79 for 66).
