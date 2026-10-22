@@ -894,6 +894,30 @@ Please review the application and proceed with the appropriate next steps.
   }
 };
 
+// "Apply for Feature" on the website, for support to follow up.
+const sendFeatureRequestEmail = async (data) => {
+  try {
+    const subject = "New Feature Request";
+
+    const text = `
+A professional asked to be featured on Glamlink.
+
+Name: ${data.name}
+Specialty: ${data.specialty}
+Interested in: ${data.interest}
+Email: ${data.email}
+Phone: ${data.phone}
+City: ${data.city}
+
+The request is in the admin panel's feature requests.
+`;
+
+    await sendEmail("support@glamlink.net", subject, text);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
+};
+
 const sendBusinessCardSubscriptionCancelledEmail = async (data) => {
   try {
     const subject = "Your Glamlink Subscription Has Been Cancelled";
@@ -1043,6 +1067,7 @@ module.exports = {
   sendSubscriptionSuccessEmails,
   sendBusinessCardApprovedEmail,
   sendGuestApplicationEmail,
+  sendFeatureRequestEmail,
   sendBusinessCardSubscriptionCancelledEmail,
   sendBusinessCardPurchaseAdminEmail,
   sendNewAccessUserEmail,

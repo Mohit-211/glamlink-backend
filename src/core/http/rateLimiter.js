@@ -30,9 +30,25 @@ const guestCardLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// The website's public forms that store what they are sent (newsletter, feature requests, directory
+// applications): 20 an hour from one address, all forms together. Production only.
+const publicFormLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  message: {
+    success: false,
+    status: 429,
+    code: 'TOO_MANY_REQUESTS',
+    message: 'Too many submissions from this address. Please try again in an hour.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const productionOnly = (limiter) => (config.env === 'production' ? limiter : (req, res, next) => next());
 
 module.exports = {
   authLimiter,
   limitGuestCards: productionOnly(guestCardLimiter),
+  limitPublicForms: productionOnly(publicFormLimiter),
 };

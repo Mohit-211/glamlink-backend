@@ -4,14 +4,10 @@ const { GuestApplication } = require("../../models");
 const { sendGuestApplicationEmail } = require("../../integrations/mailer/email.service");
 
 const createGuestApplication = async (reqBody) => {
-  const {
-    name,
-    business_name,
-    website,
-    instagram_handle,
-    email,
-    phone,
-  } = reqBody;
+  const { name, website, email, phone } = reqBody;
+  // The website's form sends businessName and instagram.
+  const business_name = reqBody.business_name ?? reqBody.businessName;
+  const instagram_handle = reqBody.instagram_handle ?? reqBody.instagram;
 
   if (!name || !email) {
     throw new ApiError(

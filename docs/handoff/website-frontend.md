@@ -51,6 +51,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Newsletter and feature requests** (section 10.4): `POST /newsletter/subscribe` (`email`, `first_name`, `last_name`, `source`) and `POST /feature-request` (`name`, `specialty`, `email`, `phone`, `city`, `interest`) store what the forms send; refusals are 400 `INVALID_INPUT` with `details.field`. The guest application now keeps `businessName` and `instagram`, which the API dropped (it read `business_name` and `instagram_handle`; both spellings work) | **Should:** wire the newsletter popup (`source: "popup"`), the footer (`"footer"`), the podcast's Notify me (`"podcast"`) and Apply for Feature to these, and show success only on a 2xx |
 | Oct 23 | **The shop pages on the server** (section 10.3): `GET /discover/shop` with `page`, `limit`, `category`, `brand`, `search` or `featured=true` answers one page of products; without them, as before. New `GET /discover/shop/filters` (categories and brands with counts). Products have `is_featured`, `featured_order` and a longer `description`. `findById` answers 404 `NOT_FOUND` for a missing, removed or unpublished product (it answered 200 "No Record Found") | **Should:** the Shop page, its filters and the home row from these; the product page from `findById` (one product instead of the whole list, twice); treat 404 as not found |
 | Oct 23 | **Home tiles and settings** (section 10.2): `GET /journal/topic?featured=true` lists the home page's topic tiles in their order (topics add `is_featured`, `featured_order`, `tile_image`); `GET /settings/home` answers the hero image, the popular searches and the "Find a Professional" image, set in admin | **Should:** build Explore Beauty + Wellness, the hero's image and chips, and the Find a Professional image from these (placeholders while an image is `null`) |
 | Oct 23 | **The journal list pages on the server** (section 10.1): `GET /journal` with `page`, `limit`, `category` (a slug), `search`, `exclude` or `featured=true` answers one page of light article cards, newest first, with the true `count`; without them it answers as before (its `count` now counts articles). Articles have `is_featured`, set in admin. `GET /journalCategory` adds `article_count` and `sort_order`; titles are trimmed and slugs made for URLs (`whats-new`). Drafts are no longer served by `findJournalById` or `journal/:category_id` (except to admins) | **Should:** move the Journal page, its hero, related articles and the home row to these calls (one request each instead of four full lists); use `journal_category.slug` in category URLs; hide categories whose `article_count` is 0 |
@@ -613,3 +614,18 @@ Each row: `id`, `title`, `short_description`, `category`, `brand` (still the tex
 | The Shop page | `GET /discover/shop?page=1&limit=12&category=<slug>&brand=<slug>&search=<text>` and the filters |
 | Shop Products (home) | `GET /discover/shop?featured=true&limit=5` |
 | A product page | `GET /discover/shop/findById/<id>` instead of the whole list |
+
+### 10.4 Newsletter and feature requests (done Oct 23)
+
+**`POST /newsletter/subscribe`** (no sign-in): `{ email, first_name?, last_name?, source? }` answers 200
+`{ subscribed: true }`, "Thanks for subscribing.", whether or not the email was already on the list (the form never
+tells). `source` is the form it came from, in lower-case letters, digits and dashes: `popup`, `footer`, `podcast` (the
+podcast's "Notify me"), or a new one. Signing up again keeps the first source and fills in a name the first sign-up
+lacked. Mailchimp is not involved yet.
+
+**`POST /feature-request`** (no sign-in, "Apply for Feature"): `{ name, specialty, email, phone, city, interest }`, all
+required as on the form (each at most 100 characters; a phone has at least 7 digits). Answers 201 `{ id }`, "Thank
+you! We received your request."; support@glamlink.net is emailed.
+
+Both refuse with 400 `INVALID_INPUT` and `details.field` naming the field. One address may send 20 submissions an hour
+across these forms, then 429 `TOO_MANY_REQUESTS`.
