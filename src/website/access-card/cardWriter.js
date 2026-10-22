@@ -30,7 +30,7 @@ const freeSlug = async (card, transaction) => {
     for (let n = 0; ; n++) {
         const slug = n ? `${base}-${n}` : base;
         const taken = await BusinessCard.findOne({
-            where: { business_card_link: publicLink(slug), id: { [Op.ne]: card.id } },
+            where: { slug, id: { [Op.ne]: card.id } },
             attributes: ['id'],
             paranoid: false,
             transaction,

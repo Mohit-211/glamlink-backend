@@ -209,6 +209,10 @@ API running locally. The admin panel can test against the API from a laptop (its
 The website is tested on `https://test.glamlink.net` against this API before the switch. For sign-up, a payment and
 a keychain address to work end to end there:
 
+**First deploy the code from Oct 23 or later** (`git pull`, section 9). Before it, the API found a card by its whole
+link (`https://glamlink.net/access/<handle>`), so with `WEBSITE_URL` on the test site every existing card answered
+404 there, and a new card could take an existing card's handle and QR code. Now cards are found by their handle.
+
 1. `.env`: `https://test.glamlink.net` in `ACCESSDOMAINS`, `WEBSITE_URL=https://test.glamlink.net` (section 3), and the
    test keys: `STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY` `sk_test_…`/`pk_test_…`, `SHIPPO_API_KEY` `shippo_test_…`,
    the Turnstile test secret, with `npm run stripe:setup` and the test webhook (section 5). Then

@@ -136,6 +136,12 @@ BusinessCard.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // The card's public handle: the end of business_card_link (<WEBSITE_URL>/access/<slug>), kept in step with
+    // it below. Cards are found by it, whatever host their link names.
+    slug: {
+      type: DataTypes.STRING(191),
+      allowNull: true,
+    },
     business_card_link: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -218,6 +224,12 @@ BusinessCard.init(
     paranoid: true,
   },
 );
+
+BusinessCard.beforeSave((card) => {
+  if (card.changed("business_card_link")) {
+    card.slug = String(card.business_card_link || "").split("/access/")[1] || null;
+  }
+});
 
 BusinessCard.beforeUpdate(async (card) => {
   card.updated_at = new Date()

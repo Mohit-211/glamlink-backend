@@ -14,7 +14,7 @@ const {
   AccessOrder,
 } = require("../../models");
 const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity");
-const { createCard, updateCard, publicLink } = require("./cardWriter");
+const { createCard, updateCard } = require("./cardWriter");
 const { readCard } = require("./cardFields");
 const { makeRoomFor, lockPerson, assertNoAccountFor } = require("./cardOwnership");
 const { planFieldsFor } = require("./seats");
@@ -565,7 +565,7 @@ const deleteBusinessCard = async (body) => {
 const getBusinessCard = async (slug) => {
   const card = await BusinessCard.findOne({
     where: {
-      business_card_link: publicLink(slug),
+      slug: String(slug),
       is_active: true,
     },
     include: [
