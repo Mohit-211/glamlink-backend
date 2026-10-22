@@ -5,6 +5,7 @@ const { containing } = require("../../core/utils/like");
 const { isUploadedImage } = require("../../core/http/uploadedFiles");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const { indexMentions, mentionsOf, articleIdsFeaturing } = require("./mentions.service");
+const { videosOfTopic } = require("../watch");
 const {
   Journal,
   Author,
@@ -1434,6 +1435,9 @@ const getJournalTopicById = async (id, { withEmails = false } = {}) => {
       };
     });
   }
+
+  // Its videos (website/watch), in the topic's order.
+  data.videos = await videosOfTopic(topic.id);
 
   return data;
 };

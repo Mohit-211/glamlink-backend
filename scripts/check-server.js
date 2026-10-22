@@ -60,6 +60,7 @@ const settings = () => {
     need('Keychain shipping (Shippo)', ['SHIPPO_API_KEY', 'SHIPPO_WEBHOOK_TOKEN'], { required: false });
     need('Keychain ship-from address', ['SHIP_FROM_NAME', 'SHIP_FROM_STREET1', 'SHIP_FROM_CITY', 'SHIP_FROM_STATE', 'SHIP_FROM_ZIP', 'SHIP_FROM_PHONE', 'SHIP_FROM_EMAIL'], { required: false });
     need('Google (address coordinates, place details)', ['GOOGLE_API_KEY'], { required: false });
+    need('YouTube (the Watch videos)', ['YOUTUBE_API_KEY'], { required: false });
     need('Super Admin for `npm run auth`', ['SUPER_ADMIN_EMAIL', 'SUPER_ADMIN_PASSWORD'], { required: false });
 };
 

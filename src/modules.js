@@ -13,6 +13,7 @@ module.exports = [
     require('./website/inquiries'),
     require('./website/professional-form'),
     require('./website/profiles'),
+    require('./website/watch'),
     require('./mobile/social'),
     require('./mobile/commerce'),
     require('./mobile/promotions'),

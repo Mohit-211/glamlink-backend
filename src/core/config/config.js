@@ -143,6 +143,8 @@ module.exports = {
     GOOGLE_PLACE_API_URL: envVars.GOOGLE_PLACE_API_URL,
 
     GOOGLE_API_KEY: envVars.GOOGLE_API_KEY,
+    // YouTube Data API v3, for the Watch videos (website/watch): the playlists' new uploads and pasted links.
+    YOUTUBE_API_KEY: envVars.YOUTUBE_API_KEY,
     
     DELETED_EMAIL: envVars.DELETED_EMAIL,
     DELETED_NAME: envVars.DELETED_NAME,

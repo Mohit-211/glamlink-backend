@@ -5,11 +5,12 @@ const sequelize = require('../../core/db/central.db');
 const { paging } = require('../../core/http/paging');
 const { isYes } = require('../../core/utils/formValues');
 const { productsOfAccount, articlesOfAccount } = require('../content');
+const { videosOfAccount } = require('../watch');
 const { pageList, visiblePage } = require('./profileQuery');
 const { toRow, toDetail } = require('./profilePublic');
 
 // How many rows of each list a page carries; "see all" pages the rest.
-const FIRST_ROWS = { products: 4, journal: 3 };
+const FIRST_ROWS = { products: 4, journal: 3, videos: 4 };
 
 const TYPES = ['brand', 'individual'];
 
@@ -50,12 +51,13 @@ const visibleAccount = async (slug) => {
 // One page: what the page, its card and its account show, with its topics and the first rows of its content.
 const getProfile = async (slug) => {
     const row = await visibleAccount(slug);
-    const [topics, products, journal] = await Promise.all([
+    const [topics, products, journal, videos] = await Promise.all([
         topicsOf(row.id),
         productsOfAccount(row.id, { limit: FIRST_ROWS.products }),
         articlesOfAccount(row.id, { limit: FIRST_ROWS.journal }),
+        videosOfAccount(row.id, { limit: FIRST_ROWS.videos }),
     ]);
-    return toDetail(row, { topics, products, journal });
+    return toDetail(row, { topics, products, journal, videos });
 };
 
 // GET /profiles/:slug/products: the products the account put up or makes, paged.
@@ -70,4 +72,10 @@ const profileArticles = async (slug, query = {}) => {
     return articlesOfAccount(row.id, query);
 };
 
-module.exports = { listProfiles, getProfile, profileProducts, profileArticles, visibleAccount, topicsOf, notFound };
+// GET /profiles/:slug/videos: the videos the account appears in, newest first, paged.
+const profileVideos = async (slug, query = {}) => {
+    const row = await visibleAccount(slug);
+    return videosOfAccount(row.id, query);
+};
+
+module.exports = { listProfiles, getProfile, profileProducts, profileArticles, profileVideos, visibleAccount, topicsOf, notFound };

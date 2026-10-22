@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 23 | **Watch** (section 8.8): video series (name, YouTube playlist, order) and videos: the playlists import hourly once the server has `YOUTUBE_API_KEY`, or now with "Import playlists"; paste a YouTube link to add one; set each video's series, status, featuring, people and topics | **New screens:** series; videos (list, edit, people, topics, "Add from YouTube", "Import playlists") |
 | Oct 23 | **Who an article features** (section 8.7): saving an article (`POST /journal`, `PUT /journal/:id`) answers `unmatched_mentions`, the @handles that match no page or card; new `GET`/`POST /journal/:id/mentions` and `PUT`/`DELETE /journal/:id/mentions/:mentionId` to see, add and set aside the people an article features | **New:** after saving an article, show the unmatched handles (likely typos); a "Featured people" panel on the article form |
 | Oct 23 | **Product owner and brand** (section 8.3): `POST /discover/shop` and `PUT /discover/shop/:id` take `owner_id` (a professional or brand account) and `brand_id` (a brand account), or `""` to clear; the product then shows on those accounts' pages | **New:** owner and brand pickers on the product form (accounts from `GET /profiles/admin/list`) |
 | Oct 23 | **Professional and brand pages** (section 8.6): every account with a live Access card has a public page; admins list every page and how it stands, unlist, feature (with an order), give a page its own slug and fields, make a brand page for a brand with no login (it shows without a card) and email it a "Set your password" link | **New screens:** pages (list, edit, feature), "New brand page" with "Send claim email" |
@@ -316,6 +317,24 @@ Saving an article answers `unmatched_mentions`: the @handles in its text that ma
 | DELETE | `/journal/:id/mentions/:mentionId` | | The same: an added account is removed; a text mention is set aside |
 
 Refusals: 400 `INVALID_MENTION` with `details.field`; 404 `NOT_FOUND`.
+
+### 8.8 Watch: series and videos (done Oct 23)
+
+| Method | Path | Body or query | Answers |
+| --- | --- | --- | --- |
+| GET | `/video-series/admin` | | Every series, active or not |
+| POST | `/video-series/admin` | `name`, `slug`?, `playlist_id` (an id or a playlist link), `sort_order`, `is_active` | 201, the series |
+| PUT | `/video-series/admin/:id` | the same | The series |
+| GET | `/videos/admin/list` | `series` (id or slug), `status` (`draft`, `published`), `search`, `page`, `limit` (50) | `{ count, rows }`: cards with `status` and `source` (`sync` or `admin`) |
+| GET | `/videos/admin/:id` | | The video with `description`, `status`, `source`, `featured_order`, `people` (`[{ user_id, role }]`), `topic_ids` |
+| PUT | `/videos/admin/:id` | `title`, `slug`, `description`, `series_id` (`""` for none), `status`, `is_featured`, `featured_order` | The video. A video taken off the site is `status: "draft"` (an imported one would come back if deleted) |
+| PUT | `/videos/admin/:id/people` | `{ people: [{ user_id, role }] }`, role `host`, `guest` or `featured` | The video |
+| PUT | `/videos/admin/:id/topics` | `{ topic_ids: [...] }`, in order | The video |
+| POST | `/videos/admin/import` | `{ url, series_id? }`: a YouTube link | 201 `{ created: true, video }` with YouTube's title, description, thumbnail and duration; 200 `{ created: false, video }` when it is already here |
+| POST | `/videos/admin/sync` | | Imports every active series' playlist now: `{ imported, series: [{ series, imported, error? }] }` |
+
+Refusals: 400 `INVALID_VIDEO` with `details.field`; 503 `YOUTUBE_NOT_CONFIGURED` (no key on the server); 502
+`YOUTUBE_UNAVAILABLE`.
 
 ## Appendix: every admin endpoint
 

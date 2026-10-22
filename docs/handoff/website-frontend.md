@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 23 | **Watch** (section 10.9): `GET /video-series`, `GET /videos` (series, featured, search, paging), `GET /videos/:slug` (embed link, people, topics, related); profile pages and topics list their videos. The API imports each series' YouTube playlist hourly with its own key | **Should:** build Watch + Learn, the Watch page and the podcast page from these, then drop the browser's YouTube key |
 | Oct 23 | **Smaller images** (section 10.8): `/images/<file>?w=<width>` answers a WebP at most that wide (200, 400, 800, 1,200 or 1,600), for every uploaded image. `findById` of a product answers the product's public fields to anyone but an admin (as before, apart from bookkeeping columns such as `status` and `deleted_at`) | **Should:** ask for `?w=400` in grids and home tiles (a `next/image` loader in section 10.8) |
 | Oct 23 | **Mentions** (section 10.7): `findJournalById` answers `mentions` (`[{ handle, slug, name, type }]`, the people the article features who have a page); a page's `journal` lists the articles that feature it, and `GET /profiles/:slug/articles` pages them. Product and mention links carry the page's `type` | **Should:** link @handles from `mentions` (and turn off the test mode that links every handle to one card); show the articles on profile pages |
 | Oct 23 | **Products have an owner and a brand** (sections 10.3, 10.6): product answers add `owner` and `brand_profile` (`{ id, slug, name }` of their pages, null without one) and `owner_id`, `brand_id`; `brand` stays the text. `GET /discover/shop?brand=` also takes a brand page's slug, and `?owner=<slug>` filters by owner. A page lists its first 4 products; `GET /profiles/:slug/products` pages them | **Can:** link a product's brand and owner to their pages; show the products on profile pages |
@@ -689,8 +690,9 @@ the card's title), `city` and `state` the card's main location.
 null when hidden; both null without a card); `access_card` is null without a live card. A hidden or unknown page
 answers 404 `NOT_FOUND`. `products` holds the first 4 products the account put up or makes (rows as the shop lists
 them); **`GET /profiles/:slug/products`** pages them all (`page`, `limit`). `journal` holds the first 3 articles that
-feature the account (section 10.7); **`GET /profiles/:slug/articles`** pages them all. `magazine` and `videos` fill in
-with Phase 3.
+feature the account (section 10.7); **`GET /profiles/:slug/articles`** pages them all. `videos` holds the first 4
+videos the account appears in (section 10.9); **`GET /profiles/:slug/videos`** pages them. `magazine` fills in with the
+magazine issues.
 
 **The owner's page:** `GET /my/profile` and `PUT /my/profile` (a signed-in professional or brand, Free too) answer
 `{ user_id, slug, page, visible, hidden_because, public }`: `page` is what is set on the page (null fields fall back to
@@ -733,3 +735,28 @@ const apiImage = ({ src, width }: { src: string; width: number }) => `${src}?w=$
 **Public answers are built from allowed fields:** the pages (`/profiles`), the article cards, the product cards, and a
 product for anyone but an admin (`findById`: the card's fields, `description` and its topics) list the fields they
 show; a column added later stays private until it is listed.
+
+### 10.9 Watch: videos by series (done Oct 23)
+
+Videos live on the server, grouped by series: Beauty Vault Podcast, Expert Take, Treatment Spotlight, Industry Voices
+(admins can add more). Each series names its YouTube playlist, and the API imports its new uploads every hour with its
+own key; admins paste single links too, and set each video's people and topics.
+
+| Call | Answers |
+| --- | --- |
+| `GET /video-series` | The series in order: `[{ id, name, slug, sort_order, video_count }]` |
+| `GET /videos` | One page of published videos, newest first: `series` (a series' slug), `featured=true` (the featured ones, in their order), `search` (title, description), `page`, `limit` |
+| `GET /videos/:slug` | One video: the card plus `description`, `embed_url`, `watch_url`, `people` (`[{ id, slug, name, type, role }]`, role `host`, `guest` or `featured`, those with a page), `topics` (`[{ id, name, slug }]`) and `related` (4 more from its series) |
+
+A video card: `{ id, slug, title, youtube_id, thumbnail, published_at, duration_seconds, is_featured, series: { id, name, slug } }`.
+`thumbnail` is YouTube's image (`i.ytimg.com`): allow that host for `next/image`, or use `<img>`.
+
+| For | Call |
+| --- | --- |
+| Watch + Learn (home) | `GET /videos?featured=true&limit=4` (`GET /videos?limit=4` while none is featured) |
+| The Watch page | `GET /video-series`, then `GET /videos?series=<slug>` per series |
+| The podcast page | `GET /videos?series=beauty-vault-podcast` (episode pages: `GET /videos/:slug`) |
+
+Profile pages list the videos an account appears in (`videos`, and `GET /profiles/:slug/videos`), and a topic
+(`GET /journal/topic/:id`) adds its `videos`. Once the server's key is set and the first import ran, the website can
+drop `NEXT_PUBLIC_YOUTUBE_API_KEY` (the audit item "YouTube key in the browser").
