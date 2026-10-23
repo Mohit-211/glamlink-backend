@@ -1,5 +1,5 @@
 // Admins and videos: every video with its status, editing one (series, status, featuring, people, topics), pasting a
-// YouTube link, importing each series' playlist (also hourly, see index.js), and the series themselves.
+// YouTube link, importing each series' playlist (the admin panel's import button), and the series themselves.
 const { Op } = require('sequelize');
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');

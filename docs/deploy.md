@@ -94,7 +94,7 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 | `TURNSTILE_SECRET_KEY` | Cloudflare's always-pass test secret `1x0000000000000000000000000000000AA` | Live: the real secret. Production refuses sign-ups without it. The website needs the matching site key (test: `1x00000000000000000000AA`) |
 | `SMTP_*`, `EMAIL_FROM` | Copy from the old `.env` | Used only when `MAIL_TRANSPORT=smtp` |
 | `GOOGLE_API_KEY` | The rotated server key | Restricted to Geocoding, Places, Places API (New), Routes and the server's IP. The directory uses Places API (New) (enable it in Google Cloud for this key) and Geocoding |
-| `YOUTUBE_API_KEY` | A key with YouTube Data API v3 | Restricted to that API and the server's IP. Imports each video series' playlist hourly (with `JOBS_ENABLED`) and the links admins paste; the website then drops its own key |
+| `YOUTUBE_API_KEY` | A key with YouTube Data API v3 | Restricted to that API and the server's IP. Imports each video series' playlist when an admin presses the import button, and the links admins paste; the website then drops its own key |
 | `FIREBASE_*` | Leave empty | Push notifications off. Live: from the service account file |
 | `OPENAI_API_KEY`, `FACEPP_*`, `NUMERAL_*` | Copy from the old `.env` | App features only |
 

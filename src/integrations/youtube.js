@@ -37,17 +37,22 @@ const videoIdFrom = (value) => {
 };
 
 const youtube = {
-    // The ids of a playlist's videos, newest first as YouTube lists them (paged 50 at a time).
+    // The ids of a playlist's videos, newest first as YouTube lists them (paged 50 at a time). YouTube can end a
+    // playlist with an empty page whose next token is its own (the Beauty Vault playlist does), so reading stops at an
+    // empty page or a token already asked for, not only when YouTube stops sending one.
     playlistVideoIds: async (playlistId) => {
         const ids = [];
+        const asked = new Set();
         let pageToken;
         do {
+            asked.add(pageToken);
             const { data } = await httpClient.get(`${API}/playlistItems`, {
                 params: { part: 'contentDetails', maxResults: 50, playlistId, pageToken, key: config.YOUTUBE_API_KEY },
                 timeout: 15000,
             });
-            ids.push(...(data.items || []).map((item) => item.contentDetails?.videoId).filter(Boolean));
-            pageToken = data.nextPageToken;
+            const items = data.items || [];
+            ids.push(...items.map((item) => item.contentDetails?.videoId).filter(Boolean));
+            pageToken = items.length && !asked.has(data.nextPageToken) ? data.nextPageToken : undefined;
         } while (pageToken);
         return ids;
     },

@@ -46,6 +46,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Oct 24 | **YouTube import on request** (section 8.8): the playlists no longer import hourly; `POST /videos/admin/sync` is the only way new episodes come in. A playlist whose last page is empty and points at itself (the Beauty Vault's) is read once, no longer endlessly | **Must:** an import button (done on the Podcast Schedules screen) |
 | Oct 23 | **Page analytics** (section 8.13): the website counts views of professional and brand pages and clicks on their links; `GET /profiles/admin/:userId/analytics` gives any page's numbers | **Can:** a numbers tab on the page screen |
 | Oct 23 | **Slugs** (section 8.12): every article and product has its own slug, made from the title unless an admin gives one; a taken one is refused; an empty one no longer clears it | **Can:** show and edit the slug on the article and product forms |
 | Oct 23 | **Listings become accounts** (section 8.5): approving a directory application makes (or finds) the person's account, links it and emails them how to sign in; they then edit their listing and their products themselves (shown at once). Admins also edit any listing (`PUT /directory/applications/:id`) and add one for someone (`POST /directory/applications/admin`). Products the owners add carry their `owner_id`; admins keep full edit, unpublish and delete | **New:** "Approve as brand", edit and add on the applications screen |

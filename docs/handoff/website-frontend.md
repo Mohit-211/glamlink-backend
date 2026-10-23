@@ -50,6 +50,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Oct 24 | **YouTube import on request** (section 10.9): new episodes come in when an admin presses the import button, not hourly | Nothing to change: the import tells the website through the cache-refresh hook |
 | Oct 23 | **Cache-refresh hook** (section 10.18): after each change made through the API, the website is told which data changed: `POST` to its route, `{ tags }`, with a shared secret | **New:** the receiving route; tag cached fetches with the data they show; send us the route's address and the secret |
 | Oct 23 | **Page analytics** (section 10.17): `POST /profiles/:slug/events` counts page views and clicks (website, Access card, products, booking, social, email, phone); `GET /my/profile/analytics` gives the owner the numbers in the card analytics' shape | **Should:** report views and clicks on the page as on the card; a numbers screen in the dashboard |
 | Oct 23 | **Sitemap feed** (section 10.16): `GET /sitemap`, every public page's id, slug and date of last change by kind (articles, topics, profiles, products, videos, issues) | **Should:** build sitemap.xml from it instead of downloading full lists |
@@ -748,8 +749,9 @@ show; a column added later stays private until it is listed.
 ### 10.9 Watch: videos by series (done Oct 23)
 
 Videos live on the server, grouped by series: Beauty Vault Podcast, Expert Take, Treatment Spotlight, Industry Voices
-(admins can add more). Each series names its YouTube playlist, and the API imports its new uploads every hour with its
-own key; admins paste single links too, and set each video's people and topics.
+(admins can add more). Each series names its YouTube playlist, and the API imports its new uploads with its own key
+when an admin presses the admin panel's import button; admins paste single links too, and set each video's people and
+topics.
 
 | Call | Answers |
 | --- | --- |
@@ -986,7 +988,7 @@ keep an expiry on cached pages too (an hour, say).
 | `profiles` | Professional and brand pages: the page, its card, its directory listing |
 | `cards` | Access cards (a paid card going live too) |
 | `directory` | Directory listings |
-| `videos` | Videos and series (the hourly YouTube import too) |
+| `videos` | Videos and series (an admin's YouTube import too) |
 | `magazine` | Issues and who appears in them |
 | `ads` | Ads |
 | `home` | The home page's settings |

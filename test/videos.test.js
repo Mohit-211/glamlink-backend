@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { startApp } = require('./helpers');
 const config = require('../src/core/config/config');
+const httpClient = require('../src/core/http/httpClient');
 const { youtube, videoIdFrom, seconds } = require('../src/integrations/youtube');
 
 let app, q, insert, auth, topicId;
@@ -86,6 +87,28 @@ describe('importing', () => {
         assert.deepEqual(first.body.data.series.find((s) => s.series === 'beauty-vault-podcast'), { series: 'beauty-vault-podcast', imported: 2 });
         assert.match(first.body.data.series.find((s) => s.series === 'expert-take').error, /not found/);
         assert.equal((await admin('POST', '/videos/admin/sync')).body.data.imported, 0, 'nothing twice');
+    });
+
+    test('a playlist that ends with an empty page pointing at itself is read once, not forever', async () => {
+        // YouTube's answer for the Beauty Vault playlist (Oct 23): full pages, then an empty one whose next token is its own.
+        const PAGES = {
+            first: { ids: [yt(1), yt(2)], next: 'PAGE2' },
+            PAGE2: { ids: [yt(3)], next: 'PAGE3' },
+            PAGE3: { ids: [], next: 'PAGE3' },
+        };
+        const asked = [];
+        const get = httpClient.get;
+        httpClient.get = async (url, { params }) => {
+            const token = params.pageToken ?? 'first';
+            asked.push(token);
+            return { data: { items: PAGES[token].ids.map((videoId) => ({ contentDetails: { videoId } })), nextPageToken: PAGES[token].next } };
+        };
+        try {
+            assert.deepEqual(await real.playlistVideoIds(PODCAST_PLAYLIST), [yt(1), yt(2), yt(3)]);
+            assert.deepEqual(asked, ['first', 'PAGE2', 'PAGE3']);
+        } finally {
+            httpClient.get = get;
+        }
     });
 
     test('an admin pastes a link; the same link again answers the video already here', async () => {
