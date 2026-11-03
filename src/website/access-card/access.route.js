@@ -11,16 +11,18 @@ router.get('/plans', accessController.plans);
 router.post('/cards/:id/claim', authenticate, accessController.claim);
 router.delete('/cards/:id', requireProfessional, accessController.remove);
 
-// Buying: the card's owner, an admin, or the guest with the card's token.
+// Buying: the card's owner, an admin, or the guest with the card's token (loadCheckout checks the checkout's card the
+// same way, and tells no one else whether the checkout exists).
 const cardOf = (req) => req.body.business_card_id;
-const checkoutCard = (req) => req.checkout.business_card_id;
 router.post('/checkout/quote', requireCardAccess(cardOf), accessController.quoteCheckout);
-router.post('/checkout/:id/pay', accessController.loadCheckout, requireCardAccess(checkoutCard), accessController.payCheckout);
-router.get('/checkout/:id', accessController.loadCheckout, requireCardAccess(checkoutCard), accessController.getCheckout);
+router.post('/checkout/:id/pay', accessController.loadCheckout, accessController.payCheckout);
+router.get('/checkout/:id', accessController.loadCheckout, accessController.getCheckout);
 
 router.get('/subscription', requireProfessional, accessController.mySubscription);
 router.post('/subscription/cancel', requireProfessional, accessController.cancelMine);
 router.post('/subscription/resume', requireProfessional, accessController.resumeMine);
+// Stripe's billing portal: the card on file (a failed renewal), invoices.
+router.post('/billing-portal', requireProfessional, accessController.billingPortal);
 
 // Shippo's tracking updates (the URL ends with ?token=SHIPPO_WEBHOOK_TOKEN).
 router.post('/shippo/webhook', accessController.shippoWebhook);

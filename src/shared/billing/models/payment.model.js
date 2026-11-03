@@ -70,12 +70,15 @@ Payment.init(
       allowNull: false,
       defaultValue: "Description Not Available.",
     },
+    // REFUNDED and DISPUTED: what Stripe reports of an Access payment (refunds are made in Stripe's dashboard).
     payment_status: {
       type: DataTypes.ENUM(
         paymentStatusTypes.PENDING,
         paymentStatusTypes.SUCCESS,
         paymentStatusTypes.REJECTED,
         paymentStatusTypes.CANCELLED,
+        paymentStatusTypes.REFUNDED,
+        "DISPUTED",
       ),
       allowNull: false,
       defaultValue: paymentStatusTypes.PENDING,

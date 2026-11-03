@@ -4,6 +4,7 @@ const { Op, literal } = require("sequelize");
 const { paging } = require("../../core/http/paging");
 const { containing } = require("../../core/utils/like");
 const { matchFirst } = require("../../core/db/searchOrder");
+const sequelize = require("../../core/db/central.db");
 const { toSlug } = require("../../core/utils/slug");
 const { slugTaken } = require("../../core/db/freeSlug");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
@@ -159,18 +160,78 @@ const valuesWithSlug = async (column, slug) => {
 
 const ADMIN_ORDER = [["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]];
 
+// The shop's sorts (Nov 3), each ending with the title, then the id. featured: featured products first in their
+// featured order, then the admins' order; by price: products without a price last.
+const FEATURED_ORDER = literal("CASE WHEN `Shop`.`is_featured` = 1 THEN `Shop`.`featured_order` END");
+const NO_PRICE = literal("`Shop`.`price` IS NULL");
+const SORTS = {
+  featured: [["is_featured", "DESC"], [FEATURED_ORDER, "ASC"], ...ADMIN_ORDER],
+  newest: [["created_at", "DESC"], ["title", "ASC"], ["id", "ASC"]],
+  price_asc: [[NO_PRICE, "ASC"], ["price", "ASC"], ["title", "ASC"], ["id", "ASC"]],
+  price_desc: [[NO_PRICE, "ASC"], ["price", "DESC"], ["title", "ASC"], ["id", "ASC"]],
+  name: [["title", "ASC"], ["id", "ASC"]],
+};
+// The most saved products one list takes.
+const MAX_IDS = 100;
+
+const refuseQuery = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, "INVALID_SHOP_QUERY", { field });
+
+// A query value as text, trimmed: "" when not sent (an empty value counts as not sent).
+const queryText = (value) => String(value ?? "").trim();
+
+// A price from the query in dollars (50, 49.99), or null when not sent.
+const priceOf = (value, field) => {
+  const text = queryText(value);
+  if (!text) return null;
+  if (!/^\d+(\.\d+)?$/.test(text)) throw refuseQuery(field, `${field} is a price in dollars, like 50 or 49.99.`);
+  return Number(text);
+};
+
+// The visitor's saved products from "12,5,9" (most recent first): at most 100 product ids, each kept once; null when
+// not sent.
+const idsOf = (value) => {
+  const text = queryText(value);
+  if (!text) return null;
+  const items = text.split(",").map((item) => item.trim());
+  if (items.length > MAX_IDS) throw refuseQuery("ids", `ids lists at most ${MAX_IDS} products.`);
+  if (!items.every((item) => /^\d+$/.test(item) && Number(item) > 0 && Number.isSafeInteger(Number(item)))) {
+    throw refuseQuery("ids", "ids is a list of product ids, like 12,5,9.");
+  }
+  return [...new Set(items.map(Number))];
+};
+
+// The list's sort, price band and saved products (Nov 3), each off unless sent; a value it cannot take is a 400.
+const shopOptions = (query) => {
+  const sort = queryText(query.sort) || null;
+  if (sort !== null && !Object.hasOwn(SORTS, sort)) throw refuseQuery("sort", `sort is one of ${Object.keys(SORTS).join(", ")}.`);
+  const min = priceOf(query.min_price, "min_price");
+  const max = priceOf(query.max_price, "max_price");
+  if (max !== null && max <= 0) throw refuseQuery("max_price", "max_price is more than 0.");
+  if (min !== null && max !== null && min >= max) throw refuseQuery("min_price", "min_price must be less than max_price.");
+  return { sort, min, max, ids: idsOf(query.ids) };
+};
+
+// The rows in the order of these ids (the list keeps only them, so each has its place).
+const inOrderOf = (ids) => literal(`FIELD(\`Shop\`.\`id\`, ${ids.map((id) => sequelize.escape(id)).join(", ")})`);
+
 // GET /discover/shop with list parameters: one page of published products, in the admins' order then by title
 // (featured=true: only featured products, in their featured order).
 //   category  a slug from GET /discover/shop/filters (or the name); brand  a brand page's slug, or a brand name's
 //   slug from the filters; owner  the slug of the page of the account that put the product up; search  title, short
 //   description, brand and category; page, limit (12, at most 50).
 //   rank (search results): titles matching the search exactly first, then those starting with it.
+//   Nov 3 (shopOptions): sort  one of SORTS (it wins over rank); min_price, max_price  a price band, min_price in it
+//   and max_price not, so bands don't overlap (products without a price drop out); ids  the visitor's saved products:
+//   only those, in the order of ids unless sorted.
 const listShop = async (query = {}, { rank = false } = {}) => {
+  const { sort, min, max, ids } = shopOptions(query);
   const { limit, offset } = paging(query);
   const where = { ...PUBLISHED };
   const and = [];
   const featured = isYes(query.featured);
   if (featured) where.is_featured = true;
+  if (ids) where.id = ids;
+  if (min !== null || max !== null) where.price = { ...(min !== null && { [Op.gte]: min }), ...(max !== null && { [Op.lt]: max }) };
 
   if (query.category) {
     const values = await valuesWithSlug("category", query.category);
@@ -196,10 +257,15 @@ const listShop = async (query = {}, { rank = false } = {}) => {
   }
   if (and.length) where[Op.and] = and;
 
+  // The sort asked for; else the saved products' own order; else as before.
+  let order = [...(rank && search ? matchFirst("`Shop`.`title`", search) : []), ...(featured ? [["featured_order", "ASC"]] : []), ...ADMIN_ORDER];
+  if (ids) order = [[inOrderOf(ids), "ASC"]];
+  if (sort) order = SORTS[sort];
+
   const result = await Shop.findAndCountAll({
     attributes: PRODUCT_CARD,
     where,
-    order: [...(rank && search ? matchFirst("`Shop`.`title`", search) : []), ...(featured ? [["featured_order", "ASC"]] : []), ...ADMIN_ORDER],
+    order,
     limit,
     offset,
   });
@@ -241,8 +307,19 @@ const valuesOf = async (column) => {
   return [...bySlug.values()].toSorted((a, b) => a.name.localeCompare(b.name));
 };
 
-// GET /discover/shop/filters: the shop's categories and brands; each slug is the list's filter value.
-const shopFilters = async () => ({ categories: await valuesOf("category"), brands: await valuesOf("brand") });
+// The lowest and highest price among the published products that have one, as numbers; null when none has (Nov 3).
+const priceRange = async () => {
+  const [row] = await Shop.findAll({
+    attributes: [[literal("MIN(price)"), "min"], [literal("MAX(price)"), "max"]],
+    where: { ...PUBLISHED, price: { [Op.ne]: null } },
+    raw: true,
+  });
+  return row && row.min !== null ? { min: Number(row.min), max: Number(row.max) } : null;
+};
+
+// GET /discover/shop/filters: the shop's categories and brands; each slug is the list's filter value. Nov 3: `price`,
+// the range of the prices, so the website offers only the price bands that can match.
+const shopFilters = async () => ({ categories: await valuesOf("category"), brands: await valuesOf("brand"), price: await priceRange() });
 
 const getAllDiscoverByAdmin = async (type) => {
   const Model = getModel(type);

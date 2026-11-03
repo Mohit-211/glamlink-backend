@@ -1,6 +1,6 @@
 // Buying Access through Stripe (website/access-card: checkout.js, payments.js, subscriptions.js; docs/access.md
 // section 6), with Stripe faked (test/fakeStripe.js) and its webhook deliveries signed as Stripe signs them.
-const { installFakeStripe } = require('./fakeStripe');
+const { installFakeStripe, eventually } = require('./fakeStripe');
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
@@ -61,10 +61,10 @@ describe('a guest buys Pro + keychain', () => {
         assert.equal(res.status, 200, res.body.message);
         const data = res.body.data;
         checkoutId = data.checkout_id;
-        assert.deepEqual(data.lines.map((l) => [l.product, l.amount]), [['pro', 499], ['keychain', 3999]]);
+        assert.deepEqual(data.lines.map((l) => [l.product, l.amount]), [['pro', 999], ['keychain', 3999]]);
         assert.equal(data.shipping.selected.amount_cents, 500);
-        assert.equal(data.total_cents, 4998);
-        assert.equal(data.monthly_cents, 499);
+        assert.equal(data.total_cents, 5498);
+        assert.equal(data.monthly_cents, 999);
         assert.equal(data.shipping.address.street1, '1 Main St');
         assert.equal(data.shipping.address.country, 'US');
     });
@@ -78,11 +78,12 @@ describe('a guest buys Pro + keychain', () => {
         assert.deepEqual(p.billing_mode, { type: 'flexible' });
         assert.deepEqual(p.expand, ['latest_invoice.confirmation_secret']);
         assert.equal(p.payment_settings.save_default_payment_method, 'on_subscription');
+        assert.deepEqual(p.payment_settings.payment_method_types, ['card', 'link'], 'cards (with Apple Pay and Google Pay) and Link only');
         assert.ok(p.items[0].price, 'Access Pro at its list Price');
         assert.equal(p.add_invoice_items.length, 2);
         assert.equal(p.add_invoice_items[1].price_data.unit_amount, 500, 'shipping');
         assert.equal(p.metadata.access_checkout_id, String(checkoutId));
-        assert.equal(create.options.idempotencyKey, `glamlink-checkout-${checkoutId}`);
+        assert.match(create.options.idempotencyKey, new RegExp(`^glamlink-checkout-${checkoutId}-payment-[0-9a-f]{24}$`));
         assert.match(res.body.data.client_secret, /^pi_for_in_test_\d+_secret_/);
         subscriptionId = res.body.data.stripe_subscription_id;
         invoiceId = (await row('SELECT stripe_invoice_id FROM access_checkouts WHERE id = ?', [checkoutId])).stripe_invoice_id;
@@ -93,7 +94,7 @@ describe('a guest buys Pro + keychain', () => {
 
     test('Stripe confirms the first invoice: account, seat, live card, payment, order, emails', async () => {
         const res = await stripe.deliver(app, 'invoice.paid', {
-            id: invoiceId, object: 'invoice', amount_paid: 4998, billing_reason: 'subscription_create',
+            id: invoiceId, object: 'invoice', amount_paid: 5498, billing_reason: 'subscription_create',
             hosted_invoice_url: 'https://invoice.stripe.example/i/1', parent: { type: 'subscription_details', subscription_details: { subscription: subscriptionId } },
         });
         assert.equal(res.status, 200);
@@ -106,17 +107,20 @@ describe('a guest buys Pro + keychain', () => {
         const seat = await row('SELECT source, status, stripe_subscription_id FROM access_subscriptions WHERE user_id = ?', [user.id]);
         assert.deepEqual([seat.source, seat.status, seat.stripe_subscription_id], ['stripe', 'active', subscriptionId]);
         const payment = await row('SELECT payment_type, payment_status, amount, receipt_url FROM payments WHERE transaction_id = ?', [invoiceId]);
-        assert.deepEqual([payment.payment_type, payment.payment_status, Number(payment.amount)], ['NFC_WITH_SUBSCRIPTION', 'SUCCESS', 49.98]);
+        assert.deepEqual([payment.payment_type, payment.payment_status, Number(payment.amount)], ['NFC_WITH_SUBSCRIPTION', 'SUCCESS', 54.98]);
         const order = await row('SELECT fulfillment_status, shipping_address_line_1, shipping_amount FROM access_orders WHERE business_card_id = ?', [card.id]);
         assert.deepEqual([order.fulfillment_status, order.shipping_address_line_1, Number(order.shipping_amount)], ['pending', '1 Main St', 5]);
         const checkout = (await app.request('GET', `/api/v1/access/checkout/${checkoutId}`, { headers: { 'x-card-token': card.token } })).body.data;
         assert.equal(checkout.status, 'paid');
-        assert.ok(app.outbox.some((m) => m.to === card.email && /reset-password\?token=/.test(m.html || m.text || '')), 'welcome email');
-        assert.ok(app.outbox.some((m) => /access-orders\/\d+/.test(m.html || '') && (m.html || '').includes('https://admin.glamlink.net')), 'admin order email with its link');
+        assert.deepEqual(checkout.card, { business_card_id: card.id, status: 'accepted', business_card_link: checkout.card.business_card_link });
+        assert.equal(checkout.client_secret, undefined, 'nothing left to pay');
+        // The emails go after the webhook's answer.
+        await eventually(() => app.outbox.some((m) => m.to === card.email && /reset-password\?token=/.test(m.html || m.text || '')));
+        await eventually(() => app.outbox.some((m) => /access-orders\/\d+/.test(m.html || '') && (m.html || '').includes('https://admin.glamlink.net')));
     });
 
     test('the same event again is not processed twice', async () => {
-        const event = { id: invoiceId, object: 'invoice', amount_paid: 4998, parent: { subscription_details: { subscription: subscriptionId } } };
+        const event = { id: invoiceId, object: 'invoice', amount_paid: 5498, parent: { subscription_details: { subscription: subscriptionId } } };
         const first = await stripe.deliver(app, 'invoice.paid', event, `evt_dup_${stamp}`);
         const second = await stripe.deliver(app, 'invoice.paid', event, `evt_dup_${stamp}`);
         assert.equal(first.status, 200);
@@ -154,7 +158,8 @@ describe('a signed-in owner', () => {
         assert.equal(paid.status, 200, paid.body.message);
         const [intent] = stripe.callsOf('paymentIntents.create').slice(-1);
         assert.equal(intent.params.amount, 4099);
-        assert.deepEqual(intent.params.automatic_payment_methods, { enabled: true });
+        assert.deepEqual(intent.params.allowed_payment_method_types, ['card', 'link'], 'cards (with Apple Pay and Google Pay) and Link only');
+        assert.equal(intent.params.automatic_payment_methods, undefined);
         assert.equal(intent.params.shipping.address.postal_code, '89101');
         await stripe.deliver(app, 'payment_intent.succeeded', { id: paid.body.data.payment_intent_id, object: 'payment_intent', amount: 4099, amount_received: 4099, metadata: intent.params.metadata });
         const c = await row('SELECT nfc_status, plan_type FROM business_cards WHERE id = ?', [card.id]);
@@ -250,6 +255,10 @@ describe('admin', () => {
         assert.ok(res.body.data.moved >= 1);
         const moved = stripe.callsOf('subscriptions.update').find((c) => c.params.id === subId);
         assert.equal(moved.params.proration_behavior, 'none');
-        await app.request('PUT', '/api/v1/access/admin/products/pro/price', { token: tokens.admin, body: { amount_cents: 499 } });
+        // The earlier list price is archived once the new one is made (BE-28).
+        const [made] = stripe.callsOf('prices.create').filter((c) => c.params.unit_amount === 599);
+        assert.ok(made);
+        assert.ok(stripe.callsOf('prices.update').some((c) => c.params.active === false && stripe.state.prices[c.params.id].unit_amount === 999));
+        await app.request('PUT', '/api/v1/access/admin/products/pro/price', { token: tokens.admin, body: { amount_cents: 999 } });
     });
 });

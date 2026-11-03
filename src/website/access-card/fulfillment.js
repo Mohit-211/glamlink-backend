@@ -9,7 +9,8 @@ const { getSettings } = require('./catalog');
 const { shipFrom, parcelOf } = require('./shipping');
 
 // Sending the keychain (docs/access.md section 7): an admin buys the order's label from Shippo (or voids it), and
-// Shippo's tracking webhook moves the order to shipped and delivered.
+// Shippo's tracking webhook moves the order to shipped and delivered. A cancelled order ships nothing: no label is
+// bought for it, a label bought before can still be voided, and tracking no longer moves it.
 
 const fail = (status, message, code, details) => ApiError.withCode(status, message, code, details);
 const BAD_GATEWAY = httpStatus.BAD_GATEWAY || 502;
@@ -32,6 +33,7 @@ const shippableOrder = async (id) => {
     if (!order.fulfillment_status || !order.shipping_address_line_1) {
         throw fail(httpStatus.BAD_REQUEST, 'Nothing ships for this order.', 'NOTHING_TO_SHIP');
     }
+    if (order.fulfillment_status === 'cancelled') throw fail(httpStatus.CONFLICT, 'This order was cancelled: nothing ships.', 'ORDER_CANCELLED');
     return order;
 };
 
@@ -101,7 +103,7 @@ const buyOrderLabel = async (id, { rateId } = {}) => {
     return order;
 };
 
-// Voids an unused label (Shippo refunds it); the order waits for a new one.
+// Voids an unused label (Shippo refunds it); the order waits for a new one, unless it was cancelled.
 const voidOrderLabel = async (id) => {
     const order = await AccessOrder.findByPk(id);
     if (!order) throw new ApiError(httpStatus.NOT_FOUND, 'Access order not found');
@@ -112,7 +114,7 @@ const voidOrderLabel = async (id) => {
     const refund = await shippo.refundLabel(order.shippo_transaction_id);
     await order.update({
         shippo_transaction_id: null, label_url: null, label_created_at: null, tracking_number: null, tracking_link: null,
-        tracking_status: null, tracking_status_details: null, fulfillment_status: 'pending',
+        tracking_status: null, tracking_status_details: null, fulfillment_status: order.fulfillment_status === 'cancelled' ? 'cancelled' : 'pending',
     });
     return { order, refund };
 };
@@ -153,7 +155,7 @@ const handleShippoEvent = async (event) => {
     const at = data.tracking_status?.status_date ? new Date(data.tracking_status.status_date) : new Date();
     const changes = { tracking_status: status, tracking_status_details: data.tracking_status?.status_details || null };
     const next = FULFILLMENT_FOR[status];
-    if (next && STEPS.indexOf(next) > STEPS.indexOf(order.fulfillment_status)) changes.fulfillment_status = next;
+    if (next && order.fulfillment_status !== 'cancelled' && STEPS.indexOf(next) > STEPS.indexOf(order.fulfillment_status)) changes.fulfillment_status = next;
     if ((status === 'TRANSIT' || status === 'DELIVERED') && !order.shipped_at) changes.shipped_at = at;
     if (status === 'DELIVERED' && !order.delivered_at) changes.delivered_at = at;
     await order.update(changes);

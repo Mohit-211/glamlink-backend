@@ -1,6 +1,7 @@
 // Page analytics (Phase 6, the website's requests): the website reports views of a professional's or brand's page and
 // clicks on its links (POST /profiles/:slug/events); the owner reads the numbers in the dashboard
-// (GET /my/profile/analytics) as card analytics gives a card's, and admins any page's (pageAnalytics.service.js).
+// (GET /my/profile/analytics) as card analytics gives a card's, on Access Pro (Oct 23), and admins any page's
+// (pageAnalytics.service.js).
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
@@ -63,6 +64,13 @@ describe('the website reports', () => {
 });
 
 describe('the numbers', () => {
+    test('they are part of Access Pro: an owner on Free is asked to upgrade', async () => {
+        const res = await app.request('GET', '/api/v1/my/profile/analytics', { token: await ownerToken() });
+        assert.deepEqual([res.status, res.body.code, res.body.details?.feature], [403, 'UPGRADE_REQUIRED', 'analytics']);
+        // From here on, the owner is on Access Pro (a seat an admin gave)
+        await insert("INSERT INTO access_subscriptions (user_id, source, status) VALUES (?, 'comp', 'active')", [owner]);
+    });
+
     test('the owner sees views, unique visitors, clicks by kind and day, devices and the most clicked', async () => {
         const res = await app.request('GET', '/api/v1/my/profile/analytics', { token: await ownerToken() });
         assert.equal(res.status, 200, res.body.message);
@@ -72,6 +80,7 @@ describe('the numbers', () => {
         assert.deepEqual(n.summary, { total_views: 3, unique_visitors: 2, total_clicks: 4 });
         assert.deepEqual(n.events, {
             PAGE_VIEW: 3, WEBSITE_CLICK: 1, ACCESS_CARD_CLICK: 0, PRODUCT_CLICK: 2, BOOKING_CLICK: 0, SOCIAL_CLICK: 1, EMAIL_CLICK: 0, PHONE_CLICK: 0,
+            SHARE_CLICK: 0, MEDIA_CLICK: 0, EDUCATION_CLICK: 0, PODCAST_CLICK: 0, JOURNAL_CLICK: 0,
         });
         assert.deepEqual(n.daily_views, [{ date: today, count: 3 }]);
         assert.deepEqual(n.daily_clicks, [{ date: today, count: 4 }]);
@@ -99,5 +108,18 @@ describe('the numbers', () => {
         assert.equal(res.body.data.summary.total_views, 3);
         assert.equal((await app.request('GET', `/api/v1/profiles/admin/${owner}/analytics`)).status, 401);
         assert.equal((await app.request('GET', '/api/v1/my/profile/analytics')).status, 401);
+    });
+});
+
+describe('the profile\'s new links (Nov 3)', () => {
+    test('sharing the page and clicks on its media, education, podcast episode and journal article are counted', async () => {
+        const clicks = [['SHARE_CLICK', 'copy'], ['MEDIA_CLICK', '12'], ['EDUCATION_CLICK', 'how-to-layer'], ['PODCAST_CLICK', 'episode-4'], ['JOURNAL_CLICK', '88']];
+        for (const [type, target] of clicks) {
+            const res = await send({ event_type: type, event_target: target, visitor_id: 'v3' });
+            assert.deepEqual([res.status, res.body.data], [200, { counted: true }], type);
+        }
+        const n = (await app.request('GET', `/api/v1/profiles/admin/${owner}/analytics`, { headers: auth })).body.data;
+        for (const [type] of clicks) assert.equal(n.events[type], 1, type);
+        assert.equal(n.summary.total_clicks, 9);
     });
 });

@@ -1,7 +1,7 @@
 // Accounts and sign-in: registration, email links, sessions, and who is calling.
 const { authenticate, optionalAuth, requireProfessional, identify } = require('./authenticate');
 const { createSession, revokeUserSessions, tokenFromRequest } = require('./sessions');
-const { normalizeEmail, createAccount, accessCardOwner, setPasswordLink } = require('./account.service');
+const { normalizeEmail, createAccount, accessCardOwner, setPasswordLink, setProfessionalType, isAppAccount } = require('./account.service');
 const { mergeDuplicateAccounts } = require('./accountMerge');
 
 module.exports = {
@@ -22,5 +22,7 @@ module.exports = {
     createAccount,
     accessCardOwner,
     setPasswordLink,
+    setProfessionalType,
+    isAppAccount,
     mergeDuplicateAccounts,
 };

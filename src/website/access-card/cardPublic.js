@@ -16,6 +16,9 @@ const PRIVATE_FIELDS = [
     'elite_setup',
     'is_active',
     'deleted_at',
+    // A Google listing claim is for admins to verify
+    'claimed_place_id',
+    'claim_verified_at',
 ];
 
 // `card` is a plain object (a model's toJSON() with its JSON fields already read).

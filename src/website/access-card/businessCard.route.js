@@ -77,6 +77,10 @@ router.patch(
   businessCardController.updateAccessOrderFulfillment,
 );
 
+// Cancels an order, { reason? }: no refund (that is made by hand in Stripe), its keychain does not ship, its Access Pro
+// ends now.
+router.post("/access-orders/:id/cancel", requireAdmin, businessCardController.cancelAccessOrder);
+
 // The keychain's label with Shippo: today's rates, buy (rate_id optional), void.
 router.get("/access-orders/:id/rates", requireAdmin, accessAdmin.orderRates);
 router.post("/access-orders/:id/label", requireAdmin, accessAdmin.buyLabel);

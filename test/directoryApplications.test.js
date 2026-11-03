@@ -1,5 +1,6 @@
-// The directory application form (Phase 6): POST /directory/applications keeps the form's fields as sent, apart
-// from Access cards and their rules; admins list, review and delete applications (website/inquiries).
+// Directory applications (Phase 6): the website's form is retired (Nov 1) and POST /directory/applications answers
+// 410; admins still add listings with the form's fields kept as sent, and list, review and delete applications
+// (website/inquiries).
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -51,17 +52,23 @@ const formFields = (overrides = {}) => ({
     place_id: 'ChIJ-test-place',
     ...overrides,
 });
+// A pending application, as an admin adds one with the old form's fields.
 const apply = (fields = formFields(), files = { profile_image: [photo('me.png')], images: [photo('one.png'), photo('two.png')] }) =>
-    app.form('POST', '/api/v1/directory/applications', { fields, files });
+    app.form('POST', '/api/v1/directory/applications/admin', { fields: { status: 'pending', ...fields }, files, headers: auth });
 const fileOf = (url) => path.join(UPLOADS_DIR, ...url.slice(config.API_BASE_URL.replace(/\/+$/, '').length + 1).split('/'));
 
 let applicationId;
 
 describe('applying', () => {
-    test('keeps the form as sent: a long bio, walk-ins, service-area and virtual locations; support hears of it', async () => {
-        const sent = app.outbox.length;
+    test('the public form is retired: people create their profile with the Access form', async () => {
+        const res = await app.form('POST', '/api/v1/directory/applications', { fields: formFields(), files: { profile_image: [photo('me.png')] } });
+        assert.equal(res.status, 410);
+        assert.equal(res.body.code, 'FORM_RETIRED');
+    });
+
+    test('keeps the form as sent: a long bio, walk-ins, service-area and virtual locations', async () => {
         const res = await apply();
-        assert.equal(res.status, 201, res.body.message);
+        assert.ok([200, 201].includes(res.status), res.body.message);
         assert.equal(res.body.data.status, 'pending');
         applicationId = res.body.data.id;
 
@@ -80,10 +87,6 @@ describe('applying', () => {
         assert.match(a.profile_image, /\/images\//);
         assert.deepEqual(a.gallery.map((g) => [g.caption, g.is_thumbnail, g.sort_order]), [['Bridal look', true, 1], ['Editorial', false, 2]]);
         assert.ok(fs.existsSync(fileOf(a.gallery[0].url)));
-
-        const mail = app.outbox.slice(sent).find((m) => m.subject === 'New Directory Application');
-        assert.equal(mail.to, 'support@glamlink.net');
-        assert.match(mail.text, /Kate Sue/);
     });
 
     test('needs a name and a valid email; lists must be JSON; at most 10 photos', async () => {

@@ -23,17 +23,20 @@ before(async () => {
 });
 after(() => app.close());
 
+// A pending application (the public form is retired; an admin adds one with its fields).
 const apply = async (name, overrides = {}) => {
-    const res = await app.form('POST', '/api/v1/directory/applications', {
+    const res = await app.form('POST', '/api/v1/directory/applications/admin', {
         fields: {
+            status: 'pending',
             name, email: emailOf(name.split(' ')[0].toLowerCase()), professional_title: 'Lash Artist', bio: 'Lash lifts and brow lamination in a calm studio.',
             primary_specialty: 'Lashes', specialties: ['Lashes', 'Brows'],
             locations: [{ label: 'Studio', location_type: 'exact_address', address: '9 Lash Ln', city: 'Las Vegas', state: 'NV', business_name: `${name} Studio`, phone: '7025550111', is_primary: true }],
             business_hours: [{ note: 'Tue–Sat 10–6' }], social_media: { instagram: 'https://instagram.com/lashes' }, ...overrides,
         },
         files: { profile_image: [photo('me.png')], images: [photo('one.png')] },
+        headers: auth,
     });
-    assert.equal(res.status, 201, res.body.message);
+    assert.ok([200, 201].includes(res.status), res.body.message);
     return res.body.data.id;
 };
 const review = (id, body) => app.request('PUT', `/api/v1/directory/applications/${id}/status`, { body, headers: auth });

@@ -10,7 +10,7 @@ module.exports = {
         { path: '/video-series', router: require('./videoSeries.route'), refresh: ['videos'] },
     ],
     // For other modules (loaded when called, so this file stays light):
-    // the published videos an account appears in, as { count, rows } of video cards.
+    // the published videos an account appears in, as { count, rows } of video cards (`series`: one series' slug).
     videosOfAccount: (userId, query) => require('./video.service').videosOfAccount(userId, query),
     // a topic's published videos, as video cards.
     videosOfTopic: (topicId) => require('./video.service').videosOfTopic(topicId),

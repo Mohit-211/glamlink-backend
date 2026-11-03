@@ -29,16 +29,29 @@ const uniqueUserName = async (base, transaction) => {
     return candidate;
 };
 
+// A professional's type with the role id that goes with it (brand: BRND_ROLE_ID; individual: PROFESSIONAL_ROLE_ID),
+// set together. Every account made or switched for an Access card gets the card's type here.
+const setProfessionalType = (user, professionalType, { transaction } = {}) => {
+    const type = PROFESSIONAL_TYPES.includes(professionalType) ? professionalType : 'individual';
+    return user.update({ professional_type: type, role_id: roleIdFor('professional', type) }, { transaction });
+};
+
+// An app account (a 'user': not a professional or a brand). It does not stand in the way of an Access card bought on
+// the website with its email: the purchase makes it a professional account (Nov 1).
+const isAppAccount = (account) => account?.account_type === 'user';
+
 // Creates the account and its profile. `password` may be omitted (the person sets one from an email link).
+// `transaction`: made inside the caller's (it is undone with it); otherwise in its own.
 const createAccount = async ({
     email, name, password, accountType = 'professional', professionalType = 'individual', verified = false,
     userName, mobile, about, profession, address, stateId, cityId, latitude, longitude, referredBy, photos = [],
+    transaction: outer,
 }) => {
     const type = ACCOUNT_TYPES.includes(accountType) ? accountType : 'professional';
     const proType = type === 'professional' ? (PROFESSIONAL_TYPES.includes(professionalType) ? professionalType : 'individual') : null;
     const passwordHash = password ? await hashPassword(password) : null;
 
-    return sequelize.transaction(async (transaction) => {
+    const make = async (transaction) => {
         const user = await User.create({
             email: normalizeEmail(email),
             user_name: await uniqueUserName(userName || name, transaction),
@@ -78,26 +91,27 @@ const createAccount = async ({
             }, { transaction });
         }
         return user;
-    });
+    };
+    return outer ? make(outer) : sequelize.transaction(make);
 };
 
 // The account an Access card bought with this email belongs to (or a directory listing approved for it). An existing
-// live account is used (a user account becomes a professional one: buying an Access card is that switch); otherwise a
+// live account is used (an app account becomes a professional one: buying an Access card is that switch); otherwise a
 // professional account without a password is created, and the person sets one from the welcome email
-// (setPasswordLink). `professionalType` (a brand's listing) applies to a new or a user account; `extra` is set on a
-// new account only. Returns { user, created }.
-const accessCardOwner = async ({ email, name, phone, extra = {}, professionalType = 'individual' }) => {
-    const existing = await User.findOne({ where: { email: normalizeEmail(email) } });
+// (setPasswordLink). `professionalType` (the card's: individual or brand) applies to a new or an app account; `extra`
+// is set on a new account only. `transaction`: inside the caller's, so a purchase that fails leaves no account behind.
+// Returns { user, created, converted }: made now, or switched now from an app account (both get the welcome email).
+const accessCardOwner = async ({ email, name, phone, extra = {}, professionalType = 'individual', transaction }) => {
+    const existing = await User.findOne({ where: { email: normalizeEmail(email) }, transaction });
     if (existing) {
-        if (existing.account_type === 'user') {
-            const type = PROFESSIONAL_TYPES.includes(professionalType) ? professionalType : 'individual';
-            await existing.update({ account_type: 'professional', professional_type: type, role_id: roleIdFor('professional', type), downgraded_at: null });
-        }
-        return { user: existing, created: false };
+        if (!isAppAccount(existing)) return { user: existing, created: false, converted: false };
+        await existing.update({ account_type: 'professional', downgraded_at: null }, { transaction });
+        await setProfessionalType(existing, professionalType, { transaction });
+        return { user: existing, created: false, converted: true };
     }
-    const user = await createAccount({ email, name, mobile: phone, accountType: 'professional', professionalType });
-    if (Object.keys(extra).length) await user.update(extra);
-    return { user, created: true };
+    const user = await createAccount({ email, name, mobile: phone, accountType: 'professional', professionalType, transaction });
+    if (Object.keys(extra).length) await user.update(extra, { transaction });
+    return { user, created: true, converted: false };
 };
 
 // Link for a new Access card owner to set their first password (the reset page; it also verifies the email).
@@ -133,6 +147,8 @@ module.exports = {
     normalizeEmail,
     hashPassword,
     roleIdFor,
+    setProfessionalType,
+    isAppAccount,
     uniqueUserName,
     createAccount,
     accessCardOwner,

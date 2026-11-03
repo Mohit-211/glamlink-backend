@@ -8,7 +8,7 @@ const { UPLOADS_DIR } = require('../../core/config/paths');
 const { BusinessCard, BusinessLocation, BusinessHour, BusinessGalleryMedia, ProfilePage } = require('../../models');
 const { readCard } = require('./cardFields');
 const { planMedia } = require('./cardMedia');
-const { checkOwnerEdit, checkNewCard } = require('./entitlements');
+const { checkOwnerEdit } = require('./entitlements');
 const { publicLink, qrUrl, slugOf } = require('./cardLinks');
 const { geocodeCard } = require('./cardGeocode');
 
@@ -80,7 +80,6 @@ const saveDetails = async (cardId, { locations, hours, media }, transaction) => 
  */
 const createCard = async ({ body, files, attributes = {}, prepare, rights }) => {
     const { card, locations, hours } = readCard(body, { files });
-    if (rights) checkNewCard(card, rights);
     const media = planMedia({ files, body, creating: true, limits: limitsOf(rights) });
     const cardDoc = await sequelize.transaction(async (transaction) => {
         const more = prepare ? await prepare(transaction) : {};

@@ -13,12 +13,18 @@ const base = () => (config.API_BASE_URL || '').replace(/\/+$/, '');
 const isUploadedImage = (url) =>
     typeof url === 'string' && Boolean(base()) && url.startsWith(`${base()}/images/`) && !url.includes('..');
 
-// Deletes the file behind an upload link, if it is one; anything else is left alone. Never throws.
-const removeUploadedFile = (url) => {
-    if (typeof url !== 'string' || !base() || !url.startsWith(`${base()}/`)) return;
+// The file on disk behind an upload link, or null for anything else.
+const uploadedFilePath = (url) => {
+    if (typeof url !== 'string' || !base() || !url.startsWith(`${base()}/`)) return null;
     const [folder, file, ...rest] = url.slice(base().length + 1).split('/');
-    if (!FOLDERS.includes(folder) || !file || rest.length || file !== path.basename(file) || file.startsWith('.')) return;
-    fs.unlink(path.join(UPLOADS_DIR, folder, file), () => {});
+    if (!FOLDERS.includes(folder) || !file || rest.length || file !== path.basename(file) || file.startsWith('.')) return null;
+    return path.join(UPLOADS_DIR, folder, file);
 };
 
-module.exports = { isUploadedImage, removeUploadedFile };
+// Deletes the file behind an upload link, if it is one; anything else is left alone. Never throws.
+const removeUploadedFile = (url) => {
+    const file = uploadedFilePath(url);
+    if (file) fs.unlink(file, () => {});
+};
+
+module.exports = { isUploadedImage, removeUploadedFile, uploadedFilePath };

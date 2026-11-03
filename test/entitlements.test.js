@@ -1,4 +1,4 @@
-// What a card's owner may change on their plan (website/access-card/entitlements.js, docs/access.md section 2).
+// What a card's owner may change on their plan, and see (website/access-card/entitlements.js, docs/access.md section 2).
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
@@ -9,8 +9,8 @@ let app, q, insert;
 const tokens = {};
 const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const DEFAULTS = {
-    free: { photos: 4, videos: 1, edit_details: true, edit_media: false, special_offers: false, analytics: false, priority_search: false },
-    pro: { photos: 4, videos: 1, edit_details: true, edit_media: true, special_offers: true, analytics: true, priority_search: true },
+    free: { photos: 4, videos: 1, edit_details: true, edit_media: false, analytics: false, priority_search: false },
+    pro: { photos: 4, videos: 1, edit_details: true, edit_media: true, analytics: true, priority_search: true },
 };
 
 before(async () => {
@@ -67,13 +67,23 @@ describe('a Free card once it is live', () => {
         refused(await editCard(free, {}, { files: { profile_image: [photo('me2.png')] } }), 'edit_media');
     });
 
-    test('a special offer needs Pro, and is never shown for a Free card', async () => {
-        refused(await editCard(free, { offer_promotion: 'true', promotion_details: '10% off' }), 'special_offers');
+    test('special offers are retired: one sent is ignored, an old one is never shown, to anyone', async () => {
+        assert.equal((await editCard(free, { offer_promotion: 'true', promotion_details: '10% off' })).status, 200);
         await q("UPDATE business_cards SET offer_promotion = 1, promotion_details = 'Old offer' WHERE id = ?", [free.cardId]);
         const shown = await app.request('GET', `/api/v1/businessCard/getBusinessCard/${free.slug}`);
-        assert.equal(shown.body.data.offer_promotion, false);
-        assert.equal(shown.body.data.promotion_details, null);
-        assert.equal((await editCard(free, { offer_promotion: 'false' })).status, 200, 'turning it off is fine');
+        assert.equal(shown.status, 200);
+        assert.ok(!('offer_promotion' in shown.body.data) && !('promotion_details' in shown.body.data));
+        const own = await app.request('GET', `/api/v1/businessCard/getBusinessCardById/${free.cardId}`, { token: free.token });
+        assert.ok(!('offer_promotion' in own.body.data), 'nor to the owner');
+        const mine = await app.request('GET', '/api/v1/businessCard/getMyBusinessCard', { token: free.token });
+        assert.ok(!('promotion_details' in mine.body.data[0]));
+    });
+
+    test('profile analytics are Pro\'s: a Free owner is refused, an admin is not', async () => {
+        refused(await app.request('GET', `/api/v1/access-card/analytics/${free.cardId}`, { token: free.token }), 'analytics');
+        refused(await app.request('GET', `/api/v1/access-card/analytics/${free.cardId}/events`, { token: free.token }), 'analytics');
+        const admin = await app.request('GET', `/api/v1/access-card/analytics/${free.cardId}`, { token: tokens.admin });
+        assert.equal(admin.status, 200, admin.body.message);
     });
 
     test('an admin may change anything', async () => {
@@ -106,22 +116,27 @@ describe('an admin-made gallery', () => {
 });
 
 describe('a Pro card', () => {
-    test('swaps photos and runs an offer, shown publicly; when Pro ends the offer is hidden, not deleted', async () => {
+    test('swaps photos, sees its analytics; an offer is not part of Pro any more', async () => {
         const pro = await owner({ pro: true });
         const res = await editCard(pro, { existing_image_ids: JSON.stringify(pro.mediaIds.slice(1)), offer_promotion: 'true', promotion_details: '20% off first visit' }, { files: { images: [photo('e.png')] } });
         assert.equal(res.status, 200, res.body.message);
-        let shown = await app.request('GET', `/api/v1/businessCard/getBusinessCard/${pro.slug}`);
-        assert.deepEqual([shown.body.data.offer_promotion, shown.body.data.promotion_details], [true, '20% off first visit']);
-        await q("UPDATE access_subscriptions SET status = 'canceled' WHERE user_id = ?", [pro.id]);
-        shown = await app.request('GET', `/api/v1/businessCard/getBusinessCard/${pro.slug}`);
-        assert.equal(shown.body.data.offer_promotion, false);
-        assert.equal((await q('SELECT promotion_details FROM business_cards WHERE id = ?', [pro.cardId]))[0].promotion_details, '20% off first visit');
+        const shown = await app.request('GET', `/api/v1/businessCard/getBusinessCard/${pro.slug}`);
+        assert.ok(!('offer_promotion' in shown.body.data));
+        assert.equal((await q('SELECT offer_promotion FROM business_cards WHERE id = ?', [pro.cardId]))[0].offer_promotion, 0, 'never stored');
+        const analytics = await app.request('GET', `/api/v1/access-card/analytics/${pro.cardId}`, { token: pro.token });
+        assert.equal(analytics.status, 200, analytics.body.message);
+        // Past due beyond its grace (21 days after the renewal first failed): Free again.
+        await q("UPDATE access_subscriptions SET status = 'past_due', past_due_since = NOW() - INTERVAL 30 DAY WHERE user_id = ?", [pro.id]);
+        refused(await app.request('GET', `/api/v1/access-card/analytics/${pro.cardId}`, { token: pro.token }), 'analytics');
+        await q("UPDATE access_subscriptions SET past_due_since = NOW() - INTERVAL 2 DAY WHERE user_id = ?", [pro.id]);
+        assert.equal((await app.request('GET', `/api/v1/access-card/analytics/${pro.cardId}`, { token: pro.token })).status, 200, 'still Pro while Stripe retries');
     });
 });
 
 describe('new cards and drafts', () => {
-    test('a guest cannot start with an offer; the photo limit comes from the plan settings', async () => {
-        refused(await app.form('POST', '/api/v1/businessCard', { fields: cardFields({ offer_promotion: 'true', promotion_details: 'x' }), files: cardFiles() }), 'special_offers');
+    test('a guest\'s offer is ignored; the photo limit comes from the plan settings', async () => {
+        const offered = await app.form('POST', '/api/v1/businessCard', { fields: cardFields({ offer_promotion: 'true', promotion_details: 'x' }), files: cardFiles() });
+        assert.equal(offered.status, 201, offered.body.message);
         await q("UPDATE access_settings SET value = ? WHERE setting = 'entitlements'", [JSON.stringify({ ...DEFAULTS, free: { ...DEFAULTS.free, photos: 2 } })]);
         const tooMany = await app.form('POST', '/api/v1/businessCard', { fields: cardFields(), files: cardFiles({ images: [photo('1.png'), photo('2.png'), photo('3.png')] }) });
         assert.equal(tooMany.status, 400);

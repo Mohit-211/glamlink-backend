@@ -9,7 +9,7 @@ const config = require("../../core/config/config");
 const logger = require("../../core/logger");
 const { stripe } = require("../../integrations/stripe");
 const { getKeys } = require("./stripeCustomer.service");
-const { claimStripeEvent, releaseUnlessProcessed } = require("./stripeEvents");
+const { claimStripeEvent, settleClaimWhenAnswered } = require("./stripeEvents");
 const { handleStripeEvent } = require("./stripeHandlers");
 const {
   createNotification,
@@ -52,22 +52,24 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
     }
 
     // Each event is processed once (stripeEvents.js): Stripe retries deliveries, and events are resent after the switch.
-    if (!(await claimStripeEvent(event))) {
+    const claim = await claimStripeEvent(event);
+    if (claim === "done") {
       return res.status(200).json({ received: true, duplicate: true });
     }
-    releaseUnlessProcessed(res, event.id);
+    // Another delivery of this event is being processed right now: Stripe tries again later.
+    if (claim === "busy") {
+      return res.status(409).json({ received: false, retry: true });
+    }
+    settleClaimWhenAnswered(res, event.id);
 
     // The products' handlers first (website/access-card registers the Access payments, src/routes.js).
     if (await handleStripeEvent(event)) {
       return res.status(200).json({ received: true });
     }
 
-    console.log("======================event==========", event.type);
-
     // **Handle Only `charge.succeeded`**
     if (event.type === "charge.succeeded") {
       const charge = event.data.object;
-      console.log("✅ Charge Succeeded:", charge);
 
       // **Extract Payment Info**
       const paymentIntentId = charge.payment_intent;
@@ -128,8 +130,6 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
           transaction_id: paymentIntentId,
         },
       });
-
-      console.log(paymentRecord, "paymentRecord");
 
       // A payment of the old Access card purchase flow (before api.glamlink.net): left for a person to check.
       if (
@@ -201,9 +201,10 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
 
       const order = await Order.findOne({ where: { id: orderId } });
 
+      // Answered 200 all the same: Stripe would retry for days, and the order will not appear.
       if (!order) {
-        console.error(`❌ Order not found: ${orderId}`);
-        return res.status(404).send("Order not found");
+        logger.error(`Charge ${chargeId} paid payment ${paymentRecord.id}, but its order ${orderId} is missing`);
+        return res.status(200).json({ received: true });
       }
 
       // **Update Payment & Order Status**
@@ -225,8 +226,8 @@ const handleChargeAndIntentWebhook = catchAsync(async (req, res) => {
       });
 
       if (!orderDetails || orderDetails.length === 0) {
-        console.error(`❌ Order details not found for order: ${order.id}`);
-        return res.status(404).send("Order details not found");
+        logger.error(`Charge ${chargeId} paid order ${order.id}, which has no order details`);
+        return res.status(200).json({ received: true });
       }
 
       // **Update Each Order Detail**

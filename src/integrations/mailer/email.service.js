@@ -987,20 +987,26 @@ Review it in the admin panel's directory applications.
   }
 };
 
+// Access Pro ended: cancelled by the person or an admin, or (reason "payment_failed") after Stripe's retries of a
+// renewal all failed.
 const sendBusinessCardSubscriptionCancelledEmail = async (data) => {
   try {
-    const subject = "Your Glamlink Subscription Has Been Cancelled";
+    const failed = data.reason === "payment_failed";
+    const subject = failed
+      ? "Your Glamlink Access Pro has ended"
+      : "Your Glamlink Subscription Has Been Cancelled";
 
     const text = `
-Hi ${data.name},
+Hi ${data.name || "there"},
 
-Your Glamlink subscription has been cancelled successfully.
+${failed
+  ? "We couldn't take your Access Pro payment after several tries, so your subscription has ended."
+  : "Your Glamlink Access Pro subscription has been cancelled."}
 
-Subscription Status: Cancelled
+Your Access Card stays live on the Free plan, and your NFC keychain, if you have one, keeps working.
 
-Your NFC Access Card purchase remains active and is not affected.
-
-If you would like to subscribe again in the future, you can do so anytime from your Glamlink account.
+You can subscribe again anytime from your dashboard:
+${config.WEBSITE_URL}/dashboard
 
 Thank you for using Glamlink!
 `;
@@ -1008,6 +1014,43 @@ Thank you for using Glamlink!
     await sendEmail(data.to, subject, text);
   } catch (err) {
     console.error("Email send failed:", err);
+  }
+};
+
+// An Access Pro renewal that failed (Stripe tries again over the next days), or that the bank wants confirmed
+// (actionRequired: 3-D Secure). The link is Stripe's page for the invoice, where the person pays it or uses another card.
+const sendAccessPaymentProblemEmail = async (data) => {
+  try {
+    const subject = data.actionRequired
+      ? "Confirm your Glamlink Access Pro payment"
+      : "Your Glamlink Access Pro payment didn't go through";
+
+    const text = `
+Hi ${data.name || "there"},
+
+${data.actionRequired
+  ? "Your bank needs you to confirm this month's Access Pro payment."
+  : "We couldn't take this month's Access Pro payment. We'll try again over the next few days, or you can pay now, with another card if you like:"}
+${data.invoiceUrl || `${config.WEBSITE_URL}/dashboard`}
+
+Your Access Pro stays on in the meantime. If the payment can't be taken, your Access Card moves to the Free plan and stays live.
+
+Thank you,
+The Glamlink Team
+`;
+
+    await sendEmail(data.to, subject, text);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
+};
+
+// Something about an Access payment for the admins to act on: a duplicate purchase to refund by hand, a dispute.
+const sendAccessAdminAlertEmail = async ({ subject, text }) => {
+  try {
+    await sendEmail("support@glamlink.net", subject, text);
+  } catch (err) {
+    console.error("Access admin alert email failed:", err);
   }
 };
 
@@ -1141,6 +1184,8 @@ module.exports = {
   sendListingApprovedEmail,
   sendProfileInviteEmail,
   sendBusinessCardSubscriptionCancelledEmail,
+  sendAccessPaymentProblemEmail,
+  sendAccessAdminAlertEmail,
   sendBusinessCardPurchaseAdminEmail,
   sendNewAccessUserEmail,
   sendBusinessCardRejectedEmail,

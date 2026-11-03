@@ -1,4 +1,5 @@
 const config = require('../../core/config/config');
+const logger = require('../../core/logger');
 const { stripe } = require('../../integrations/stripe');
 const { AccessProduct } = require('../../models');
 
@@ -27,8 +28,24 @@ const ensureStripeProduct = async (product) => {
     return stripeProduct.id;
 };
 
+// The product's earlier list prices are archived once a new one is made (BE-28): no new checkout can use them, and
+// the subscriptions on them keep billing at their price. Ours carry the product's metadata; the old flow's price in
+// .env does not. A failure is logged: the new price is in use either way.
+const archiveEarlierPrices = async (product, stripeProductId, currentId) => {
+    try {
+        const legacyPriceId = config.STRIPE_LEGACY_PRICES?.[product.code];
+        const { data } = await stripe().prices.list({ product: stripeProductId, active: true, limit: 100 });
+        for (const price of data) {
+            const ours = price.metadata?.[PRODUCT_KEY] === product.code || price.id === legacyPriceId;
+            if (ours && price.id !== currentId) await stripe().prices.update(price.id, { active: false });
+        }
+    } catch (err) {
+        logger.warn(`Archiving the earlier Stripe prices of ${product.code}: ${err.message}`);
+    }
+};
+
 // The Stripe Price of a product's list price, made after each price change. Its lookup key moves to the newest
-// price, so Stripe's dashboard always shows the current one.
+// price, so Stripe's dashboard always shows the current one, and the earlier ones are archived.
 const ensureListPrice = async (product) => {
     if (product.stripe_price_id) return product.stripe_price_id;
     const id = await ensureStripeProduct(product);
@@ -43,6 +60,7 @@ const ensureListPrice = async (product) => {
         metadata: { [PRODUCT_KEY]: product.code },
     });
     await product.update({ stripe_price_id: price.id });
+    await archiveEarlierPrices(product, id, price.id);
     return price.id;
 };
 

@@ -1,14 +1,28 @@
-const { BusinessCard, User, AccessSubscription } = require('../../models');
+const { Op } = require('sequelize');
+const { BusinessCard, User, AccessSubscription, AccessOrder } = require('../../models');
 
 // A person's Access Pro subscription, their seat (docs/access.md section 4): one per person, kept when they
 // delete and re-create their card. A seat paid through Stripe follows its Stripe subscription; a complimentary
 // one ('comp') is given by an admin.
 
-// Pro while the subscription is active, on trial, or past due (Stripe is retrying the payment).
+// The statuses that can be Pro: active, on trial, or past due (a renewal failed and Stripe is retrying it).
 const PRO_STATUSES = ['active', 'trialing', 'past_due'];
 
+// A past-due seat stays Pro for this long after its renewal first failed (BE-18). Stripe's retries end sooner, and then
+// the subscription is cancelled (the dashboard's Billing > Revenue recovery setting, docs/deploy.md): this limit keeps
+// a dashboard left on "leave the subscription past due" from giving Pro for ever.
+const PAST_DUE_GRACE_DAYS = 21;
+
 const seatOf = (userId, options = {}) => AccessSubscription.findOne({ where: { user_id: userId }, ...options });
-const isPro = (seat) => Boolean(seat && PRO_STATUSES.includes(seat.status));
+
+const isPro = (seat, now = new Date()) => {
+    if (!seat || !PRO_STATUSES.includes(seat.status)) return false;
+    if (seat.status !== 'past_due' || !seat.past_due_since) return true;
+    return now - new Date(seat.past_due_since) < PAST_DUE_GRACE_DAYS * 86400e3;
+};
+
+// A payment of the subscription failed and is not settled: past due (Stripe is retrying) or unpaid (it stopped).
+const isPastDue = (seat) => Boolean(seat && ['past_due', 'unpaid'].includes(seat.status));
 
 // Whether the person bought the keychain (on any of their cards, deleted ones too).
 const ownsKeychain = async (userId, transaction) => Boolean(await BusinessCard.findOne({
@@ -17,6 +31,16 @@ const ownsKeychain = async (userId, transaction) => Boolean(await BusinessCard.f
     paranoid: false,
     transaction,
 }));
+
+// How many keychains the person has: their keychain orders that stand (not cancelled), or one bought before orders
+// were kept.
+const keychainsOf = async (userId, transaction) => {
+    const orders = await AccessOrder.count({
+        where: { user_id: userId, cancelled_at: null, fulfillment_status: { [Op.in]: ['pending', 'processing', 'shipped', 'delivered'] } },
+        transaction,
+    });
+    return Math.max(orders, (await ownsKeychain(userId, transaction)) ? 1 : 0);
+};
 
 // A card's plan fields (still read by the website) from its owner's seat and keychain.
 const planFieldsFor = async (user, transaction) => {
@@ -31,7 +55,7 @@ const planFieldsFor = async (user, transaction) => {
 // users.subscription_status as the website reads it.
 const legacyStatus = (seat) => {
     if (!seat) return 'INACTIVE';
-    if (PRO_STATUSES.includes(seat.status)) return 'ACTIVE';
+    if (isPro(seat)) return 'ACTIVE';
     if (seat.status === 'incomplete') return 'PENDING';
     if (['canceled', 'incomplete_expired'].includes(seat.status)) return 'CANCELLED';
     return 'INACTIVE';
@@ -71,10 +95,12 @@ const seatFieldsFrom = (subscription) => {
     };
 };
 
-// The person's seat from their Stripe subscription: made or updated, then copied to the legacy fields.
+// The person's seat from their Stripe subscription: made or updated, then copied to the legacy fields. A seat that
+// turns past due remembers since when; one that is paid again forgets it.
 const saveSeatFromStripe = async (userId, subscription, transaction) => {
     const fields = seatFieldsFrom(subscription);
     const seat = await seatOf(userId, { transaction });
+    fields.past_due_since = fields.status === 'past_due' ? (seat?.past_due_since || new Date()) : null;
     if (seat) await seat.update(fields, { transaction });
     else await AccessSubscription.create({ user_id: userId, ...fields }, { transaction });
     await syncLegacyFields(userId, transaction);
@@ -83,9 +109,12 @@ const saveSeatFromStripe = async (userId, subscription, transaction) => {
 
 module.exports = {
     PRO_STATUSES,
+    PAST_DUE_GRACE_DAYS,
     seatOf,
     isPro,
+    isPastDue,
     ownsKeychain,
+    keychainsOf,
     planFieldsFor,
     legacyStatus,
     syncLegacyFields,

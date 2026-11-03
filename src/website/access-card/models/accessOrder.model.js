@@ -55,15 +55,27 @@ AccessOrder.init(
       allowNull: true,
     },
 
+    // What Stripe reports: refunds and disputes are made in Stripe's dashboard, never by the API.
     payment_status: {
       type: DataTypes.ENUM(
         "paid",
         "failed",
-        "refunded"
+        "refunded",
+        "partially_refunded",
+        "disputed"
       ),
       allowNull: true,
       defaultValue: "paid",
     },
+    refunded_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    refunded_at: { type: DataTypes.DATE, allowNull: true },
+    // Stripe's dispute status (needs_response, under_review, won, lost, ...).
+    dispute_status: { type: DataTypes.STRING(40), allowNull: true },
+    disputed_at: { type: DataTypes.DATE, allowNull: true },
+
+    // An admin cancelled the order (POST /businessCard/access-orders/:id/cancel); nothing is refunded by the API.
+    cancelled_at: { type: DataTypes.DATE, allowNull: true },
+    cancel_reason: { type: DataTypes.STRING(500), allowNull: true },
 
     // ================= SHIPPING SNAPSHOT =================
 
@@ -134,13 +146,14 @@ AccessOrder.init(
     shipped_at: { type: DataTypes.DATE, allowNull: true },
     delivered_at: { type: DataTypes.DATE, allowNull: true },
 
-    // Empty for an order that ships nothing (Access Pro alone).
+    // Empty for an order that ships nothing (Access Pro alone); cancelled when it will not ship.
     fulfillment_status: {
       type: DataTypes.ENUM(
         "pending",
         "processing",
         "shipped",
-        "delivered"
+        "delivered",
+        "cancelled"
       ),
       allowNull: true,
       defaultValue: "pending",

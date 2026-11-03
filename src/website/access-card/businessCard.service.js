@@ -12,22 +12,25 @@ const {
   DirectoryCategory,
   Payment,
   AccessOrder,
+  AccessPlan,
+  AccessProduct,
+  AccessCheckout,
 } = require("../../models");
-const { normalizeEmail, accessCardOwner, setPasswordLink } = require("../../shared/identity");
+const { normalizeEmail, accessCardOwner, setPasswordLink, setProfessionalType } = require("../../shared/identity");
 const { createCard, updateCard } = require("./cardWriter");
 const { readCard } = require("./cardFields");
-const { makeRoomFor, lockPerson, assertNoAccountFor } = require("./cardOwnership");
-const { planFieldsFor } = require("./seats");
+const { makeRoomFor, lockPerson, assertNoAccountFor, websiteAccountFor, liveCardOf, settleCardType } = require("./cardOwnership");
+const { planFieldsFor, syncLegacyFields } = require("./seats");
 const { toPublicCard } = require("./cardPublic");
 const { entitlementsFor, checkOwnerEdit, hideOffersOffPlan } = require("./entitlements");
 const { getSettings } = require("./catalog");
 
-// What an admin may do on any card: everything Pro may, special offers, and up to 20 photos (the admin panel's
-// gallery; Mohit, Oct 16). Owners keep their plan's photo count.
+// What an admin may do on any card: everything Pro may, and up to 20 photos (the admin panel's gallery; Mohit,
+// Oct 16). Owners keep their plan's photo count. Special offers are retired (Oct 23).
 const ADMIN_PHOTOS = 20;
 const adminRights = async () => {
   const { pro } = (await getSettings()).entitlements;
-  return { ...pro, special_offers: true, photos: Math.max(ADMIN_PHOTOS, pro.photos) };
+  return { ...pro, photos: Math.max(ADMIN_PHOTOS, pro.photos) };
 };
 const logger = require("../../core/logger");
 const {
@@ -40,6 +43,9 @@ const { Op, Sequelize } = require("sequelize");
 const sequelize = require("../../core/db/central.db");
 const checkoutService = require("./checkout");
 const subscriptions = require("./subscriptions");
+const { refreshWebsite } = require("../../integrations/websiteRefresh");
+const { paging } = require("../../core/http/paging");
+const { containing } = require("../../core/utils/like");
 
 const parseFeaturedLinks = (featuredLinks) => {
   if (!featuredLinks) return [];
@@ -67,76 +73,87 @@ const parseFeaturedLinks = (featuredLinks) => {
   }
 };
 
+// Choosing a plan for a card (docs/access.md section 5). Free, and Free with the keychain (Oct 23), make the card live
+// on Free now: a guest's draft with an account for its email (made now, or an app account made professional, of the
+// card's type), which gets the email to set its password; the keychain is then paid for (next_step shipping). Plans
+// with Access Pro change nothing until paid. One choice at a time per card, and choosing again changes nothing more
+// (no second account, no second email).
 const selectBusinessCardPlan = async (body) => {
   const { business_card_id, plan_type } = body;
 
-  const card = await BusinessCard.findOne({
-    where: {
-      id: business_card_id,
-      is_active: true,
-    },
+  const plan = await AccessPlan.findOne({ where: { code: plan_type || "", is_active: true } });
+  if (!plan) {
+    throw ApiError.withCode(httpStatus.BAD_REQUEST, "Invalid plan type", "INVALID_PLAN");
+  }
+  const products = await AccessProduct.findAll({ where: { code: plan.products }, attributes: ["code", "kind"] });
+  const withPro = products.some((product) => product.kind === "subscription");
+  const nextStep = !plan.products.length ? "dashboard" : plan.products.includes("keychain") ? "shipping" : "payment";
+  const answer = (card) => ({
+    payment_required: plan.products.length > 0,
+    next_step: nextStep,
+    business_card_id: card.id,
+    plan_type: plan.code,
   });
 
-  if (!card) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+  if (withPro) {
+    const card = await BusinessCard.findOne({ where: { id: business_card_id, is_active: true } });
+    if (!card) throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+    // A guest's card goes on only while its email has no website account; that account's owner signs in and claims it.
+    await assertNoAccountFor(card);
+    return answer(card);
   }
 
-  // A guest's card goes on only while its email has no account; that account's owner signs in and claims it.
-  await assertNoAccountFor(card);
+  const { card, mail } = await sequelize.transaction(async (transaction) => {
+    const locked = await BusinessCard.findOne({
+      where: { id: business_card_id, is_active: true },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!locked) throw new ApiError(httpStatus.NOT_FOUND, "Business card not found.");
+    await assertNoAccountFor(locked);
 
-  if (plan_type === "free") {
-    if (card.user_id) {
-      // The subscription and keychain are the person's: choosing Free changes neither.
-      const owner = await User.findByPk(card.user_id);
-      await card.update({
-        status: card.status === "draft" ? "accepted" : card.status,
-        ...(await planFieldsFor(owner)),
-      });
-
-      await sendBusinessCardApprovedEmail({
-        to: card.email,
-        name: card.name,
-        businessCardLink: card.business_card_link,
-        qrCodeUrl: card.business_card_qr,
-        purchaseType: "FREE",
-      });
-    } else {
-      // A guest's draft goes live with a new account, which gets an email to set its password.
-      const { user } = await accessCardOwner({ email: card.email, name: card.name, phone: card.phone });
-      await card.update({ user_id: user.id, status: "accepted", plan_type: "free" });
-      await sendNewAccessUserEmail({
-        to: card.email,
-        name: card.name,
-        email: user.email,
-        setPasswordLink: await setPasswordLink(user),
-        businessCardLink: card.business_card_link,
-        qrCodeUrl: card.business_card_qr,
-      });
+    if (locked.user_id) {
+      // Someone's already (a signed-in owner, or a choice made before): Free changes neither their subscription nor
+      // their keychain, and only a card that goes live now is announced.
+      const wasDraft = locked.status === "draft";
+      const owner = await User.findByPk(locked.user_id, { transaction });
+      await locked.update({
+        status: wasDraft ? "accepted" : locked.status,
+        ...(await planFieldsFor(owner, transaction)),
+      }, { transaction });
+      return { card: locked, mail: wasDraft ? { approved: true } : null };
     }
+    const { user, created, converted } = await accessCardOwner({
+      email: locked.email,
+      name: locked.name,
+      phone: locked.phone,
+      professionalType: locked.professional_type,
+      transaction,
+    });
+    await locked.update({ user_id: user.id, status: "accepted", ...(await planFieldsFor(user, transaction)) }, { transaction });
+    return { card: locked, mail: created || converted ? { welcome: user } : { approved: true } };
+  });
 
-    return {
-      payment_required: false,
-      next_step: "dashboard",
-      business_card_id: card.id,
-      plan_type,
-    };
+  if (mail) refreshWebsite(["cards", "profiles"]);
+  if (mail?.welcome) {
+    await sendNewAccessUserEmail({
+      to: card.email,
+      name: card.name,
+      email: mail.welcome.email,
+      setPasswordLink: await setPasswordLink(mail.welcome),
+      businessCardLink: card.business_card_link,
+      qrCodeUrl: card.business_card_qr,
+    });
+  } else if (mail?.approved) {
+    await sendBusinessCardApprovedEmail({
+      to: card.email,
+      name: card.name,
+      businessCardLink: card.business_card_link,
+      qrCodeUrl: card.business_card_qr,
+      purchaseType: "FREE",
+    });
   }
-
-  if (plan_type === "subscription_only") {
-    return {
-      payment_required: true,
-      next_step: "payment",
-      business_card_id: card.id,
-      plan_type,
-    };
-  }
-
-  return {
-    payment_required: true,
-    next_step: "shipping",
-    business_card_id: card.id,
-    plan_type,
-  };
+  return answer(card);
 };
 
 const createBusinessCard = async (body, files) => {
@@ -148,9 +165,8 @@ const createBusinessCard = async (body, files) => {
     attributes: { user_id: null, status: "draft", plan_type: "free", nfc_status: "not_purchased" },
     rights: await entitlementsFor(null),
   });
-  const accountExists = Boolean(
-    await User.findOne({ where: { email: normalizeEmail(cardDoc.email) }, attributes: ["id"] }),
-  );
+  // An app account's email is a new one here (Nov 1): the purchase makes it a professional account.
+  const accountExists = Boolean(await websiteAccountFor(cardDoc.email));
 
   sendAccessCardCreatedAdminEmail({
     name: cardDoc.name,
@@ -213,7 +229,7 @@ const createBusinessCardByAdmin = async (body, files) => {
       qrCodeUrl: cardDoc.business_card_qr,
     }).catch((err) => logger.error("sendBusinessCardApprovedEmail failed", err));
   } else {
-    const { user } = await accessCardOwner({ email: cardDoc.email, name: cardDoc.name, phone: cardDoc.phone });
+    const { user } = await accessCardOwner({ email: cardDoc.email, name: cardDoc.name, phone: cardDoc.phone, professionalType: cardDoc.professional_type });
     await cardDoc.update({ user_id: user.id });
     setPasswordLink(user)
       .then((link) =>
@@ -231,6 +247,8 @@ const createBusinessCardByAdmin = async (body, files) => {
   return cardDoc;
 };
 
+// A signed-in professional's card: live at once. Its type (individual or brand) and the account's are settled
+// together (settleCardType): the account takes the card's while nothing depends on it yet, else the card the account's.
 const createBusinessCardWithToken = async (body, files) => {
   const { user } = body;
 
@@ -244,7 +262,14 @@ const createBusinessCardWithToken = async (body, files) => {
       address_verified: false,
       ...(await planFieldsFor(user)),
     },
-    prepare: roomFor(user.id, body),
+    prepare: async (transaction) => {
+      await lockPerson(user.id, transaction);
+      const hadCard = Boolean(await liveCardOf(user.id, { transaction }));
+      const link = await makeRoomFor(user.id, { replace: body.replace === true || body.replace === "true", transaction });
+      // readCard has checked the type already; a card that sends none is a professional's.
+      const requested = String(body.professional_type ?? "").trim() || "individual";
+      return { ...link, professional_type: await settleCardType(user.id, requested, { hadCard, transaction }) };
+    },
     rights: await entitlementsFor(user.id),
   });
 
@@ -495,7 +520,23 @@ const updateBusinessCard = async (id, body, files, { admin = false } = {}) => {
   }
 
   const rights = admin ? await adminRights() : await entitlementsFor(cardDoc.user_id);
-  return updateCard(cardDoc, { body, files, rights, byOwner: !admin && Boolean(cardDoc.user_id) });
+  // Professional or brand, and a Google listing claim, are set when the card is made; afterwards only an admin
+  // changes them (Nov 1).
+  const input = admin ? body : { ...body };
+  if (!admin) {
+    delete input.professional_type;
+    delete input.claimed_place_id;
+  }
+  const result = await updateCard(cardDoc, { body: input, files, rights, byOwner: !admin && Boolean(cardDoc.user_id) });
+  // An admin's change of type is the account's too: pages, /brands and the directory read the account's type.
+  const type = [body.professional_type].flat().at(-1);
+  if (admin && ["individual", "brand"].includes(type) && cardDoc.user_id) {
+    const owner = await User.findByPk(cardDoc.user_id);
+    if (owner && owner.account_type === "professional" && owner.professional_type !== type) {
+      await setProfessionalType(owner, type);
+    }
+  }
+  return result;
 };
 
 const deleteBusinessCard = async (body) => {
@@ -1507,46 +1548,42 @@ const getPaymentHistory = async (user) => {
   return payments;
 };
 
-const getAllAccessOrders = async (body) => {
-  const {
-    page = 1,
-    limit = 10,
-    search = "",
-    payment_status,
-    fulfillment_status,
-  } = body;
+const ORDER_PAYMENT_STATUSES = ["paid", "failed", "refunded", "partially_refunded", "disputed"];
+const ORDER_FULFILLMENT_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
 
-  const offset = (page - 1) * limit;
+const badFilter = (field, values) =>
+  ApiError.withCode(httpStatus.BAD_REQUEST, `${field} is one of ${values.join(", ")}.`, "INVALID_INPUT", { field });
+
+// The admin's list of Access orders, newest first, paged (BE-06): ?page, ?limit (10 by default, at most 100), ?search
+// (order number, customer name or email), ?payment_status, ?fulfillment_status, ?cancelled=true|false. Answers
+// { data, pagination: { page, limit, total, totalPages } }.
+const getAllAccessOrders = async (query = {}) => {
+  const { page, limit, offset } = paging(query, { defaultLimit: 10, maxLimit: 100 });
+  const { search, payment_status, fulfillment_status, cancelled } = query;
 
   const where = {
     is_active: true,
   };
 
   if (payment_status) {
+    if (!ORDER_PAYMENT_STATUSES.includes(payment_status)) throw badFilter("payment_status", ORDER_PAYMENT_STATUSES);
     where.payment_status = payment_status;
   }
 
   if (fulfillment_status) {
+    if (!ORDER_FULFILLMENT_STATUSES.includes(fulfillment_status)) throw badFilter("fulfillment_status", ORDER_FULFILLMENT_STATUSES);
     where.fulfillment_status = fulfillment_status;
   }
 
-  if (search) {
+  if (cancelled === "true") where.cancelled_at = { [Op.ne]: null };
+  if (cancelled === "false") where.cancelled_at = null;
+
+  if (search && String(search).trim()) {
+    const like = containing(String(search).trim());
     where[Op.or] = [
-      {
-        order_number: {
-          [Op.like]: `%${search}%`,
-        },
-      },
-      {
-        customer_name: {
-          [Op.like]: `%${search}%`,
-        },
-      },
-      {
-        customer_email: {
-          [Op.like]: `%${search}%`,
-        },
-      },
+      { order_number: { [Op.like]: like } },
+      { customer_name: { [Op.like]: like } },
+      { customer_email: { [Op.like]: like } },
     ];
   }
 
@@ -1561,18 +1598,19 @@ const getAllAccessOrders = async (body) => {
       },
     ],
 
-    order: [["created_at", "DESC"]],
+    order: [["created_at", "DESC"], ["id", "DESC"]],
 
-    limit: Number(limit),
-    offset: Number(offset),
+    limit,
+    offset,
+    distinct: true,
   });
 
   return {
     data: rows,
     pagination: {
+      page,
+      limit,
       total: count,
-      page: Number(page),
-      limit: Number(limit),
       totalPages: Math.ceil(count / limit),
     },
   };
@@ -1618,7 +1656,21 @@ const getAccessOrderById = async (id) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
   }
 
-  return order;
+  // What was bought, and with what at Stripe (an order's plan and subscription).
+  const checkout = await AccessCheckout.findOne({
+    where: { access_order_id: order.id },
+    attributes: ["id", "plan_code", "status", "stripe_subscription_id", "stripe_payment_intent_id", "stripe_invoice_id"],
+  });
+  const data = order.toJSON();
+  data.checkout = checkout && {
+    id: checkout.id,
+    plan_type: checkout.plan_code,
+    status: checkout.status,
+    stripe_subscription_id: checkout.stripe_subscription_id,
+    stripe_payment_intent_id: checkout.stripe_payment_intent_id,
+    stripe_invoice_id: checkout.stripe_invoice_id,
+  };
+  return data;
 };
 
 const updateAccessOrderFulfillment = async (id, body) => {
@@ -1666,6 +1718,56 @@ const updateAccessOrderFulfillment = async (id, body) => {
   return order;
 };
 
+/**
+ * An admin cancels an Access order (Nov 1). Nothing is refunded here: refunds are made by hand in Stripe's dashboard.
+ * Access Pro bought with it ends now at Stripe (no proration, no refund), and the card stays live on Free. A keychain
+ * not yet shipped will not ship, and stops counting as the person's (unless another keychain order of theirs stands),
+ * so the card's nfc_status falls back. The order's payment is marked CANCELLED, its checkout cancelled. Answers the
+ * order as getAccessOrderById does; cancelling again changes nothing.
+ */
+const cancelAccessOrder = async (id, body = {}) => {
+  const order = await AccessOrder.findOne({ where: { id, is_active: true } });
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Access order not found");
+  if (order.cancelled_at) return getAccessOrderById(order.id);
+  const reason = body.reason === undefined || body.reason === null ? null : String(body.reason).trim().slice(0, 500) || null;
+
+  const checkout = await AccessCheckout.findOne({ where: { access_order_id: order.id } });
+  const withPro = checkout?.stripe_subscription_id && checkout.lines.some((line) => line.kind === "subscription");
+  if (withPro) await subscriptions.endSubscriptionNow(checkout.stripe_subscription_id);
+
+  await sequelize.transaction(async (transaction) => {
+    const fresh = await AccessOrder.findByPk(order.id, { transaction, lock: transaction.LOCK.UPDATE });
+    // A keychain the order gave (one cancelled at payment, a duplicate, never counted as the person's).
+    const keychain = fresh.fulfillment_status !== null && fresh.fulfillment_status !== "cancelled";
+    await fresh.update({
+      cancelled_at: new Date(),
+      cancel_reason: reason,
+      ...(["pending", "processing"].includes(fresh.fulfillment_status) && { fulfillment_status: "cancelled" }),
+    }, { transaction });
+    if (fresh.payment_id) await Payment.update({ payment_status: "CANCELLED" }, { where: { id: fresh.payment_id }, transaction });
+    if (checkout) await AccessCheckout.update({ status: "cancelled" }, { where: { id: checkout.id }, transaction });
+    if (!fresh.user_id) return;
+    if (keychain) {
+      const others = await AccessOrder.count({
+        where: {
+          user_id: fresh.user_id,
+          id: { [Op.ne]: fresh.id },
+          cancelled_at: null,
+          fulfillment_status: { [Op.in]: ["pending", "processing", "shipped", "delivered"] },
+        },
+        transaction,
+      });
+      if (!others) {
+        await BusinessCard.update({ nfc_status: "not_purchased" }, { where: { user_id: fresh.user_id }, paranoid: false, transaction });
+      }
+    }
+    // The card's plan fields from what the person still has.
+    await syncLegacyFields(fresh.user_id, transaction);
+  });
+  logger.info(`Access order ${order.order_number} cancelled by an admin${reason ? `: ${reason}` : ""}`);
+  return getAccessOrderById(order.id);
+};
+
 module.exports = {
   createBusinessCard,
   selectBusinessCardPlan,
@@ -1706,4 +1808,5 @@ module.exports = {
   getAllAccessOrders,
   getAccessOrderById,
   updateAccessOrderFulfillment,
+  cancelAccessOrder,
 };

@@ -46,8 +46,6 @@ const getCustomer = async (userDoc, paymentMethod) => {
     description: `${config.app_name}#${userDoc.id}#${userDoc.role_id}#stripeCustomer`,
   };
 
-  console.log(customerObj, "customerObj");
-
   const { secret_key } = getKeys(paymentMethod);
 
   const stripe = new Stripe(secret_key, {

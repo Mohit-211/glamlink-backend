@@ -8,9 +8,10 @@ const logger = require('../../core/logger');
 const sequelize = require('../../core/db/central.db');
 const { paging } = require('../../core/http/paging');
 const { containing } = require('../../core/utils/like');
+const { stateCode } = require('../../core/utils/usStates');
 const { DirectoryApplication } = require('../../models');
 const { places, geocoder, configured } = require('../../integrations/googlePlaces');
-const { directoryProfilesSql } = require('../profiles');
+const { directoryProfilesSql, mapPagesSql, pageFilters } = require('../profiles');
 
 const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, 'INVALID_DIRECTORY_QUERY', { field });
 const ci = (expr) => `(${expr}) COLLATE utf8mb4_unicode_ci`;
@@ -51,19 +52,27 @@ const miles = (from, to) => {
 
 const LISTINGS = `SELECT 'listing' AS kind, a.id, NULL AS slug, ${ci('a.name')} AS name, ${ci('a.profile_image')} AS image,
     ${ci('a.professional_title')} AS tagline, ${ci('a.city')} AS city, ${ci('a.state')} AS state, ${ci('a.primary_specialty')} AS specialty,
-    ${ci('a.specialties')} AS specialties, a.latitude, a.longitude FROM directory_applications a WHERE a.status = 'approved' AND a.user_id IS NULL`;
+    ${ci('a.specialties')} AS specialties, a.latitude, a.longitude, 'individual' AS type
+    FROM directory_applications a WHERE a.status = 'approved' AND a.user_id IS NULL`;
 const DISTANCE = `3958.8 * 2 * ASIN(SQRT(POWER(SIN(RADIANS(:lat - d.latitude) / 2), 2)
     + COS(RADIANS(:lat)) * COS(RADIANS(d.latitude)) * POWER(SIN(RADIANS(:lng - d.longitude) / 2), 2)))`;
 
 // GET /directory/search: our profiles, one page.
 //   q  name, title, specialties; specialty  one specialty; city, state; lat & lng, or location (a place, geocoded):
 //   nearest first, within radius (miles, 25 by default, at most 100); without a place, by name. page, limit.
+//   type  individual (professionals) or brand; both without it. The website's nearby search asks for professionals:
+//   brands have their own list.
 const search = async (query = {}) => {
     const { limit, offset } = paging(query);
     const point = await pointFrom(query);
     const radius = Math.min(Number(query.radius) > 0 ? Number(query.radius) : 25, 100);
     const where = [];
     const replacements = { limit, offset };
+    if (query.type !== undefined && query.type !== '') {
+        if (!['individual', 'brand'].includes(String(query.type))) throw refuse('type', 'type is individual or brand.');
+        where.push('d.type = :type');
+        replacements.type = String(query.type);
+    }
     const q = String(query.q ?? '').trim();
     if (q) {
         where.push('(d.name LIKE :term OR d.tagline LIKE :term OR d.specialty LIKE :term OR d.specialties LIKE :term)');
@@ -88,7 +97,7 @@ const search = async (query = {}) => {
     const outer = `FROM (${inner}) x ${point ? 'WHERE x.distance <= :radius' : ''}`;
     const [[{ count }]] = await sequelize.query(`SELECT COUNT(*) AS count ${outer}`, { replacements });
     const [rows] = await sequelize.query(
-        `SELECT x.kind, x.id, x.slug, x.name, x.image, x.tagline, x.city, x.state, x.specialty, x.distance ${outer}
+        `SELECT x.kind, x.id, x.slug, x.name, x.image, x.tagline, x.city, x.state, x.specialty, x.type, x.distance ${outer}
          ORDER BY ${point ? 'x.distance ASC, ' : ''}x.name ASC, x.kind ASC, x.id ASC LIMIT :limit OFFSET :offset`,
         { replacements },
     );
@@ -104,6 +113,7 @@ const search = async (query = {}) => {
             city: row.city,
             state: row.state,
             specialty: row.specialty,
+            type: row.type,
             distance_miles: row.distance === null ? null : Math.round(Number(row.distance) * 10) / 10,
         })),
     };
@@ -150,6 +160,65 @@ const listing = async (id) => {
     };
 };
 
+// --- The hero map's pins, and the filters of the Professionals and Brands pages (Nov 3)
+
+// GET /directory/filters?type=individual|brand: what the Professionals page (individual, the default) or the Brands
+// page filters GET /profiles by, with how many pages each option has (profiles' pageFilters).
+const filters = async (query = {}) => {
+    const type = query.type === undefined || query.type === '' ? 'individual' : String(query.type);
+    if (!['individual', 'brand'].includes(type)) throw refuse('type', 'type is individual or brand.');
+    return pageFilters(type);
+};
+
+// A box on the map in degrees, or null when none is sent: north, south, east and west, all four or none.
+const SIDES = { north: 90, south: 90, east: 180, west: 180 };
+const boxFrom = (query) => {
+    const sent = Object.keys(SIDES).filter((side) => query[side] !== undefined && query[side] !== '');
+    if (!sent.length) return null;
+    const missing = Object.keys(SIDES).find((side) => !sent.includes(side));
+    if (missing) throw refuse(missing, 'Send north, south, east and west together.');
+    const box = Object.fromEntries(Object.entries(SIDES).map(([side, limit]) => [side, coordinate(query[side], side, limit)]));
+    if (box.south >= box.north) throw refuse('south', 'south must be less than north.');
+    if (box.west >= box.east) throw refuse('west', 'west must be less than east.');
+    return box;
+};
+
+// A pin's degrees, to about 100 m (3 decimals): an exact address is public on the card already, and a city's point is
+// the city's own.
+const roughly = (degrees) => Math.round(Number(degrees) * 1000) / 1000;
+
+// GET /directory/map: the hero map's pins, our professionals' pages where their main location has a point (no
+// listings without an account: each pin links to a page), featured first in their order, then by name.
+//   north, south, east, west  a box keeping the pins inside it (all four or none); limit  100, at most 200. `count`
+//   counts every pin, not only the rows answered.
+const mapPins = async (query = {}) => {
+    const box = boxFrom(query);
+    const { limit } = paging(query, { defaultLimit: 100, maxLimit: 200 });
+    const where = box ? 'WHERE p.latitude BETWEEN :south AND :north AND p.longitude BETWEEN :west AND :east' : '';
+    const replacements = { ...box, limit };
+    const [[{ count }]] = await sequelize.query(`SELECT COUNT(*) AS count FROM (${mapPagesSql()}) p ${where}`, { replacements });
+    const [rows] = await sequelize.query(
+        `SELECT p.* FROM (${mapPagesSql()}) p ${where}
+         ORDER BY p.is_featured DESC, CASE WHEN p.is_featured = 1 THEN p.featured_order END ASC, p.name ASC, p.id ASC LIMIT :limit`,
+        { replacements },
+    );
+    return {
+        count: Number(count),
+        rows: rows.map((row) => ({
+            id: Number(row.id),
+            slug: row.slug,
+            name: row.name || null,
+            image: row.image || null,
+            // The page's category (a professional's specialty), else the primary specialty.
+            specialty: row.category || row.specialty || null,
+            city: row.city || null,
+            state: stateCode(row.state) ?? (row.state || null),
+            latitude: roughly(row.latitude),
+            longitude: roughly(row.longitude),
+        })),
+    };
+};
+
 // --- Google's listings
 
 const TYPE_WORDS = { esthetician: 'esthetician', 'med-spa': 'med spa', 'hair-stylist': 'hair salon' };
@@ -178,11 +247,17 @@ const cached = async (key, make) => {
     return value;
 };
 
-// The place ids approved applications claimed.
+// The place ids claimed and checked: by approved applications (the retired directory form), or by Access cards whose
+// claim an admin verified.
 const claimedPlaces = async (placeIds) => {
     if (!placeIds.length) return new Map();
     const rows = await DirectoryApplication.findAll({ where: { place_id: placeIds, status: 'approved' }, attributes: ['id', 'place_id'] });
-    return new Map(rows.map((row) => [row.place_id, row.id]));
+    const [cards] = await sequelize.query(
+        `SELECT id, claimed_place_id FROM business_cards
+         WHERE claimed_place_id IN (:placeIds) AND claim_verified_at IS NOT NULL AND deleted_at IS NULL`,
+        { replacements: { placeIds } },
+    );
+    return new Map([...rows.map((row) => [row.place_id, row.id]), ...cards.map((card) => [card.claimed_place_id, card.id])]);
 };
 
 const photoUrl = (name, width = 400) =>
@@ -286,5 +361,48 @@ const googlePhoto = async (query = {}) => {
     return uri;
 };
 
+// --- Claims of Google listings, made through the Access form (admin)
+
+const CLAIM = `SELECT c.id AS business_card_id, c.name, c.business_name, c.email, c.professional_type, c.status, c.user_id,
+    c.claimed_place_id AS place_id, c.claim_verified_at AS verified_at, c.created_at
+    FROM business_cards c WHERE c.claimed_place_id IS NOT NULL AND c.deleted_at IS NULL`;
+const claimRow = (row) => ({
+    ...row,
+    business_card_id: Number(row.business_card_id),
+    user_id: row.user_id === null ? null : Number(row.user_id),
+    // Google's page for the listing, for the admin to compare with the card
+    maps_url: `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(row.place_id)}`,
+});
+
+// GET /directory/claims: the cards that claim a Google listing, those to verify first. status  pending or verified.
+const claims = async (query = {}) => {
+    const { limit, offset } = paging(query);
+    const where = query.status === 'pending' ? ' AND c.claim_verified_at IS NULL' : query.status === 'verified' ? ' AND c.claim_verified_at IS NOT NULL' : '';
+    const [[{ count }]] = await sequelize.query(`SELECT COUNT(*) AS count FROM (${CLAIM}${where}) x`);
+    const [rows] = await sequelize.query(`${CLAIM}${where} ORDER BY (c.claim_verified_at IS NULL) DESC, c.created_at DESC LIMIT :limit OFFSET :offset`,
+        { replacements: { limit, offset } });
+    return { count: Number(count), rows: rows.map(claimRow) };
+};
+
+// PUT /directory/claims/:cardId { action: verify | reject }. A verified claim takes the Google listing out of the
+// directory; a rejected one is cleared from the card.
+const reviewClaim = async (cardId, body = {}) => {
+    if (!['verify', 'reject'].includes(body.action)) throw refuse('action', 'action is verify or reject.');
+    const [[card]] = await sequelize.query(`${CLAIM} AND c.id = :cardId`, { replacements: { cardId: Number(cardId) || 0 } });
+    if (!card) throw ApiError.withCode(httpStatus.NOT_FOUND, 'No claim on that card.', 'NOT_FOUND');
+    if (body.action === 'verify') {
+        const [[other]] = await sequelize.query(`${CLAIM} AND c.claimed_place_id = :placeId AND c.claim_verified_at IS NOT NULL AND c.id <> :cardId`,
+            { replacements: { placeId: card.place_id, cardId: card.business_card_id } });
+        if (other) throw ApiError.withCode(httpStatus.CONFLICT, `Card ${other.business_card_id} already has this listing.`, 'PLACE_ALREADY_CLAIMED');
+        await sequelize.query('UPDATE business_cards SET claim_verified_at = NOW() WHERE id = :cardId', { replacements: { cardId: card.business_card_id } });
+    } else {
+        await sequelize.query('UPDATE business_cards SET claimed_place_id = NULL, claim_verified_at = NULL WHERE id = :cardId',
+            { replacements: { cardId: card.business_card_id } });
+        return { ...claimRow(card), place_id: null, verified_at: null, rejected: true };
+    }
+    const [[updated]] = await sequelize.query(`${CLAIM} AND c.id = :cardId`, { replacements: { cardId: card.business_card_id } });
+    return claimRow(updated);
+};
+
 // googleCache: for tests, which clear it between cases.
-module.exports = { search, listing, googleListings, googleSearch, googlePlace, googlePhoto, googleCache: cache };
+module.exports = { search, listing, filters, mapPins, googleListings, googleSearch, googlePlace, googlePhoto, claims, reviewClaim, googleCache: cache };

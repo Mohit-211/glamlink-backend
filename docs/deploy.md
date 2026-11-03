@@ -5,6 +5,41 @@ The new API runs beside the old one on the same server: its own folder (`/var/ww
 (`glamlink-backend` in `/var/www/backend`, `node.glamlink.net`) and its database are not touched by any step here,
 so going back is pointing the website and admin panel at the old URL again.
 
+## As deployed (Oct 30)
+
+The live server does not use the folder, port and database this runbook names. As reported (progress.md, "On the
+server"):
+
+| | This runbook | Live |
+| --- | --- | --- |
+| Folder | `/var/www/api` | `/var/www/backend` |
+| pm2 process | `glamlink-api` | `glamlink-api` |
+| Port | 5001 | 5500 |
+| Database | `glamlink_api` | `glamlinkdb` |
+| Old backend's folder | `/var/www/backend` | `/var/www/old-backend` (pm2 `glamlink-backend`, database `glamlink`) |
+
+The steps below are unchanged: use the live values when you run them. `ecosystem.config.json` still says
+`cwd: /var/www/api`, so check what pm2 really runs first: `pm2 describe glamlink-api` (exec cwd, script, `NODE_ENV`).
+
+`/var/www/backend` swapped meaning: in the steps below it is the old backend, on the live server it is the new API.
+Read every `/var/www/backend` path below as `/var/www/old-backend`: its `.env` (sections 0 and 2) and its
+`public/uploads` (sections 1, 2 and 8). Section 8 step 2 matters most: run as written, it would copy from the new API's
+folder and miss the files uploaded to the old site since the first copy.
+
+Three things to fix on the server (audit of Oct 30):
+
+1. **`NODE_ENV=production` in `.env` itself** (OPS-01). The server's `.env` says `test`. The API runs as production
+   today only because pm2's env sets it; config reads `.env` only for variables not already set
+   (`src/core/config/paths.js:16`). Started any other way (`pm2 start index.js`, a re-created pm2 app,
+   `node index.js`), it runs in test mode: no rate limits, no jobs, no Secure cookie, no captcha requirement, no
+   secret checks, and every email kept in memory instead of sent. Set `production` in `.env` with the intended
+   `MAIL_TRANSPORT` and `JOBS_ENABLED`.
+2. **SQL dumps and backups** (OPS-02). Dumps with personal data sit in the server's root folder. Move them off the
+   server (or `chmod 600` them while they are needed), then delete them. Then start the nightly backup in section
+   11 and test one restore.
+3. **The health check is `https://api.glamlink.net/api/healthcheck`**, outside `/api/v1`. It answers a static
+   `{"response":"ok"}`: it shows the process is up, not that the database answers (OPS-04).
+
 Two stages:
 
 1. **Testing mode** (sections 1 to 7): the API on a copy of the live data, with Stripe and Shippo test keys, no
@@ -74,13 +109,13 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 
 | Variable | Testing mode | Notes |
 | --- | --- | --- |
-| `NODE_ENV` | `production` | Both stages |
+| `NODE_ENV` | `production` | Both stages, in `.env` itself: pm2's env sets it too, but a start without that env falls back to `.env` ("As deployed") |
 | `PORT` | `5001` | The old backend has 5000 |
 | `API_BASE_URL` | `https://api.glamlink.net` | Stored file links are rewritten to it by the migrations: set it before migrating |
 | `WEBSITE_URL`, `ADMIN_URL` | `https://test.glamlink.net` while the website is tested there, `https://admin.glamlink.net` | Links in emails (verify email, reset password) and new cards' public links open on `WEBSITE_URL`. Live: `https://glamlink.net` |
 | `WEBSITE_REFRESH_URL`, `WEBSITE_REFRESH_SECRET` | Empty until the website has its receiving route; then its address (for example `https://test.glamlink.net/api/revalidate`) and a secret shared with the website (`openssl rand -hex 32`) | After each change the API tells the website which data changed (website handoff, section 10.18). Empty: off, and cached pages wait for their own expiry |
 | `ACCESSDOMAINS` | `https://glamlink.net,https://www.glamlink.net,https://admin.glamlink.net,https://test.glamlink.net` | The website's origins: without `https://test.glamlink.net` the API refuses the test site with 403. Add `http://localhost:3000` (and the admin panel's dev URL) while the frontends are tested from a laptop |
-| `JOBS_ENABLED` | `false` | Live: `true` |
+| `JOBS_ENABLED` | `false` | Live: `true`. Off means no scheduled job runs, the Access checkout sweeper included (section 5) |
 | `MAIL_TRANSPORT` | `log` | Emails are written to the log, never sent. Live: `smtp` |
 | `CENTRAL_MYSQL_HOST/PORT/DB/USER/PASSWORD` | `127.0.0.1`, `3306`, `glamlink_api`, `glamlink_api`, the password from step 2 | |
 | `JWT_SECRET` | `openssl rand -hex 32` | A new one: everyone signs in again on the new API. Production refuses anything shorter than 64 hex characters |
@@ -126,18 +161,49 @@ Logs: `pm2 logs glamlink-api`, and `/var/www/storage/logs`.
 
 ## 5. Stripe and Shippo
 
-1. `npm run stripe:setup`: creates (or adopts) the Stripe products and prices for the keys in `.env`, and prints the
-   webhook to create.
+1. `npm run stripe:setup`: creates (or adopts) the Stripe products and prices for the keys in `.env`, archives a
+   product's earlier list prices once its current one exists (subscriptions on them keep billing), and prints the
+   webhook to create with its events.
 2. Stripe dashboard, test mode: Developers > Webhooks > Add endpoint
    - URL `https://api.glamlink.net/api/v1/payment/stripe/charge-intent/webhooks`
    - API version `2026-09-30.endive`
-   - events: `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`,
-     `customer.subscription.deleted`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.succeeded`
+   - events (15 since Nov 1; `stripe:setup` prints the same list):
+     - `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`;
+     - `customer.subscription.updated`, `customer.subscription.deleted`;
+     - `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.payment_failed`;
+     - `charge.succeeded`, `charge.refunded`;
+     - `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn`,
+       `charge.dispute.funds_reinstated`.
    - its signing secret goes in `STRIPE_WEBHOOK_SECRET_INTENT_CHARGE`.
-3. Shippo: Settings > API > Webhooks: event `track_updated`, URL
+   - An endpoint made before Nov 1 has 7 of these: add the other 8 (Developers > Webhooks > the endpoint > Update
+     details). Refunds and disputes are only recorded (access.md section 6); the API never refunds.
+3. Stripe dashboard, the rest (since Nov 1; in test mode now, and again in live mode at the switch):
+   - **Payment methods** (Settings > Payments > Payment methods, the default configuration): Cards on, with Apple Pay
+     and Google Pay; **Link on**; everything else off (US bank account/ACH, Cash App, Affirm, Klarna, Afterpay,
+     Amazon Pay …). The API asks for cards and Link by name (`PAYMENT_METHODS` in
+     `src/website/access-card/checkout.js`): if Link is to stay off, take `'link'` out of that list first. Register the
+     payment method domains `glamlink.net`, `www.glamlink.net` and `test.glamlink.net` in both modes (Apple Pay
+     needs them).
+   - **Customer portal** (Settings > Billing > Customer portal): save a configuration in each mode; until then
+     `POST /access/billing-portal` (the website's "Manage billing") answers 502 `PAYMENT_UNAVAILABLE`. On: update payment methods, invoice history.
+     Subscription cancellation: off (the website has its own Cancel), or at the end of the billing period with
+     proration off. Switching plans: off. Default return URL `https://glamlink.net/dashboard` (the API sends its own).
+     Add the business name and the terms and privacy links.
+   - **Revenue recovery** (Billing > Revenue recovery > Retries): Smart Retries (Stripe's default, up to 2 weeks), then
+     **cancel the subscription**, not "leave past due" or "mark as unpaid". The API keeps Pro at most 21 days after a
+     renewal first fails, as a safety net. Under Revenue recovery > Emails, leave Stripe's failed-payment emails off:
+     the API sends its own for failed renewals and 3-D Secure (the expiring-card reminders may stay on).
+   - Optional: Settings > Customer emails > Successful payments, for Stripe's receipts of invoices (the keychain's
+     payment already asks Stripe for a receipt).
+4. Shippo: Settings > API > Webhooks: event `track_updated`, URL
    `https://api.glamlink.net/api/v1/access/shippo/webhook?token=<SHIPPO_WEBHOOK_TOKEN>`.
-4. `pm2 reload glamlink-api --update-env`, then `npm run check:server -- --online`: Stripe and Shippo accept the keys,
-   and the webhook is found and enabled.
+5. `pm2 reload glamlink-api --update-env`, then `npm run check:server -- --online`: Stripe and Shippo accept the keys,
+   and the webhook is found and enabled. Since Nov 1 it also fails when the endpoint is on another API version or
+   misses one of the 15 events.
+
+Checkouts waiting for Stripe are also asked about every 5 minutes by the `access-checkout-sweep` job, so a paid card
+goes live even if its webhook never comes. Like every scheduled job, it runs only when `JOBS_ENABLED` is not `false`:
+in testing mode (section 3) it is off, and only the website's checkout poll and `/pay` ask Stripe.
 
 ## 6. nginx and HTTPS
 
@@ -246,7 +312,8 @@ Late evening, in this order:
    the real Turnstile secret, `WEBSITE_URL=https://glamlink.net`. Remove the localhost origins and
    `https://test.glamlink.net` from `ACCESSDOMAINS`.
 4. `npm run stripe:setup` with the live keys; create the live webhook endpoint (section 5) and put its secret in
-   `.env`; in Stripe, disable the old backend's endpoint. Point the Shippo webhook at the new URL.
+   `.env`; in Stripe, disable the old backend's endpoint. Do the rest of section 5's Stripe steps in live mode too
+   (payment methods with Link, the customer portal, Revenue recovery). Point the Shippo webhook at the new URL.
 5. `pm2 start glamlink-api --update-env`, then `npm run check:server -- --online` (it should say `live mode`).
 6. `npm run stripe:reconcile`, then `npm run stripe:reconcile -- --apply`: seats take Stripe's statuses and renewal
    dates. Purchases made on the old site between the dump and now are not in the new database (the new API ignores
@@ -288,14 +355,47 @@ npm run check:server
 pm2 reload glamlink-api
 ```
 
+When a pull changes the Stripe products, prices or webhook events (the Nov 1 code does), run `npm run stripe:setup`
+after `npm run migrate`, and update the webhook endpoint with the events it prints.
+
+### Once, with the Nov 1 code: Access payments, one form, claims
+
+Deploy this before the website and the admin panel's Nov 1–2 changes: both rely on its answers.
+
+```bash
+# after git pull and npm ci --omit=dev, as above
+npm run migrate            # the six 20261101-* migrations (access.md section 9)
+npm run stripe:setup       # the $9.99 Access Pro price; archives the old list prices; prints the 15 webhook events
+npm run directory:geocode  # once: geocodes the addresses whose coordinates 20261101-0300 cleared
+npm run check:server -- --online
+pm2 reload glamlink-api
+```
+
+- `20261101-1100` sets Access Pro to $9.99 for new purchases; subscribers keep their price (nobody is moved).
+- `20261101-0300` clears the Las Vegas centre the website saved for typed exact addresses, so those cards drop out of
+  the directory's nearby search until `directory:geocode` places them (it needs `GOOGLE_API_KEY`).
+- Then, in Stripe's dashboard, the steps of section 5 (the webhook's 15 events, Link, the customer portal, Revenue
+  recovery); `check:server -- --online` fails until the webhook has every event.
+- Then test in Stripe test mode on test.glamlink.net (progress.md, Nov 1–2): nothing has run against real Stripe yet.
+
 ## 10. Going back
 
 - The website and admin panel: point them back at `https://node.glamlink.net/api/v1` and rebuild. Start the old
   process if it was stopped (`pm2 start glamlink-backend`). Its database is as it was at the switch.
-- New API code: `git checkout <earlier commit>`, `npm ci --omit=dev`, `pm2 reload glamlink-api`. Every migration has
-  a `down` (`npm run migrate:down` reverts the latest, one at a time).
+- New API code: `git checkout <earlier commit>`, `npm ci --omit=dev`, `pm2 reload glamlink-api`. Most migrations have
+  a `down` (`npm run migrate:down` reverts the latest, one at a time). Four don't: the baseline
+  (`20261014-0000`) and the account merge (`20261015-0300`) refuse to go back, and the duplicate-index one
+  (`20261015-0350`) and the coordinate clean-up (`20261101-0300`; the cleared coordinates were wrong) do nothing.
+  Going back past the first two means restoring a backup. Going back past `20261101-1000` maps the new states to old
+  ones and drops the new columns: a `processing` checkout becomes `pending` and a `cancelled` one `expired`; a disputed
+  or partly refunded order is `paid` again, and a cancelled keychain order is `pending` (to ship) again; a refunded or
+  disputed payment is `SUCCESS`. Going back past `20261101-1100` puts Access Pro back to $4.99 for new purchases (its
+  Stripe Price is made again at the next checkout).
 
-## 11. Backups (recommended)
+## 11. Backups (required)
+
+On Oct 30 no backup was confirmed to run (OPS-02). Set this up and test one restore. On the live server the database
+is `glamlinkdb`, not `glamlink_api` ("As deployed").
 
 A nightly copy of the database and the uploads, kept 14 days, for example in `crontab -e`:
 

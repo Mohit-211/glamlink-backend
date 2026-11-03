@@ -89,7 +89,9 @@ describe('GET /profiles', () => {
     test('lists the accounts with a live card, by name: a brand by its business name', async () => {
         const data = await list();
         assert.deepEqual(ours(data.rows).map((r) => [r.name, r.type, r.slug]), [['Kate Sue', 'individual', slugs.kate], ['Revance', 'brand', slugs.revance]]);
-        assert.deepEqual(Object.keys(data.rows[0]).toSorted(), ['city', 'id', 'image', 'is_featured', 'name', 'slug', 'specialty', 'state', 'tagline', 'type']);
+        assert.deepEqual(Object.keys(data.rows[0]).toSorted(), [
+            'category', 'category_label', 'city', 'id', 'image', 'is_featured', 'name', 'shipping', 'slug', 'specialty', 'state', 'tagline', 'type',
+        ]);
         const kate = ours(data.rows)[0];
         assert.deepEqual([kate.tagline, kate.city, kate.state, kate.specialty], ['Makeup Artist', 'Las Vegas', 'NV', 'Bridal']);
     });
@@ -234,5 +236,148 @@ describe('the owner\'s page', () => {
         assert.equal(res.body.data.visible, false);
         assert.equal(res.body.data.hidden_because, 'no_live_card');
         assert.equal((await app.request('GET', '/api/v1/my/profile')).status, 401);
+    });
+});
+
+// The page in the owner's design (Mohit, Nov 3): one layout for brands and professionals, with an intro, a category and
+// shipping, an About image, Quick Info lines, and the first rows of its media, education, podcast and products.
+describe('the page in the owner\'s design (Nov 3)', () => {
+    const lumi = {};
+    const LONG_BIO = `<p>Lumi &amp; Co. makes <strong>barrier-first</strong> skincare.</p><p>${'Science-led formulas for sensitive skin. '.repeat(9)}</p>`;
+
+    before(async () => {
+        lumi.id = await insert(
+            "INSERT INTO users (email, role_id, account_type, professional_type, status, is_active, email_verified_at, password) VALUES (?, 8, 'professional', 'brand', 'ACCEPTED', 1, NOW(), 'x')",
+            [`lumi-${stamp}@account.example`],
+        );
+        await insert('INSERT INTO profiles (user_id, email, name) VALUES (?, ?, ?)', [lumi.id, `lumi-${stamp}@account.example`, 'Lumi Person']);
+        lumi.slug = `lumi${stamp}`;
+        lumi.card = await insert(
+            "INSERT INTO business_cards (user_id, name, business_name, bio, status, slug, business_card_link) VALUES (?, 'Lumi Person', 'Lumi', ?, 'accepted', ?, ?)",
+            [lumi.id, LONG_BIO, lumi.slug, `https://glamlink.net/access/${lumi.slug}`],
+        );
+        const gallery = (uri, type, order, cover) => insert(
+            'INSERT INTO business_gallery_media (business_card_id, file_type, file_uri, sort_order, is_thumbnail) VALUES (?, ?, ?, ?, ?)',
+            [lumi.card, type, `${config.API_BASE_URL}/${type === 'video' ? 'videos' : 'images'}/${uri}`, order, cover ? 1 : 0],
+        );
+        await gallery(`lumi-clip-${stamp}.mp4`, 'video', 1, true);
+        await gallery(`lumi-photo-${stamp}.png`, 'image', 2, false);
+        await gallery(`lumi-cover-${stamp}.png`, 'image', 3, true);
+        lumi.cover = `${config.API_BASE_URL}/images/lumi-cover-${stamp}.png`;
+    });
+    // The Watch tests list whole series: the episodes made here go.
+    after(async () => {
+        if (lumi.videos) await q('DELETE FROM videos WHERE id IN (?)', [lumi.videos]);
+    });
+
+    test('until they are set: the intro is the card bio as text (300 characters at most), the cover and About image the card\'s cover photo', async () => {
+        const p = (await page(lumi.slug)).body.data;
+        assert.ok(p.intro.length <= 300 && p.intro.length > 250, p.intro);
+        assert.ok(p.intro.startsWith('Lumi & Co. makes barrier-first skincare. Science-led formulas'), p.intro);
+        assert.match(p.intro, /[a-z.] ?…$/, 'cut at a word');
+        assert.ok(!p.intro.includes('<') && !p.intro.includes('&amp;'));
+        assert.deepEqual([p.category, p.category_label, p.shipping, p.shipping_label], [null, null, null, null]);
+        assert.deepEqual([p.cover_image, p.about_image], [lumi.cover, lumi.cover], 'the photo marked as the cover, not the video');
+        assert.deepEqual(p.quick_info, { has_education: false, on_podcast: false, in_journal: false });
+        assert.deepEqual([p.media.count, p.education, p.podcast], [3, { count: 0, rows: [] }, { count: 0, rows: [] }]);
+
+        const kate = (await page(`kate-${stamp}`)).body.data;
+        assert.equal(kate.intro, 'Bridal makeup in Vegas');
+        assert.deepEqual([kate.about_image, kate.media], [null, { count: 0, rows: [] }], 'a card without a gallery');
+    });
+
+    test('an owner sets the intro, a category, shipping and the About image (a file or a link); "" clears each', async () => {
+        const mine = await app.request('GET', '/api/v1/my/profile', { token: tokens.kate });
+        for (const key of ['intro', 'category', 'shipping', 'about_image']) assert.equal(mine.body.data.page[key], null, key);
+
+        const res = await app.form('PUT', '/api/v1/my/profile', {
+            fields: { intro: 'Bridal glam for Las Vegas weddings.', category: 'Bridal Makeup', shipping: 'local' },
+            files: { about_image: [photo('about.png')] },
+            token: tokens.kate,
+        });
+        assert.equal(res.status, 200, res.body.message);
+        const set = res.body.data.page;
+        assert.deepEqual([set.intro, set.category, set.shipping], ['Bridal glam for Las Vegas weddings.', 'Bridal Makeup', 'local']);
+        assert.match(set.about_image, /\/images\/about_image-/);
+        const shown = (await page(`kate-${stamp}`)).body.data;
+        assert.deepEqual([shown.intro, shown.category, shown.category_label, shown.shipping, shown.shipping_label, shown.about_image], [
+            'Bridal glam for Las Vegas weddings.', 'Bridal Makeup', 'Bridal Makeup', 'local', 'Local pickup or delivery', set.about_image,
+        ]);
+
+        const link = await app.request('PUT', '/api/v1/my/profile', { body: { about_image: set.about_image, shipping: 'international' }, token: tokens.kate });
+        assert.deepEqual([link.body.data.page.about_image, link.body.data.public.shipping_label], [set.about_image, 'Ships internationally']);
+        const cleared = await app.form('PUT', '/api/v1/my/profile', { fields: { intro: '', category: '', shipping: '', about_image: '' }, token: tokens.kate });
+        assert.equal(cleared.status, 200, cleared.body.message);
+        assert.deepEqual(['intro', 'category', 'shipping', 'about_image'].map((key) => cleared.body.data.page[key]), [null, null, null, null]);
+        assert.deepEqual([cleared.body.data.public.intro, cleared.body.data.public.category_label], ['Bridal makeup in Vegas', null]);
+    });
+
+    test('a brand\'s category is a key from the list, shown as "<label> Brand"; a professional\'s any text up to 60; shipping one of three', async () => {
+        const brand = await app.request('PUT', `/api/v1/profiles/admin/${ids.revance}`, { body: { category: 'Skincare' }, headers: auth });
+        assert.equal(brand.status, 200, brand.body.message);
+        assert.deepEqual([brand.body.data.page.category, brand.body.data.public.category_label], ['skincare', 'Skincare Brand']);
+        const refusals = [
+            await app.request('PUT', `/api/v1/profiles/admin/${ids.revance}`, { body: { category: 'Serums' }, headers: auth }),
+            await app.request('PUT', '/api/v1/my/profile', { body: { category: 'x'.repeat(61) }, token: tokens.kate }),
+            await app.request('PUT', '/api/v1/my/profile', { body: { shipping: 'worldwide' }, token: tokens.kate }),
+            await app.request('PUT', '/api/v1/my/profile', { body: { intro: 'x'.repeat(301) }, token: tokens.kate }),
+            await app.request('PUT', '/api/v1/my/profile', { body: { about_image: 'https://elsewhere.example/a.png' }, token: tokens.kate }),
+            await app.form('PUT', '/api/v1/my/profile', { files: { about_image: [{ name: 'a.pdf', type: 'application/pdf', data: Buffer.from('%PDF') }] }, token: tokens.kate }),
+            await app.request('POST', '/api/v1/profiles/admin/brands', { body: { name: `Bad Category ${stamp}`, email: `badcat-${stamp}@brand.example`, category: 'Bridal' }, headers: auth }),
+        ];
+        assert.deepEqual(refusals.map((res) => [res.status, res.body.details?.field]), [
+            [400, 'category'], [400, 'category'], [400, 'shipping'], [400, 'intro'], [400, 'about_image'], [400, 'about_image'], [400, 'category'],
+        ]);
+        assert.equal((await page(slugs.revance)).body.data.category_label, 'Skincare Brand', 'unchanged by the refusal');
+        assert.equal((await app.request('PUT', '/api/v1/my/profile', { body: { category: 'Lashes & Brows' }, token: tokens.kate })).body.data.public.category_label, 'Lashes & Brows');
+
+        const admin = await app.form('PUT', `/api/v1/profiles/admin/${ids.revance}`, { fields: { shipping: 'nationwide' }, files: { about_image: [photo('revance.png')] }, headers: auth });
+        assert.equal(admin.status, 200, admin.body.message);
+        assert.match(admin.body.data.page.about_image, /\/images\/about_image-/, 'admins send the file as the owner does');
+        assert.equal(admin.body.data.public.shipping_label, 'Ships nationwide');
+    });
+
+    test('Quick Info and the first rows: 8 products, the newest Beauty Vault episode, 3 education items, 5 media; the About image is the first photo', async () => {
+        for (let n = 1; n <= 9; n++) await insert("INSERT INTO shops (title, status, owner_id) VALUES (?, 'published', ?)", [`Lumi product ${n} ${stamp}`, lumi.id]);
+        const [{ id: podcast }] = await q("SELECT id FROM video_series WHERE slug = 'beauty-vault-podcast'");
+        const [{ id: expert }] = await q("SELECT id FROM video_series WHERE slug = 'expert-take'");
+        const episode = (n, series, date) => insert(
+            "INSERT INTO videos (youtube_id, title, slug, status, series_id, published_at) VALUES (?, ?, ?, 'published', ?, ?)",
+            [`l${stamp}${n}`.slice(0, 11), `Lumi episode ${n}`, `lumi-episode-${n}-${stamp}`, series, date],
+        );
+        lumi.videos = [await episode(1, podcast, '2026-09-01'), await episode(2, podcast, '2026-10-01'), await episode(3, expert, '2026-10-15')];
+        for (const video of lumi.videos) await insert("INSERT INTO video_people (video_id, user_id, role) VALUES (?, ?, 'guest')", [video, lumi.id]);
+        const author = await insert("INSERT INTO authors (name) VALUES ('Lumi Writer')");
+        const article = await insert("INSERT INTO journals (title, author_id, content, status) VALUES (?, ?, '<p>x</p>', 'published')", [`Inside Lumi ${stamp}`, author]);
+        await insert("INSERT INTO journal_mentions (journal_id, source, user_id) VALUES (?, 'editor', ?)", [article, lumi.id]);
+        for (let n = 1; n <= 5; n++) {
+            await insert(
+                "INSERT INTO profile_education (user_id, kind, slug, title, body, status, published_at, sort_order) VALUES (?, 'article', ?, ?, '<p>x</p>', ?, NOW(), ?)",
+                [lumi.id, `lesson-${n}`, `Lesson ${n}`, n === 1 ? 'draft' : 'published', n],
+            );
+        }
+        for (let n = 1; n <= 6; n++) {
+            await insert("INSERT INTO profile_media (user_id, kind, source, url, sort_order) VALUES (?, 'image', 'upload', ?, ?)", [lumi.id, `${config.API_BASE_URL}/images/lumi-own-${n}-${stamp}.png`, n]);
+        }
+
+        const p = (await page(lumi.slug)).body.data;
+        assert.deepEqual([p.products.count, p.products.rows.length], [9, 8]);
+        assert.deepEqual([p.podcast.count, p.podcast.rows.map((r) => r.title)], [2, ['Lumi episode 2']]);
+        assert.equal(p.podcast.rows[0].series.slug, 'beauty-vault-podcast');
+        assert.deepEqual([p.videos.count, p.journal.count], [3, 1], 'the other lists as before');
+        assert.deepEqual([p.education.count, p.education.rows.map((r) => r.slug)], [4, ['lesson-2', 'lesson-3', 'lesson-4']]);
+        assert.deepEqual([p.media.count, p.media.rows.length, p.media.rows[0].source], [6, 5, 'upload']);
+        assert.deepEqual(p.quick_info, { has_education: true, on_podcast: true, in_journal: true });
+        assert.equal(p.about_image, `${config.API_BASE_URL}/images/lumi-own-1-${stamp}.png`);
+        assert.equal(p.cover_image, lumi.cover);
+    });
+
+    const videos = async (query) => (await app.request('GET', `/api/v1/profiles/${lumi.slug}/videos?${query}`)).body.data;
+    test('a page\'s videos by series: ?series=beauty-vault-podcast is its podcast episodes, newest first', async () => {
+        assert.deepEqual((await videos('series=beauty-vault-podcast')).rows.map((r) => r.title), ['Lumi episode 2', 'Lumi episode 1']);
+        assert.deepEqual((await videos('series=expert-take')).rows.map((r) => r.title), ['Lumi episode 3']);
+        assert.deepEqual(await videos('series=no-such-series'), { count: 0, rows: [] });
+        assert.equal((await videos('')).count, 3);
+        assert.deepEqual((await videos('series=beauty-vault-podcast&limit=1&page=2')).rows.map((r) => r.title), ['Lumi episode 1']);
     });
 });

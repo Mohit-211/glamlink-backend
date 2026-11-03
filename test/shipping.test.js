@@ -208,6 +208,19 @@ describe('the label and tracking', () => {
         assert.equal(rates.body.data.rates.length, 2);
     });
 
+    test('a cancelled order ships nothing: no label is bought, one bought before is voided and the order stays cancelled', async () => {
+        const id = await makeOrder('rate_cancelled');
+        assert.equal((await asAdmin('POST', `${id}/label`)).status, 200);
+        const cancelled = await asAdmin('POST', `${id}/cancel`, { reason: 'Ordered twice' });
+        assert.equal(cancelled.status, 200, cancelled.body.message);
+        assert.deepEqual([cancelled.body.data.fulfillment_status, cancelled.body.data.cancel_reason], ['cancelled', 'Ordered twice']);
+        const voided = await asAdmin('POST', `${id}/label/void`);
+        assert.equal(voided.status, 200, voided.body.message);
+        assert.equal((await order(id)).fulfillment_status, 'cancelled');
+        const refused = await asAdmin('POST', `${id}/label`);
+        assert.deepEqual([refused.status, refused.body.code], [409, 'ORDER_CANCELLED']);
+    });
+
     test('Shippo\'s tracking moves the order to shipped and delivered; unverified calls are refused', async () => {
         const id = await makeOrder('rate_fast');
         await asAdmin('POST', `${id}/label`);

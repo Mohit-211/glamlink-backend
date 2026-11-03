@@ -46,8 +46,8 @@ describe('reading a new card', () => {
         assert.equal(field(() => readCard(asJson(cardFields({ preferred_booking_method: [] })))), 'preferred_booking_methods');
         assert.equal(field(() => readCard(asJson(cardFields({ booking_link: '', website: '' })))), 'booking_link');
         assert.equal(field(() => readCard(asJson(cardFields({ preferred_booking_method: ['DM_INSTAGRAM'], social_media: {} })))), 'instagram');
-        assert.equal(field(() => readCard(asJson(cardFields({ locations: [] })))), 'locations');
         assert.equal(field(() => readCard(asJson(cardFields({ locations: [{ location_type: 'city_only', city: 'Reno' }] })))), 'locations');
+        assert.equal(field(() => readCard(asJson(cardFields({ professional_type: 'salon' })))), 'professional_type');
         assert.equal(field(() => readCard(asJson(cardFields({ color_code: '#24bbc' })))), 'color_code');
         assert.equal(field(() => readCard(asJson(cardFields({ featured_links: [{ url: 'https://a.example', is_featured: true }, { url: 'https://b.example', is_featured: true }] })))), 'featured_links');
     });
@@ -55,6 +55,32 @@ describe('reading a new card', () => {
     test('a hidden phone is optional', () => {
         const { card } = readCard(asJson(cardFields({ phone: '', is_phone_visible: 'false' })));
         assert.equal(card.is_phone_visible, false);
+    });
+
+    test('locations are optional; one that is sent must be complete', () => {
+        assert.deepEqual(readCard(asJson(cardFields({ locations: [] }))).locations, []);
+        const { locations } = readCard(asJson(cardFields({ locations: undefined })));
+        assert.deepEqual(locations, []);
+    });
+
+    test("a professional's card unless it says brand", () => {
+        assert.equal(readCard(asJson(cardFields())).card.professional_type, 'individual');
+        assert.equal(readCard(asJson(cardFields({ professional_type: 'brand' }))).card.professional_type, 'brand');
+    });
+
+    test("a brand's title, specialties and booking method are optional", () => {
+        const { card } = readCard(asJson(cardFields({ professional_type: 'brand', professional_title: '', specialties: [], preferred_booking_method: [] })));
+        assert.equal(card.professional_title, null);
+        assert.deepEqual(card.specialties, []);
+        assert.equal(card.primary_specialty, null);
+        assert.equal(card.preferred_booking_method, '[]');
+        // A professional's are still required.
+        assert.equal(field(() => readCard(asJson(cardFields({ professional_title: '' })))), 'professional_title');
+    });
+
+    test('special offers are not read any more', () => {
+        const { card } = readCard(asJson(cardFields({ offer_promotion: 'true', promotion_details: '10% off' })));
+        assert.ok(!('offer_promotion' in card) && !('promotion_details' in card));
     });
 });
 
@@ -144,6 +170,18 @@ describe('creating and editing through the API', () => {
         assert.ok(media[2].thumbnail_uri);
     });
 
+    test("a brand's guest card with no location, title or specialties", async () => {
+        const res = await app.form('POST', '/api/v1/businessCard', {
+            fields: cardFields({ professional_type: 'brand', email: `brand-${Date.now()}@test.example`, professional_title: '', specialties: [], preferred_booking_method: [], locations: [] }),
+            files: cardFiles(),
+        });
+        assert.equal(res.status, 201, res.body.message);
+        const [card] = await q('SELECT professional_type, professional_title, primary_specialty FROM business_cards WHERE id = ?', [res.body.data.business_card_id]);
+        assert.deepEqual(card, { professional_type: 'brand', professional_title: null, primary_specialty: null });
+        const locations = await q('SELECT id FROM business_locations WHERE business_card_id = ?', [res.body.data.business_card_id]);
+        assert.equal(locations.length, 0);
+    });
+
     test('a refused card says which field', async () => {
         const res = await app.form('POST', '/api/v1/businessCard', { fields: cardFields({ phone: '12' }), files: cardFiles() });
         assert.equal(res.status, 400);
@@ -162,6 +200,28 @@ describe('creating and editing through the API', () => {
         assert.deepEqual(card, { name: 'Jane Smith', professional_title: 'Colour Specialist' });
         const media = await q('SELECT file_name FROM business_gallery_media WHERE business_card_id = ? AND deleted_at IS NULL', [cardId]);
         assert.equal(media.length, 1);
+    });
+
+    test('professional or brand: an owner cannot change it; an admin changes the account with the card', async () => {
+        await q("INSERT IGNORE INTO roles (id, name, abbreviation) VALUES (8, 'Brand', 'BRND')");
+        const user = await q("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1)",
+            [`typed-${Date.now()}@test.example`]);
+        const userId = user.insertId ?? user;
+        const edit = (fields, headers) => app.form('PUT', `/api/v1/businessCard/updateBusinessCard/${cardId}`, { fields, files: {}, headers });
+        // The draft's own edit (its card token): accepted, without the type or a claim
+        const own = await edit({ name: 'Jane Smith', professional_type: 'brand', claimed_place_id: 'ChIJ-not-from-an-edit' }, { 'x-card-token': cardToken });
+        assert.equal(own.status, 200, own.body.message);
+        const [mine] = await q('SELECT professional_type, claimed_place_id FROM business_cards WHERE id = ?', [cardId]);
+        assert.deepEqual(mine, { professional_type: 'individual', claimed_place_id: null });
+
+        await q('UPDATE business_cards SET user_id = ? WHERE id = ?', [userId, cardId]);
+        const res = await edit({ professional_type: 'brand', professional_title: '' }, { Authorization: `Bearer ${tokens.admin}` });
+        assert.equal(res.status, 200, res.body.message);
+        const [card] = await q('SELECT professional_type FROM business_cards WHERE id = ?', [cardId]);
+        const [account] = await q('SELECT professional_type, role_id FROM users WHERE id = ?', [userId]);
+        assert.equal(card.professional_type, 'brand');
+        assert.deepEqual([account.professional_type, Number(account.role_id)], ['brand', 8]);
+        await q('UPDATE business_cards SET user_id = NULL WHERE id = ?', [cardId]);
     });
 
     test('the public card hides a hidden phone and the private fields', async () => {

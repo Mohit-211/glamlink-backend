@@ -1,6 +1,6 @@
 const express = require('express');
 const modules = require('./modules');
-const { registerStripeHandlers } = require('./shared/billing');
+const { registerStripeHandlers, registerBillingEnder } = require('./shared/billing');
 const { afterChanges } = require('./core/http/afterChanges');
 const { refreshWebsite } = require('./integrations/websiteRefresh');
 
@@ -16,5 +16,7 @@ for (const m of modules) {
 
 // The products' Stripe event handlers, which shared billing's webhook runs.
 for (const m of modules) if (m.stripeHandlers) registerStripeHandlers(m.stripeHandlers());
+// How each product ends what bills an account when the account is deleted (shared billing's endBillingOf).
+for (const m of modules) if (m.endBilling) registerBillingEnder(m.endBilling);
 
 module.exports = router;

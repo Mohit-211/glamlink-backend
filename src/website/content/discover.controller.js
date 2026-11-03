@@ -6,8 +6,10 @@ const discoverService = require("./discover.service");
 const { identifyAdmin } = require("../../shared/admin");
 
 // With any list parameter, GET /discover/shop answers one page of products (discover.service.js listShop);
-// without, every published item, as before.
+// without, every published item, as before. Nov 3: sort, min_price, max_price and ids too, unless empty (an empty one
+// counts as not sent).
 const SHOP_LIST_PARAMETERS = ["page", "limit", "category", "brand", "owner", "search", "featured"];
+const SHOP_SORT_PARAMETERS = ["sort", "min_price", "max_price", "ids"];
 
 const createDiscover = catchAsync(async (req, res) => {
 	const data = await discoverService.createDiscover(
@@ -25,7 +27,9 @@ const createDiscover = catchAsync(async (req, res) => {
 });
 
 const getAllDiscover = catchAsync(async (req, res) => {
-	const paged = req.params.type === "shop" && SHOP_LIST_PARAMETERS.some((key) => req.query[key] !== undefined);
+	const listed = SHOP_LIST_PARAMETERS.some((key) => req.query[key] !== undefined)
+		|| SHOP_SORT_PARAMETERS.some((key) => String(req.query[key] ?? "").trim() !== "");
+	const paged = req.params.type === "shop" && listed;
 	const data = paged ? await discoverService.listShop(req.query) : await discoverService.getAllDiscover(req.params.type);
 
 	return responseWrapper(res, data, "");

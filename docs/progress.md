@@ -1,12 +1,110 @@
 # Progress
 
-Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one.
+Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one. `master` holds
+every phase below and, up to Phase 6, is the code deployed on api.glamlink.net; the Nov 1–2 and Nov 3 work is not
+deployed.
 
-## Phase 6: the website's requests (from Oct 23, branch `phase6/website-requests`; current)
+## Profile pages in the owner's design (Nov 3, on `master`; not deployed yet)
+
+Mohit's decisions of Nov 3: one page layout for brands and professionals (the Epicutis mockup without reviews, the
+verified badge and Follow); Media & Images unlimited on every plan, showing the card's gallery until the owner adds
+their own; Education (videos and articles) on the profile; Quick Info from a category, shipping and automatic lines;
+everything an owner edits, admins edit too. The website builds against the same contract (its handoff, section 10.6.1).
+
+| Item | Status |
+| --- | --- |
+| Data | Done: migrations `20261103-1300` (`profile_pages.intro`, `category`, `shipping`, `about_image`, `media_started_at`), `-1400` (`profile_media`) and `-1500` (`profile_education`); models in `website/profiles/models` |
+| The public page | Done: `GET /profiles/:slug` adds the intro (else the card bio as text), category and shipping with labels, the About image and cover fallbacks, `quick_info`, and the first rows of media (5), education (3) and the Beauty Vault (1); products 8. New `GET /profiles/:slug/media` (the card's gallery until the page has its own), `/education`, `/education/:itemSlug`, and `?series=` on `/videos` (`watch/video.service.js`) |
+| Owners and admins | Done: `/my/profile` and `PUT /profiles/admin/:userId` take the new fields (a brand's category from a list of 8, a professional's specialty; the About image as the new multer field `about_image`, `core/http/uploads.js`); media and education under `/my/profile/...` and `/profiles/admin/:userId/...` (one service each, `profileMedia.service.js` and `profileEducation.service.js`); the first media add copies the card's gallery in; deletes remove only files nothing else shows (never a card's); YouTube and Vimeo links (Vimeo's thumbnail from its oEmbed, `integrations/vimeo.js`); article HTML cleaned with its own allow-list (`articleHtml.js`); `POST .../uploads` for images in the text; page events `SHARE_CLICK`, `MEDIA_CLICK`, `EDUCATION_CLICK`, `PODCAST_CLICK`, `JOURNAL_CLICK` |
+| Checks | 342 of 342 tests pass on a throwaway MariaDB (311 before; new `test/profileMedia.test.js`, `test/profileEducation.test.js`, more in `test/profiles.test.js`, `test/pageAnalytics.test.js`, `test/websiteRefresh.test.js`); `npm run lint` passes |
+
+**For Mohit to do:** `npm run migrate` with the next deploy, before the website that reads the new fields. **Open:** no
+size cap per page on media (the per-file upload cap, 50 MB, applies); no site-wide Education hub yet. The admin panel's
+screens for these were built on Nov 3 too (admin `progress.md`, pass 12).
+
+**Later on Nov 3: the Directory, Professionals and Brands pages** (the website builds against the same contract; its
+handoff, sections 10.6 and 10.13). `GET /profiles` takes `sort` (`recommended`, `newest`, `nearest`), `specialty` (the
+page's category, its primary specialty or an entry of its specialties, read with `JSON_TABLE`), `category`, `shipping`,
+`state` (a U.S. state by its code or name: `core/utils/usStates.js`), `city`, `lat` and `lng`, and `radius`; its rows
+add `category`, `category_label` and `shipping` (and `distance_miles` from a point). The new options of `pageList` are
+off unless given, so the admin list and the site-wide search answer as before. New `GET /directory/filters` (options
+grouped by MariaDB's own sort key, `WEIGHT_STRING`, so each count is what the list finds) and `GET /directory/map` (the
+hero map's pins, to 3 decimals). No migration. 360 of 360 tests pass on a throwaway MariaDB (342 before; new
+`test/directoryPages.test.js`); `npm run lint` passes.
+
+**Then the Shop's sorting, price bands and saved products** (the website handoff, section 10.3): `GET /discover/shop`
+takes `sort`, `min_price` and `max_price` (bands that don't overlap) and `ids` (a visitor's saved products, in their
+order), and `GET /discover/shop/filters` adds `price: { min, max }`; no migration. 371 of 371 tests pass (new
+`test/shopSorting.test.js`); `npm run lint` passes.
+
+## Access fixes, one form, brands and Stripe (Nov 1–2, on `master`; not deployed yet)
+
+Mohit's decisions of Nov 1 (access.md, section 12): build the Oct 23 plan decisions now (Access Pro $9.99, Free with
+the keychain keeps the card live, profile analytics for Pro, special offers retired, plan cards that list only what
+they add); fix Stripe and its flow "once and for good"; no automatic refunds, admins cancel orders; app accounts don't
+block a website purchase; cards, wallets and Link; locations optional; one form (Professional or Brand) with the
+directory form retired; listed as soon as live; brands on their own list; Google listing claims through the Access
+form, verified by an admin. The website and the admin panel changed with it (web `docs/audit.md`, admin
+`progress.md`) and rely on the new answers, so the API deploys first.
+
+| Item | Status |
+| --- | --- |
+| Professional or brand | Done: migration `20261101-0100` (`business_cards.professional_type`; cards of brand accounts become `brand`, professional accounts with no type `individual`); `cardFields.js` reads the type (another is 400 `INVALID_CARD`) and makes a brand's title, specialties and booking method optional; the account takes the card's type when it is made or converted, and an existing professional's is settled with the card's (`settleCardType` in `cardOwnership.js`); the signed-in create answers `business_card_id` and the type it settled. Tests: `test/cardFields.test.js`, `test/accessStripeFlow.test.js` |
+| Optional locations | Done: `cardFields.js` (0 to 10; `[]` clears them). Migration `20261101-0300` clears the Las Vegas centre the website's "Confirm" saved for typed exact addresses, so `npm run directory:geocode` places them. Tests: `test/cardFields.test.js`, `test/directory.test.js` |
+| One form, brands, claims | Done: `POST /directory/applications` answers 410 `FORM_RETIRED` (the admin endpoints stay); `GET /directory/search?type=individual\|brand`, its rows with `type`; migration `20261101-0200` (`claimed_place_id`, `claim_verified_at`), the place id read on a create only and never public (`cardPublic.js`); admin `GET /directory/claims` and `PUT /directory/claims/:cardId` (verify or reject; 409 `PLACE_ALREADY_CLAIMED`); a verified claim hides the Google listing as an approved application does. Tests: `test/directory.test.js`, `test/directoryApplications.test.js` (which now adds applications through the admin endpoint) |
+| Plans and prices | Done: migration `20261101-1100` (Access Pro 499 → 999 cents, recorded; subscribers keep their price) and `20261101-1200` (the copy: Free's 7 lines, Pro = Free + 3, Pro + keychain = Pro + the keychain line; "Priority placement in search" removed; `special_offers` out of the entitlements); `GET /access/plans` answers `entitlements`; a product's earlier Stripe list prices are archived once its new one exists (`stripeCatalog.js`). Tests: `test/catalog.test.js` |
+| Special offers retired | Done: not read on input (`cardFields.js`), left out of every card answer (`withoutOffers` in `entitlements.js`), no longer an entitlement or an admin right. The stored columns stay |
+| Analytics for Pro | Done: `requireAnalyticsPlan` (`entitlements.js`) on the card analytics (`accessCardAnalytics.route.js`) and `GET /my/profile/analytics` (`profiles/myProfile.route.js`): 403 `UPGRADE_REQUIRED` `analytics` for an owner on Free; admins pass. Tests: `test/entitlements.test.js`, `test/pageAnalytics.test.js` |
+| App accounts | Done: an app account's email counts as new (`websiteAccountFor` in `cardOwnership.js`); going live, by Free, a payment or a claim, converts it to a professional account of the card's type, with the set-password email (`accessCardOwner` in `shared/identity/account.service.js`). No account was deleted (Mohit: app accounts "can be removed"; a clean-up waits for his go-ahead and a backup). Tests: `test/accessStripeFlow.test.js` |
+| Stripe: the purchase follows Stripe | Done (`checkout.js`, `checkoutSync.js`, `payments.js`, `stripeErrors.js`, migration `20261101-1000`): the poll, `/pay`, the quote and the sweeper job `access-checkout-sweep` (every 5 minutes, only with `JOBS_ENABLED`) ask Stripe and activate a paid checkout, once; one payment under way per card (409 `CHECKOUT_IN_PROGRESS`); statuses `processing` and `cancelled`, and `failed` shown; the view with `client_secret` and `card`; nothing to pay answers `{ paid: true }` at `/pay`; idempotency keys per request; a customer Stripe lost is made again; cards and Link only; Stripe's refusals answer 502 `PAYMENT_UNAVAILABLE`; the guest's account made inside the activation's transaction, emails after; a second Pro or keychain recorded but not given, support emailed to refund it; `select-plan` `nfc_only` makes the card live on Free, and Free again changes nothing; a checkout tells no one else that it exists. Tests: `test/accessStripeFlow.test.js` (new), with a larger `test/fakeStripe.js` |
+| Stripe: renewals, portal, refunds, webhook | Done: 15 webhook events (new: `invoice.payment_action_required`, `payment_intent.processing`, `charge.refunded` and the five `charge.dispute.*`), printed by `npm run stripe:setup` and checked by `npm run check:server -- --online`; failed renewals and 3-D Secure requests emailed to the owner; a seat past due is Pro at most 21 days; the seat view's `past_due` and `last_payment_failed_at`; `POST /access/billing-portal`; refunds and disputes recorded only (FEAT-04); each event's claim marked done after a 2xx (`stripe_events.processed_at`), a stale claim taken over, a concurrent delivery answered 409. Tests: `test/accessStripeFlow.test.js`, `test/stripeWebhook.test.js` |
+| Admin orders | Done: the list reads the query string (A-ACC-1, the admin panel's BA1), with `cancelled` and the new statuses; the detail adds `checkout`, refunds and disputes; `POST /businessCard/access-orders/:id/cancel` (no refund; a keychain not shipped stopped; Access Pro ended now; the card stays on Free); no label for a cancelled order (409 `ORDER_CANCELLED`). Tests: `test/accessStripeFlow.test.js`, `test/shipping.test.js` |
+| Account deletion | Done: deleting an account (an admin's delete or the person's own) ends its Access Pro at Stripe at once, with no refund (`shared/billing/accountBilling.js`: each product registers `endBilling`); if Stripe refuses, the account is not deleted. Tests: `test/accessStripeFlow.test.js` |
+| Checks | 311 of 311 tests pass on a throwaway MariaDB (264 before); `npm run lint` (oxlint and the module boundaries) passes. Stripe is faked in every test: nothing has run against real Stripe yet |
+
+**For Mohit to do:**
+
+1. Deploy the API before the website and the admin panel (deploy.md section 9, "Once, with the Nov 1 code"):
+   `npm run migrate`, `npm run stripe:setup`, `npm run directory:geocode` once, `npm run check:server -- --online`.
+2. In Stripe's dashboard, in test mode now and in live mode at the switch (deploy.md section 5): add the webhook's 8
+   new events (15 in all); turn Link on (or ask, and `'link'` comes out of `PAYMENT_METHODS`); save a customer portal
+   configuration; set Revenue recovery to cancel the subscription after its retries, with Stripe's failed-payment
+   emails off; register the payment method domains.
+3. Test on test.glamlink.net in Stripe test mode: Access Pro, the keychain alone, Pro + keychain, a 3-D Secure card, a
+   declined card, Free and Free + keychain, a guest with an app account's email, a brand card with no location, a
+   claim verified in the admin panel, an admin's Cancel order, and the billing portal. Then deploy the website and the
+   admin panel.
+4. App accounts: none were deleted. A clean-up only after Mohit confirms, and after a backup.
+
+**Not done:** an admin's card delete still deletes the card's payment rows (soft deletes; BE-19); a card's
+`access_orders` still come in database order (the website sorts them; BE-34); a fourth Instagram handle is still
+dropped (BE-36); analytics days are UTC (W-ACC-8); the app and CRM code keep their own Stripe clients; other Stripe
+errors elsewhere in the API still answer `PAYMENT_FAILED`; an admin's card create for an email that has an account
+neither settles the type nor converts an app account; after a 100% first-month sale there is no card on file, so the
+first renewal fails into past due (with the email and the billing portal).
+
+## On the server (checked Oct 30)
+
+Read-only checks of the live API on Oct 30, with what Mohit reported. "Check" means only the server can tell. What
+comes next is in plan.md ("Next").
+
+| Item | Status |
+| --- | --- |
+| api.glamlink.net in testing mode | Deployed Oct 17 (Mohit). Phase 6 was deployed later (date not recorded): on Oct 30 every public read answers, the phase 6 calls included, and 34 podcast episodes are imported. Which commit runs: check (`aadb56a` expected) |
+| The migration run | Mohit: the server ran 23 pending migrations on Oct 17. The repo had 18 then and has 35 now, and the Oct 23 tables answer, so check with `npm run migrate:status` |
+| Server layout | As reported: pm2 `glamlink-api` runs from `/var/www/backend` on port 5500 with database `glamlinkdb`. deploy.md and `ecosystem.config.json` still say `/var/www/api`, port 5001 and `glamlink_api` |
+| `NODE_ENV` | The server `.env` says `test`; pm2's env runs the API as production (the `/search` rate-limit headers show it). Set `production` in `.env` too |
+| Test-site settings (deploy.md section 7) | Partly applied: test.glamlink.net, www, admin.glamlink.net and localhost:3000 are allowed origins, and there is no `X-Powered-By`. The API serves a Stripe test key. Check: `WEBSITE_URL`, nginx `real_ip_header`, the Shippo test key |
+| `YOUTUBE_API_KEY` | Set: 34 videos imported. The other three series still need their playlists |
+| `npm run magazine:covers` | Not run: the 14 covers still load from glamlink.net |
+| Cache refresh | Check: `WEBSITE_REFRESH_URL` and `WEBSITE_REFRESH_SECRET` here; the website's route exists and reads `REVALIDATE_SECRET` |
+
+## Phase 6: the website's requests (Oct 23–24, branch `phase6/website-requests`; on `master` and deployed)
 
 The website's list, "Glamlink Backend Requests — Home Page and Pending Work" (Claude Docs, Oct 22; link in
 README.md): 22 requests for the new home page, the professional and brand pages, and the takeovers left from Phase
-2b. Built in its order; each item lands with tests and an entry in the handoff notes, and its row in that list is
+2b. The list grew to 31 rows on Oct 23 (the plans and Stripe) and 40 on Oct 30 (the audit's fixes); 22 are done.
+Built in its order; each item lands with tests and an entry in the handoff notes, and its row in that list is
 marked done.
 
 Mohit's decisions (Oct 23):
@@ -37,7 +135,7 @@ machine yet, so the contract check waits for one; the tests cover each change.
 | Item | Status |
 | --- | --- |
 | The database port | Done: the app's connection reads `CENTRAL_MYSQL_PORT` (it always used 3306; the server uses 3306) (`7b7a2f6`) |
-| Test-site settings and testing-mode keys (urgent; server settings) | Written for Mohit to apply: deploy.md section 7, "The website on test.glamlink.net" (the origin, `WEBSITE_URL`, test keys, Cloudflare real IP in nginx, the `www` redirect); `X-Powered-By` turned off in the code |
+| Test-site settings and testing-mode keys (urgent; server settings) | Written for Mohit to apply: deploy.md section 7, "The website on test.glamlink.net" (the origin, `WEBSITE_URL`, test keys, Cloudflare real IP in nginx, the `www` redirect); `X-Powered-By` turned off in the code. Partly applied by Oct 30 (see "On the server") |
 | Cards found by their handle (found while writing the test-site steps) | Done: migration `20261023-0600` (`business_cards.slug`, filled from the link; the model keeps it in step with `business_card_link`); `getBusinessCard/:slug` and new handles use it. Before, a card was found by its whole link, so with `WEBSITE_URL` on the test site no existing card opened and a new card could take an existing handle and overwrite its QR file. Tests: `test/cardSlugs.test.js` |
 | Lock down `GET /user/profile/:userId` (urgent) | Done: guests and other accounts get the public profile, built from allowed fields (`shared/users/userPublic.js`); the owner and admins get the whole account; admins' tokens work there; Google geocodes the address only when the caller sends coordinates. The app's professional screen reads the address and coordinates: in the app phase, take them from the card's locations, which respect the owner's exact-or-city choice. Tests: `test/profilePrivacy.test.js` |
 | Paged journal list with search and category (urgent) | Done: `GET /journal` with list parameters answers a page of light cards, newest first (`listJournals`); without them, as before; `count` counts articles (79 for 66: products and downloads multiplied the rows). `core/http/paging.js` (page, limit at most 50) and `core/utils/like.js` (search terms taken literally) for the lists to come. Drafts are no longer public by id or category (admins still get them). Tests: `test/journalList.test.js` |
@@ -50,7 +148,7 @@ machine yet, so the contract check waits for one; the tests cover each change.
 | Product owner and brand | Done: migration `20261023-0800` (`shops.owner_id`, `brand_id`, set by admins); product answers link to the owner's and brand's pages (`owner`, `brand_profile`); `brand=` takes a brand page's slug too, `owner=` a page's slug; pages list their products (`GET /profiles/:slug/products`). The content and profiles modules call each other through their index files, loaded on call (no load cycle). Tests: `test/productOwners.test.js` |
 | Journal mention index | Done: migration `20261023-0900` (`journal_mentions`, every existing article indexed); handles kept on each save and matched to accounts when read (`mentions.service.js`), so a professional who joins later is found; `findJournalById` answers `mentions`; saving answers `unmatched_mentions`; editors add and set aside mentions; pages list their articles (`GET /profiles/:slug/articles`). Tests: `test/journalMentions.test.js` |
 | Public-field allow-lists, image sizes | Done: public shapes listed field by field (pages, article cards, product cards, a public product); `/images/<file>?w=<width>` answers a WebP copy made on first request and kept (`core/http/imageSizes.js`; widths 200 to 1,600), for every image already uploaded, instead of new `{ url, thumb }` fields that would change the image fields the website reads. Tests: `test/imageSizes.test.js` |
-| Videos by series with YouTube sync | Done: migration `20261023-1000` (`video_series` with the four series, the podcast's playlist known; `videos`, `video_people`, `journal_topic_video_mappings`); module `website/watch`; `integrations/youtube.js` with `YOUTUBE_API_KEY`; admin import of a pasted link and of every playlist (a button; the hourly job was dropped Oct 24, as episodes come rarely); public `GET /videos`, `/videos/:slug`, `/video-series`; profile and topic pages list videos. Waiting on: the server key and the other three series' playlists (open question in the website's list). Tests: `test/videos.test.js` with a fake YouTube |
+| Videos by series with YouTube sync | Done: migration `20261023-1000` (`video_series` with the four series, the podcast's playlist known; `videos`, `video_people`, `journal_topic_video_mappings`); module `website/watch`; `integrations/youtube.js` with `YOUTUBE_API_KEY`; admin import of a pasted link and of every playlist (a button; the hourly job was dropped Oct 24, as episodes come rarely); public `GET /videos`, `/videos/:slug`, `/video-series`; profile and topic pages list videos. The server key is set (34 videos imported by Oct 30); the other three series' playlists are still an open question in the website's list. Tests: `test/videos.test.js` with a fake YouTube |
 | Magazine issues and features | Done: migration `20261023-1100` (`magazine_issues` with the website's 14 issues, `magazine_features`); module `website/magazine` (`GET /magazine`, `/magazine/:slug`, admin issues and features); profile pages list their issues (`GET /profiles/:slug/magazine`); `npm run magazine:covers` copies the covers from the website to the API (deploy.md). Tests: `test/magazine.test.js` |
 | Grouped site-wide search | Done: module `website/search` (`GET /search`, grouped or one group paged; each group is its module's own list with exact matches first, `core/db/searchOrder.js`); migration `20261023-1200` (`search_terms`) and `GET /search/admin/terms`; 60 searches a minute per address. Tests: `test/search.test.js` |
 | Ad tracking and live ads | Done: migration `20261023-1300` (`ad_stats`, per ad and day); `POST /ads/track` (300 a minute per address); `GET /ads?live=true` with `slot` and `page`; admin totals and daily counts (`adStats.service.js`). Tests: `test/ads.test.js` |
@@ -59,7 +157,7 @@ machine yet, so the contract check waits for one; the tests cover each change.
 | Calls by slug | Done: migration `20261023-1600` (every article and product a slug of its own: `shops.slug`, unique on both; an admin's typed slug kept); `GET /journal/slug/:slug`, `GET /discover/shop/slug/:slug`, topics by slug or id; a product gets its slug however it is added (admin, owner, CSV: `shop.model.js` hooks); the calls by id unchanged. Tests: `test/slugs.test.js` |
 | Sitemap feed | Done: `GET /sitemap` (`search/sitemap.service.js`): each module lists its own public pages by its own rules (`sitemapArticles`, `sitemapTopics`, `sitemapProducts`, `sitemapPages`, `sitemapVideos`, `sitemapIssues`); a page's date is the latest of its page, card, listing and account profile. Tests: `test/sitemap.test.js` |
 | Page analytics | Done: migration `20261023-1700` (`profile_page_events`: no address or browser string kept); `POST /profiles/:slug/events` (visible pages; robots not counted; 120 a minute per address in production); `GET /my/profile/analytics` and `GET /profiles/admin/:userId/analytics` in the card analytics' shape, plus `top_targets`; days are the database's. Tests: `test/pageAnalytics.test.js` |
-| Cache-refresh hook | Done: `integrations/websiteRefresh.js` posts `{ tags }` with `Authorization: Bearer WEBSITE_REFRESH_SECRET` to `WEBSITE_REFRESH_URL` (one call per second of changes; failures logged); `core/http/afterChanges.js` runs it after each successful write by a signed-in admin or account on the website modules' mounts, each naming its data (`refresh` in `routes()`); paid cards going live and the YouTube import call it too. Off until the website has its route (deploy.md section 3). Tests: `test/websiteRefresh.test.js` |
+| Cache-refresh hook | Done: `integrations/websiteRefresh.js` posts `{ tags }` with `Authorization: Bearer WEBSITE_REFRESH_SECRET` to `WEBSITE_REFRESH_URL` (one call per second of changes; failures logged); `core/http/afterChanges.js` runs it after each successful write by a signed-in admin or account on the website modules' mounts, each naming its data (`refresh` in `routes()`); paid cards going live and the YouTube import call it too. The website's route exists (web `src/app/api/revalidate/route.ts`); off until the server sets `WEBSITE_REFRESH_URL` and the secret (deploy.md section 3). Tests: `test/websiteRefresh.test.js` |
 | Cleaner card responses (the list's "later, with both frontends") | Waiting for a date agreed with both frontends. Checked Oct 23: the website's card form and the admin panel's card screens already accept lists as arrays as well as JSON strings, and the backend already stores `GO_TO_BOOKING_LINK` (the odd casing is the website's own constant); true/false for `"1"` needs both frontends checked first |
 
 ## Go-live preparation (Oct 16, branch `phase5/security`)

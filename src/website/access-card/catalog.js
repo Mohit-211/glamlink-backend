@@ -11,11 +11,16 @@ const { seatOf, isPro, ownsKeychain } = require('./seats');
 // Plans, prices, discounts and settings (docs/access.md sections 2 and 3). Every amount is computed here, in
 // cents; the browser never sends a price.
 
-// Used for any setting not stored (the migration stores these same values).
+// What each plan may do: photos and videos, editing details and media once the card is live, the card's analytics,
+// and priority placement in search (stored, not built yet).
+const ENTITLEMENT_COUNTS = ['photos', 'videos'];
+const ENTITLEMENT_SWITCHES = ['edit_details', 'edit_media', 'analytics', 'priority_search'];
+
+// Used for any setting not stored (the migrations store these same values).
 const DEFAULT_SETTINGS = {
     entitlements: {
-        free: { photos: 4, videos: 1, edit_details: true, edit_media: false, special_offers: false, analytics: false, priority_search: false },
-        pro: { photos: 4, videos: 1, edit_details: true, edit_media: true, special_offers: true, analytics: true, priority_search: true },
+        free: { photos: 4, videos: 1, edit_details: true, edit_media: false, analytics: false, priority_search: false },
+        pro: { photos: 4, videos: 1, edit_details: true, edit_media: true, analytics: true, priority_search: true },
     },
     keychains_per_person: 1,
     shipping: {
@@ -105,17 +110,22 @@ const ownedBy = async (user) => {
     return { subscription: isPro(await seatOf(user.id)), keychain: await ownsKeychain(user.id) };
 };
 
+// A plan's entitlements as stored, only the known ones.
+const entitlementsOf = (tier = {}) => Object.fromEntries([...ENTITLEMENT_COUNTS, ...ENTITLEMENT_SWITCHES].map((key) => [key, tier[key]]));
+
 /**
  * The plans as the website shows them, priced for the person asking: `user` (signed in) or `email` (a guest's
  * card). Each plan lists its products with their prices, `due_today` (before shipping) and `monthly` (what the
- * subscription costs once any discount months run out).
+ * subscription costs once any discount months run out). `entitlements`: what Free and Pro may do (the photo and
+ * video limits among them).
  */
 const listPlans = async ({ user, email } = {}) => {
     const now = new Date();
-    const [plans, products, discount] = await Promise.all([
+    const [plans, products, discount, settings] = await Promise.all([
         AccessPlan.findAll({ where: { is_active: true }, order: [['sort_order', 'ASC'], ['id', 'ASC']] }),
         AccessProduct.findAll({ where: { is_active: true } }),
         activeDiscount(now),
+        getSettings(),
     ]);
     const byCode = Object.fromEntries(products.map((product) => [product.code, product]));
     const who = { userId: user?.id, email: user?.email || email };
@@ -126,6 +136,7 @@ const listPlans = async ({ user, email } = {}) => {
         currency: 'usd',
         sale: discount ? discountView(discount) : null,
         owned: await ownedBy(user),
+        entitlements: { free: entitlementsOf(settings.entitlements.free), pro: entitlementsOf(settings.entitlements.pro) },
         plans: plans
             .filter((plan) => (plan.products || []).every((code) => byCode[code]))
             .map((plan) => {
@@ -210,8 +221,9 @@ const updatePlan = async (code, body) => {
     return plan;
 };
 
-// A new list price for a product. It applies to new purchases; subscribers keep the price they signed up at
-// (moving them comes with the Stripe work). The Stripe Price for it is made at the next checkout.
+// A new list price for a product. It applies to new purchases; subscribers keep the price they signed up at unless
+// the admin moves them too (access.controller.js, move_subscribers). The Stripe Price for it is made at the next
+// checkout, which archives the earlier one (stripeCatalog.js).
 const changePrice = async (code, body, adminId) => {
     const product = await AccessProduct.findOne({ where: { code } });
     if (!product) throw new ApiError(httpStatus.NOT_FOUND, 'Product not found.');
@@ -352,18 +364,19 @@ const endOverride = async (id) => {
 
 // Settings admins change. Each one sent replaces the stored value whole, after its checks.
 const SETTING_CHECKS = {
+    // Unknown keys are dropped (special_offers, from before offers were retired).
     entitlements: (value) => {
         for (const tier of ['free', 'pro']) {
             const t = value?.[tier];
             if (!t || typeof t !== 'object') throw bad(`entitlements.${tier} is required.`, 'INVALID_INPUT', { field: 'entitlements' });
-            for (const key of ['photos', 'videos']) {
+            for (const key of ENTITLEMENT_COUNTS) {
                 if (!Number.isInteger(t[key]) || t[key] < 0 || t[key] > 20) throw bad(`entitlements.${tier}.${key} must be 0 to 20.`, 'INVALID_INPUT', { field: 'entitlements' });
             }
-            for (const key of ['edit_details', 'edit_media', 'special_offers', 'analytics', 'priority_search']) {
+            for (const key of ENTITLEMENT_SWITCHES) {
                 if (typeof t[key] !== 'boolean') throw bad(`entitlements.${tier}.${key} must be true or false.`, 'INVALID_INPUT', { field: 'entitlements' });
             }
         }
-        return { free: value.free, pro: value.pro };
+        return { free: entitlementsOf(value.free), pro: entitlementsOf(value.pro) };
     },
     keychains_per_person: (value) => cents(value, 'keychains_per_person', { min: 1, max: 10 }),
     shipping: (value) => {

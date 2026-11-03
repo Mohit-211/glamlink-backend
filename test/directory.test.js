@@ -3,6 +3,7 @@
 // Google (website/directory; Google replaced by fakes).
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const jwt = require('jsonwebtoken');
 const { startApp } = require('./helpers');
 const config = require('../src/core/config/config');
 const { places, geocoder } = require('../src/integrations/googlePlaces');
@@ -170,5 +171,79 @@ describe('Google listings', () => {
         const res = await get(`/directory/google?lat=${VEGAS.latitude}&lng=${VEGAS.longitude}`);
         config.GOOGLE_API_KEY = 'test-key';
         assert.deepEqual([res.status, res.body.code], [503, 'GOOGLE_NOT_CONFIGURED']);
+    });
+});
+
+describe('professionals and brands (Nov 1)', () => {
+    test('the nearby search asks for professionals or brands; brands have their own list', async () => {
+        await q("INSERT IGNORE INTO roles (id, name, abbreviation) VALUES (8, 'Brand', 'BRND')");
+        const email = `vegasbrand${stamp}@directory.example`;
+        const id = await insert("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active) VALUES (?, 8, 'professional', 'brand', 'ACCEPTED', 1)", [email]);
+        await insert('INSERT INTO profiles (user_id, email, name) VALUES (?, ?, ?)', [id, email, `Vegas Brand ${stamp}`]);
+        const card = await insert("INSERT INTO business_cards (user_id, name, business_name, professional_type, status, slug, business_card_link) VALUES (?, ?, ?, 'brand', 'accepted', ?, ?)",
+            [id, `Vegas Brand ${stamp}`, `Vegas Brand ${stamp}`, `vegasbrand${stamp}`, `https://glamlink.net/access/vegasbrand${stamp}`]);
+        await insert("INSERT INTO business_locations (business_card_id, location_type, city, state, latitude, longitude, is_primary) VALUES (?, 'city_only', 'Las Vegas', 'NV', ?, ?, 1)",
+            [card, VEGAS.latitude, VEGAS.longitude]);
+        const near = async (type = '') => mine((await get(`/directory/search?lat=${VEGAS.latitude}&lng=${VEGAS.longitude}&limit=50${type && `&type=${type}`}`)).body.data.rows)
+            .map((r) => [r.name, r.type]);
+        assert.ok((await near()).some(([name]) => name === `Vegas Brand ${stamp}`));
+        assert.ok(!(await near('individual')).some(([name]) => name === `Vegas Brand ${stamp}`));
+        assert.ok((await near('individual')).every(([, type]) => type === 'individual'));
+        assert.deepEqual(await near('brand'), [[`Vegas Brand ${stamp}`, 'brand']]);
+        assert.deepEqual((await get('/directory/search?type=salon')).body.details, { field: 'type' });
+    });
+});
+
+describe('typed addresses placed in Las Vegas (Nov 1)', () => {
+    test('the migration clears the old fallback pair on exact addresses, so they are geocoded again; cities keep it', async () => {
+        const typed = await insert("INSERT INTO business_locations (business_card_id, location_type, address, latitude, longitude, is_primary) VALUES (?, 'exact_address', '12 Elm St, Boise, ID', 36.1699, -115.1398, 0)", [ids.vegas.card]);
+        const city = await insert("INSERT INTO business_locations (business_card_id, location_type, city, state, latitude, longitude, is_primary) VALUES (?, 'city_only', 'Las Vegas', 'NV', 36.1699, -115.1398, 0)", [ids.vegas.card]);
+        await require('../src/core/db/migrations/20261101-0300-unplace-typed-addresses').up({ sequelize: app.sequelize });
+        const [a] = await q('SELECT latitude, longitude FROM business_locations WHERE id = ?', [typed]);
+        const [b] = await q('SELECT latitude FROM business_locations WHERE id = ?', [city]);
+        assert.deepEqual([a.latitude, a.longitude], [null, null]);
+        assert.equal(Number(b.latitude), 36.1699);
+        await q('DELETE FROM business_locations WHERE id IN (?, ?)', [typed, city]);
+    });
+});
+
+describe('claims made through the Access form (Nov 1)', () => {
+    let admin, claimant;
+    const card = (name, placeId) => insert("INSERT INTO business_cards (name, email, status, slug, business_card_link, claimed_place_id) VALUES (?, ?, 'draft', ?, ?, ?)",
+        [name, `${name.replace(/\W/g, '')}@claim.example`, name.replace(/\W/g, '').toLowerCase(), `https://glamlink.net/access/${name.replace(/\W/g, '').toLowerCase()}`, placeId]);
+    const googleNames = async () => {
+        directoryService.googleCache.clear();
+        return (await get(`/directory/google?lat=${VEGAS.latitude}&lng=${VEGAS.longitude}`)).body.data.rows.map((r) => r.name);
+    };
+    const review = (id, action) => app.request('PUT', `/api/v1/directory/claims/${id}`, { body: { action }, headers: admin });
+    before(async () => {
+        await q("INSERT IGNORE INTO roles (id, name, abbreviation) VALUES (1, 'Super Admin', 'SUP_ADM')");
+        const adminId = await insert("INSERT INTO admins (name, email, role_id, is_active) VALUES ('Claims Admin', ?, 1, 1)", [`claims-admin-${stamp}@test.example`]);
+        admin = { Authorization: `Bearer ${jwt.sign({ id: adminId, role_id: 1, is_backlisted: false }, Buffer.from(process.env.JWT_SECRET, 'hex'), { algorithm: 'HS256', expiresIn: '1h' })}` };
+        claimant = await card(`Glow Owner ${stamp}`, PLACES[0].place_id);
+    });
+
+    test('until an admin verifies it, the Google listing stays; admins see the claims to check first', async () => {
+        assert.ok((await googleNames()).includes('Glow Skin Studio'));
+        assert.equal((await get('/directory/claims')).status, 401);
+        const res = await app.request('GET', '/api/v1/directory/claims?status=pending', { headers: admin });
+        assert.equal(res.status, 200, res.body.message);
+        const row = res.body.data.rows.find((r) => r.business_card_id === claimant);
+        assert.deepEqual([row.place_id, row.verified_at], [PLACES[0].place_id, null]);
+        assert.match(row.maps_url, /place_id:/);
+    });
+
+    test('a verified claim takes the listing out; no second card can have it; a rejected claim is cleared', async () => {
+        const verified = await review(claimant, 'verify');
+        assert.equal(verified.status, 200, verified.body.message);
+        assert.ok(verified.body.data.verified_at);
+        assert.ok(!(await googleNames()).includes('Glow Skin Studio'));
+        const rival = await card(`Glow Rival ${stamp}`, PLACES[0].place_id);
+        const refused = await review(rival, 'verify');
+        assert.deepEqual([refused.status, refused.body.code], [409, 'PLACE_ALREADY_CLAIMED']);
+        assert.equal((await review(rival, 'reject')).status, 200);
+        assert.equal((await q('SELECT claimed_place_id FROM business_cards WHERE id = ?', [rival]))[0].claimed_place_id, null);
+        assert.equal((await review(rival, 'verify')).status, 404, 'nothing left to verify');
+        assert.equal((await review(claimant, 'keep')).status, 400);
     });
 });

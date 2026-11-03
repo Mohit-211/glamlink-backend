@@ -2,12 +2,16 @@ const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
-const { identify } = require('../../shared/identity');
+const logger = require('../../core/logger');
+const { identify, tokenFromRequest } = require('../../shared/identity');
+const { identifyAdmin } = require('../../shared/admin');
 const { BusinessCard, AccessCheckout } = require('../../models');
 const { verifyCardToken, cardTokenFromRequest } = require('./cardToken');
+const { mayActOnCard, sentProof, cardTokenRequired } = require('./cardAccess.middleware');
 const { claimCard, deleteOwnCard } = require('./cardOwnership');
 const catalog = require('./catalog');
 const checkoutService = require('./checkout');
+const { syncCheckout } = require('./checkoutSync');
 const subscriptions = require('./subscriptions');
 const { seatOf } = require('./seats');
 const fulfillment = require('./fulfillment');
@@ -58,11 +62,24 @@ const plans = catchAsync(async (req, res) => {
 
 // ---- Checkout and subscription ------------------------------------------------------------------------------
 
-// Loads the checkout of /checkout/:id for the card access check that follows it.
+// The checkout of /checkout/:id, for whoever may act on its card (requireCardAccess's rule: its card token, its owner,
+// an admin). Anyone else learns nothing, not even whether it exists (BE-38): 404, or CARD_TOKEN_REQUIRED for a caller
+// who sent no sign-in and no valid card token, whether the checkout exists or not.
 const loadCheckout = catchAsync(async (req, res, next) => {
-    req.checkout = await AccessCheckout.findByPk(req.params.id);
-    if (!req.checkout) throw new ApiError(httpStatus.NOT_FOUND, 'Checkout not found.');
-    next();
+    const checkout = await AccessCheckout.findByPk(req.params.id);
+    // The card's token is enough, whatever else is sent (as for requireCardAccess).
+    if (checkout && verifyCardToken(cardTokenFromRequest(req), checkout.business_card_id)) {
+        req.checkout = checkout;
+        return next();
+    }
+    // A stale sign-in is answered as such whatever the checkout (SESSION_EXPIRED: the website renews it and asks again).
+    if (tokenFromRequest(req) && !(await identifyAdmin(req))) await identify(req);
+    if (checkout && await mayActOnCard(req, checkout.business_card_id)) {
+        req.checkout = checkout;
+        return next();
+    }
+    if (!sentProof(req)) throw cardTokenRequired();
+    throw new ApiError(httpStatus.NOT_FOUND, 'Checkout not found.');
 });
 
 // A quote for a plan: the lines, the shipping options (a keychain) and the totals, kept as a checkout.
@@ -74,7 +91,23 @@ const quoteCheckout = catchAsync(async (req, res) => {
 });
 
 const payCheckout = catchAsync(async (req, res) => responseWrapper(res, await checkoutService.pay(req.checkout.id), ''));
-const getCheckout = catchAsync(async (req, res) => responseWrapper(res, checkoutService.view(req.checkout), ''));
+
+// The checkout's state for the website's poll. One still waiting for Stripe is asked about first (BE-01): a paid one is
+// activated here when the webhook has not done it yet. Stripe out of reach: the stored state is answered.
+const getCheckout = catchAsync(async (req, res) => {
+    let checkout = req.checkout;
+    let state = null;
+    try {
+        ({ checkout, state } = await syncCheckout(checkout));
+    } catch (err) {
+        logger.warn(`Checkout ${checkout.id}: Stripe could not be asked (${err.message})`);
+        checkout = await checkout.reload();
+    }
+    const card = checkout.status === 'paid'
+        ? await BusinessCard.findByPk(checkout.business_card_id, { attributes: ['id', 'status', 'business_card_link'], paranoid: false })
+        : null;
+    return responseWrapper(res, checkoutService.view(checkout, { state, card }), '');
+});
 
 const mySubscription = catchAsync(async (req, res) => responseWrapper(res, subscriptions.seatView(await seatOf(req.user.id)), ''));
 const cancelMine = catchAsync(async (req, res) => {
@@ -85,6 +118,9 @@ const resumeMine = catchAsync(async (req, res) => {
     const seat = await subscriptions.resumeSeat(req.user.id);
     return responseWrapper(res, subscriptions.seatView(seat), 'Access Pro continues.');
 });
+// Stripe's billing portal for the signed-in person (their card on file, invoices): { url } to send them to.
+const billingPortal = catchAsync(async (req, res) =>
+    responseWrapper(res, await subscriptions.billingPortalFor(req.user.id, req.body.return_url), ''));
 
 // Shippo's webhook (tracking): verified by the token in its URL and, once set up, Shippo's signature over the
 // raw body (app.js keeps this path's body raw).
@@ -155,5 +191,5 @@ const admin = {
 
 module.exports = {
     claim, remove, plans, loadCheckout, quoteCheckout, payCheckout, getCheckout, mySubscription, cancelMine, resumeMine,
-    shippoWebhook, admin,
+    billingPortal, shippoWebhook, admin,
 };

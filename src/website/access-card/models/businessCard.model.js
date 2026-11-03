@@ -19,6 +19,21 @@ BusinessCard.init(
       allowNull: false,
       defaultValue: false,
     },
+    // A beauty or wellness professional's card, or a brand's: the account takes it when it is made
+    professional_type: {
+      type: DataTypes.ENUM("individual", "brand"),
+      allowNull: false,
+      defaultValue: "individual",
+    },
+    // A Google listing the owner claimed from the directory; it leaves the directory once an admin verifies it
+    claimed_place_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    claim_verified_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     // Basic profile
     name: {
       type: DataTypes.STRING,

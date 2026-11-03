@@ -3,7 +3,8 @@ const sequelize = require('../../../core/db/central.db');
 
 // A person's Access Pro subscription: their seat (one per person, kept when they delete and re-create their
 // card). `source` is stripe (paid through Stripe; `status` is the Stripe subscription's) or comp (Pro given by
-// an admin, no payment).
+// an admin, no payment). past_due_since: when its renewal started failing (cleared once paid); last_payment_failed_at:
+// the latest failed payment.
 class AccessSubscription extends Model {}
 AccessSubscription.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
@@ -19,6 +20,8 @@ AccessSubscription.init({
     started_at: { type: DataTypes.DATE, allowNull: true },
     canceled_at: { type: DataTypes.DATE, allowNull: true },
     ended_at: { type: DataTypes.DATE, allowNull: true },
+    past_due_since: { type: DataTypes.DATE, allowNull: true },
+    last_payment_failed_at: { type: DataTypes.DATE, allowNull: true },
 }, {
     sequelize, modelName: 'AccessSubscription', tableName: 'access_subscriptions',
     timestamps: true, underscored: true, createdAt: 'created_at', updatedAt: 'updated_at',

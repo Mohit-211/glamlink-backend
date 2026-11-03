@@ -4,7 +4,7 @@ const { identifyAdmin } = require("../../shared/admin");
 const { identify } = require("../../shared/identity");
 const { issueCardToken } = require("./cardToken");
 const { toPublicCard } = require("./cardPublic");
-const { hideOffersOffPlan } = require("./entitlements");
+const { hideOffersOffPlan, withoutOffers } = require("./entitlements");
 const catchAsync = require("../../core/http/catchAsync");
 const businessCardService = require("./businessCard.service");
 const responseWrapper = require("../../core/http/responseWrapper");
@@ -45,12 +45,13 @@ const createBusinessCardByAdmin = catchAsync(async (req, res) => {
   );
   return responseWrapper(
     res,
-    response,
+    withoutOffers(response),
     "Business card created.",
     httpStatus.CREATED,
   );
 });
 
+// The new card, with business_card_id (its id) as the guest create answers it.
 const createBusinessCardWithToken = catchAsync(async (req, res) => {
   const response = await businessCardService.createBusinessCardWithToken(
     req.body,
@@ -58,7 +59,7 @@ const createBusinessCardWithToken = catchAsync(async (req, res) => {
   );
   return responseWrapper(
     res,
-    response,
+    { ...withoutOffers(response.toJSON()), business_card_id: response.id },
     "Business card created.",
     httpStatus.CREATED,
   );
@@ -66,7 +67,7 @@ const createBusinessCardWithToken = catchAsync(async (req, res) => {
 
 const getMyBusinessCard = catchAsync(async (req, res) => {
   const response = await businessCardService.getMyBusinessCard(req.body);
-  return responseWrapper(res, response, "", httpStatus.OK);
+  return responseWrapper(res, response.map(withoutOffers), "", httpStatus.OK);
 });
 
 // An admin or the card's owner may see the whole card; a stale or missing sign-in counts as the public.
@@ -83,7 +84,7 @@ const seesWholeCard = async (req, card) => {
 const getBusinessCardById = catchAsync(async (req, res) => {
   const card = await businessCardService.getBusinessCardById(req.params.id);
   if (await seesWholeCard(req, card)) {
-    return responseWrapper(res, card, "", httpStatus.OK);
+    return responseWrapper(res, withoutOffers(card), "", httpStatus.OK);
   }
   // Everyone else sees a live card as the public card page shows it.
   if (card.status !== "accepted") {
@@ -100,7 +101,7 @@ const updateBusinessCard = catchAsync(async (req, res) => {
     req.files,
     { admin: Boolean(req.isAdmin) },
   );
-  return responseWrapper(res, response, "", httpStatus.OK);
+  return responseWrapper(res, withoutOffers(response), "", httpStatus.OK);
 });
 
 const reorderFeaturedLinks = catchAsync(async (req, res) => {
@@ -144,7 +145,7 @@ const searchBusinessCards = catchAsync(async (req, res) => {
 
 const getAllBusinessCards = catchAsync(async (req, res) => {
   const response = await businessCardService.getAllBusinessCards(req.query);
-  return responseWrapper(res, response, "", httpStatus.OK);
+  return responseWrapper(res, response.map(withoutOffers), "", httpStatus.OK);
 });
 
 const updateBusinessCardStatus = catchAsync(async (req, res) => {
@@ -299,8 +300,9 @@ const getPaymentHistory = catchAsync(async (req, res) => {
   );
 });
 
+// Paged and filtered by the query string (it used to read the body, empty on a GET: always the newest ten).
 const getAllAccessOrders = catchAsync(async (req, res) => {
-  const response = await businessCardService.getAllAccessOrders(req.body);
+  const response = await businessCardService.getAllAccessOrders(req.query);
 
   return responseWrapper(
     res,
@@ -336,6 +338,12 @@ const updateAccessOrderFulfillment = catchAsync(async (req, res) => {
     "Access order fulfillment updated successfully",
     httpStatus.OK,
   );
+});
+
+// An admin cancels an order: { reason? }. Nothing is refunded by the API (businessCard.service.js).
+const cancelAccessOrder = catchAsync(async (req, res) => {
+  const response = await businessCardService.cancelAccessOrder(req.params.id, req.body);
+  return responseWrapper(res, response, "Access order cancelled.", httpStatus.OK);
 });
 
 module.exports = {
@@ -377,5 +385,6 @@ module.exports = {
 
   getAllAccessOrders,
   getAccessOrderById,
-  updateAccessOrderFulfillment
+  updateAccessOrderFulfillment,
+  cancelAccessOrder,
 };

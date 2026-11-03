@@ -1,4 +1,5 @@
-// The Stripe webhook processes each event once (shared/billing/stripeEvents.js).
+// The Stripe webhook processes each event once (shared/billing/stripeEvents.js): a claim is marked done once processed,
+// released when processing fails, and taken over when it was left unprocessed (the process died).
 const WEBHOOK_SECRET = 'whsec_test_glamlink_webhook';
 process.env.STRIPE_WEBHOOK_SECRET_INTENT_CHARGE = WEBHOOK_SECRET; // before the app reads its config
 const { test, before, after } = require('node:test');
@@ -17,6 +18,12 @@ const deliver = (event) => {
     return app.request('POST', PATH, { body: event, headers: { 'stripe-signature': signature } });
 };
 const stored = async (id) => (await app.sequelize.query('SELECT event_id FROM stripe_events WHERE event_id = ?', { replacements: [id] }))[0].length;
+const claimOf = async (id) => (await app.sequelize.query('SELECT processed_at FROM stripe_events WHERE event_id = ?', { replacements: [id] }))[0][0];
+const settled = () => new Promise((r) => setTimeout(r, 100)); // the claim is settled after the response is sent
+// A claim made `minutesAgo` and never marked done.
+const claim = (id, minutesAgo) => app.sequelize.query(
+    `INSERT INTO stripe_events (event_id, type, created_at) VALUES (?, 'test.counted', NOW() - INTERVAL ${minutesAgo} MINUTE)`, { replacements: [id] },
+);
 
 before(async () => { app = await startApp(); });
 after(() => app.close());
@@ -30,6 +37,34 @@ test('a second delivery of the same event is acknowledged without processing', a
     const second = await deliver(event);
     assert.equal(second.status, 200);
     assert.equal(second.body.duplicate, true);
+});
+
+test('a processed event\'s claim is marked done', async () => {
+    const event = { id: `evt_test_done_${Date.now()}`, object: 'event', type: 'customer.created', data: { object: {} } };
+    assert.equal((await deliver(event)).status, 200);
+    await settled();
+    assert.ok((await claimOf(event.id)).processed_at);
+});
+
+test('a claim left unprocessed for minutes is taken over; one being processed now asks Stripe to retry later (BE-08)', async () => {
+    const { registerStripeHandlers } = require('../src/shared/billing');
+    let handled = 0;
+    registerStripeHandlers({ 'test.counted': async () => { handled += 1; return true; } });
+    const lost = { id: `evt_test_lost_${Date.now()}`, object: 'event', type: 'test.counted', data: { object: {} } };
+    await claim(lost.id, 10);
+    const taken = await deliver(lost);
+    assert.equal(taken.status, 200);
+    assert.equal(handled, 1, 'processed by this delivery');
+    await settled();
+    assert.ok((await claimOf(lost.id)).processed_at);
+
+    const busy = { id: `evt_test_busy_${Date.now()}`, object: 'event', type: 'test.counted', data: { object: {} } };
+    await claim(busy.id, 0);
+    const retry = await deliver(busy);
+    assert.equal(retry.status, 409);
+    assert.equal(handled, 1, 'not processed twice at once');
+    await settled();
+    assert.equal(await stored(busy.id), 1, 'the other delivery keeps its claim');
 });
 
 test("an event that is not processed successfully can be retried", async () => {

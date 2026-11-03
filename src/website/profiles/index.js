@@ -20,6 +20,13 @@ module.exports = {
     // SQL selecting the directory's profile rows (kind, id, slug, name, image, tagline, city, state, specialty,
     // specialties, latitude, longitude).
     directoryProfilesSql: () => require('./profileQuery').DIRECTORY_PROFILES,
+    // Nov 3. SQL selecting the directory map's pins (id, slug, name, image, category, specialty, city, state, latitude,
+    // longitude, is_featured, featured_order): visible professional pages whose main location has coordinates.
+    mapPagesSql: () => require('./profileQuery').MAP_PAGES,
+    // Nov 3. The directory's filters for the Professionals ('individual') or Brands ('brand') page: the options of
+    // GET /profiles with how many pages each has ({ type, count, specialties, states } or { type, count, categories,
+    // shipping }).
+    pageFilters: (type) => require('./profile.service').pageFilters(type),
     // The sitemap's pages: [{ id, slug, type, updated_at }] of every visible page.
     sitemapPages: () => require('./profileQuery').sitemapPages(),
     // An explicit page slug for an account (its card's handle, else free from its name), for a listing's account.

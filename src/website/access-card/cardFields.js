@@ -26,6 +26,8 @@ const LIMITS = {
     promotion: 500,
 };
 const SOCIAL_KEYS = ['instagram', 'instagram1', 'instagram2', 'tiktok', 'linkedin', 'youtube', 'facebook'];
+// Who the card is for; the same words as users.professional_type.
+const PROFESSIONAL_TYPES = ['individual', 'brand'];
 const BOOKING_METHODS = ['GO_TO_BOOKING_LINK', 'CALL_TEXT', 'DM_INSTAGRAM'];
 // Older labels for the booking methods, still in some stored cards and clients.
 const BOOKING_LABELS = { 'go to booking link': 'GO_TO_BOOKING_LINK', 'call / text': 'CALL_TEXT', 'dm on instagram': 'DM_INSTAGRAM' };
@@ -237,8 +239,27 @@ const readCard = (body = {}, { current = null, files } = {}) => {
         if (value !== undefined) card[key] = value;
     };
 
+    // A professional or a brand. A card from an older client, or the admin panel's create, is a professional's.
+    if (has(body, 'professional_type') || creating) {
+        const type = str(body.professional_type) || 'individual';
+        if (!PROFESSIONAL_TYPES.includes(type)) throw invalid('professional_type', 'Choose Professional or Brand.');
+        card.professional_type = type;
+    }
+    // A brand's title (its tagline), specialties and booking method are optional.
+    const brand = (card.professional_type ?? current?.professional_type) === 'brand';
+
+    // "Claim this profile" on a Google listing in the directory: its place id, kept for an admin to verify.
+    // Only on a create; an admin changes it afterwards.
+    if (creating && str(body.claimed_place_id)) {
+        const placeId = str(body.claimed_place_id);
+        if (!/^[A-Za-z0-9_-]{10,255}$/.test(placeId)) throw invalid('claimed_place_id', 'That listing could not be claimed.');
+        card.claimed_place_id = placeId;
+    }
+
     set('name', limited(required('name', 'name', 'Name'), LIMITS.name, 'name', 'Name'));
-    set('professional_title', limited(required('professional_title', 'professional_title', 'Professional Title'), LIMITS.professional_title, 'professional_title', 'Professional Title'));
+    const title = brand ? (has(body, 'professional_title') ? str(body.professional_title) || null : undefined)
+        : required('professional_title', 'professional_title', 'Professional Title');
+    set('professional_title', limited(title, LIMITS.professional_title, 'professional_title', 'Professional Title'));
     set('business_name', limited(required('business_name', 'business_name', 'Business Name'), LIMITS.business_name, 'business_name', 'Business Name'));
 
     const email = required('email', 'email', 'Email');
@@ -275,10 +296,10 @@ const readCard = (body = {}, { current = null, files } = {}) => {
 
     if (has(body, 'specialties') || creating) {
         const specialties = readTextList(body.specialties, 'specialties', LIMITS.specialties, LIMITS.specialty, 'specialties');
-        if (!specialties.length) throw invalid('specialties', 'Please add at least one Specialty.');
+        if (!specialties.length && !brand) throw invalid('specialties', 'Please add at least one Specialty.');
         card.specialties = specialties;
         // The directory groups cards by their first specialty.
-        card.primary_specialty = specialties[0];
+        card.primary_specialty = specialties[0] || null;
     }
 
     if (has(body, 'website')) card.website = webLink(body.website, 'website');
@@ -292,7 +313,7 @@ const readCard = (body = {}, { current = null, files } = {}) => {
     const methodsKey = has(body, 'preferred_booking_method') ? 'preferred_booking_method' : 'preferred_booking_methods';
     if (has(body, methodsKey) || creating) {
         const methods = readBookingMethods(body[methodsKey]);
-        if (!methods.length) throw invalid('preferred_booking_methods', 'Please select Preferred Booking Method.');
+        if (!methods.length && !brand) throw invalid('preferred_booking_methods', 'Please select Preferred Booking Method.');
         card.preferred_booking_method = JSON.stringify(methods);
     }
     // A booking link (or the website) for "Go to booking link", an Instagram handle for "DM on Instagram".
@@ -304,23 +325,14 @@ const readCard = (body = {}, { current = null, files } = {}) => {
         if (methods.includes('DM_INSTAGRAM') && !instagram) throw invalid('instagram', 'Please enter your Instagram handle.');
     }
 
-    if (has(body, 'offer_promotion')) {
-        card.offer_promotion = bool(body.offer_promotion);
-        const details = has(body, 'promotion_details') ? str(body.promotion_details) || null : current?.promotion_details;
-        if (card.offer_promotion && !details) throw invalid('promotion_details', 'Describe the special offer.');
-        card.promotion_details = card.offer_promotion ? limited(details, LIMITS.promotion, 'promotion_details', 'The offer') : details || null;
-    } else if (has(body, 'promotion_details')) {
-        card.promotion_details = limited(str(body.promotion_details) || null, LIMITS.promotion, 'promotion_details', 'The offer');
-    }
+    // Special offers are retired (Oct 23): `offer_promotion` and `promotion_details` are no longer read.
 
+    // Locations are optional (Nov 1): a card with none shows no address or map. Sending `[]` clears them.
     let locations;
-    if (has(body, 'locations') || creating) {
-        locations = readLocations(body.locations);
-        if (!locations.length) throw invalid('locations', 'Please add a Location.');
-    }
+    if (has(body, 'locations') || creating) locations = readLocations(body.locations);
     const hours = has(body, 'business_hour') ? readHours(body.business_hour) : creating ? [] : undefined;
 
     return { card, locations, hours };
 };
 
-module.exports = { readCard, invalid, LIMITS, BOOKING_METHODS };
+module.exports = { readCard, invalid, LIMITS, BOOKING_METHODS, PROFESSIONAL_TYPES };

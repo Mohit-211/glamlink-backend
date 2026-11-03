@@ -12,7 +12,7 @@ const { createAccount, normalizeEmail, setPasswordLink } = require('../../shared
 const { sendProfileInviteEmail } = require('../../integrations/mailer/email.service');
 const { pageList, pageOf, slugTaken } = require('./profileQuery');
 const { toRow, toDetail } = require('./profilePublic');
-const { pageFields, refuse } = require('./pageFields');
+const { pageFields, pageFiles, refuse } = require('./pageFields');
 const { topicsOf } = require('./profile.service');
 
 const notFound = () => ApiError.withCode(httpStatus.NOT_FOUND, 'No page for this account.', 'NOT_FOUND');
@@ -60,9 +60,13 @@ const pageView = async (userId) => {
             featured_order: page ? page.featured_order : 0,
             created_by_admin: page ? page.created_by_admin : false,
             tagline: page?.tagline ?? null,
+            intro: page?.intro ?? null,
+            category: page?.category ?? null,
+            shipping: page?.shipping ?? null,
             about: page?.about ?? null,
             image: page?.image ?? null,
             cover_image: page?.cover_image ?? null,
+            about_image: page?.about_image ?? null,
             website: page?.website ?? null,
             social: page?.social ?? null,
         },
@@ -82,14 +86,17 @@ const savePage = async (userId, fields) => {
 
 // A professional account (individual or brand), or 404.
 const professional = async (userId) => {
-    const user = await User.findOne({ where: { id: userId, account_type: 'professional', is_active: true }, attributes: ['id', 'email', 'password'] });
+    const user = await User.findOne({
+        where: { id: userId, account_type: 'professional', is_active: true }, attributes: ['id', 'email', 'password', 'professional_type'],
+    });
     if (!user) throw notFound();
     return user;
 };
 
-const updatePage = async (userId, body) => {
-    await professional(userId);
-    await savePage(userId, pageFields(body, { admin: true }));
+// PUT /profiles/admin/:userId: the owner's fields, the admin's, and images as links or, as the owner sends them, files.
+const updatePage = async (userId, body, files = {}) => {
+    const user = await professional(userId);
+    await savePage(userId, { ...pageFields(body, { admin: true, type: user.professional_type }), ...pageFiles(files) });
     return pageView(userId);
 };
 
@@ -123,7 +130,7 @@ const createBrandPage = async (body) => {
     if (existing) {
         throw ApiError.withCode(httpStatus.CONFLICT, 'This email already has an account: edit its page instead.', 'ACCOUNT_EXISTS', { user_id: existing.id });
     }
-    const fields = pageFields(body, { admin: true });
+    const fields = pageFields(body, { admin: true, type: 'brand' });
     fields.slug = fields.slug || (await freeSlugFor(name));
     if (await slugTaken(fields.slug)) throw refuse('slug', 'This slug is taken.');
     const user = await createAccount({ email, name, accountType: 'professional', professionalType: 'brand' });
@@ -140,4 +147,4 @@ const invite = async (userId) => {
     return { sent: true, email: user.email };
 };
 
-module.exports = { listPages, pageView, savePage, updatePage, createBrandPage, invite, ensurePageSlug };
+module.exports = { listPages, pageView, savePage, updatePage, createBrandPage, invite, ensurePageSlug, professional };

@@ -35,6 +35,9 @@ const page = async (where, query, order = NEWEST) => {
     return { count, rows: rows.map(toCard) };
 };
 
+// The id of the active series with this slug, or null.
+const seriesId = async (slug) => (await VideoSeries.findOne({ where: { slug: String(slug), is_active: true }, attributes: ['id'] }))?.id ?? null;
+
 // One page of published videos, newest first (featured=true: the featured ones in their order).
 //   series  a series' slug; search  title and description; page, limit (12, at most 50); rank (search results):
 //   titles matching the search exactly first, then those starting with it.
@@ -43,9 +46,8 @@ const listVideos = async (query = {}, { rank = false } = {}) => {
     const featured = isYes(query.featured);
     if (featured) where.is_featured = true;
     if (query.series) {
-        const series = await VideoSeries.findOne({ where: { slug: String(query.series), is_active: true }, attributes: ['id'] });
-        if (!series) return EMPTY();
-        where.series_id = series.id;
+        where.series_id = await seriesId(query.series);
+        if (!where.series_id) return EMPTY();
     }
     const search = String(query.search ?? '').trim();
     if (search) {
@@ -107,11 +109,17 @@ const listSeries = async () => {
     return rows.map((s) => ({ id: s.id, name: s.name, slug: s.slug, sort_order: s.sort_order, video_count: Number(s.video_count) }));
 };
 
-// The published videos an account appears in (profile pages), newest first.
+// The published videos an account appears in (profile pages), newest first; `series` one series' slug (a page's
+// Beauty Vault episodes: beauty-vault-podcast).
 const videosOfAccount = async (userId, query = {}) => {
     const people = await VideoPerson.findAll({ where: { user_id: userId }, attributes: ['video_id'] });
     if (!people.length) return EMPTY();
-    return page({ status: 'published', id: people.map((p) => p.video_id) }, query);
+    const where = { status: 'published', id: people.map((p) => p.video_id) };
+    if (query.series) {
+        where.series_id = await seriesId(query.series);
+        if (!where.series_id) return EMPTY();
+    }
+    return page(where, query);
 };
 
 // A topic's published videos, in the topic's order.

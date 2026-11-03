@@ -1,6 +1,7 @@
 const httpStatus = require("../../core/http/status");
 const { createAccount, normalizeEmail } = require("../identity");
 const { revokeUserSessions } = require("../identity");
+const { endBillingOf } = require("../billing");
 const Sequelize = require("sequelize");
 const { toDateTime } = require("../../core/utils/time");
 const { literal } = require("sequelize");
@@ -458,6 +459,10 @@ const deleteUser = async (body) => {
   for (const user of users) {
     const userId = user.id;
     const userEmail = user.email;
+
+    // What still bills the account ends first (Access Pro is cancelled at Stripe now, with no proration and no
+    // refund); if that fails, the account is not deleted.
+    await endBillingOf(userId);
 
     // Conditional Follow deletion
     if (user.role_id === 6) {

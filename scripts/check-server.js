@@ -137,9 +137,14 @@ const services = async () => {
             const url = `${String(config.API_BASE_URL || '').replace(/\/+$/, '')}/api/v1/payment/stripe/charge-intent/webhooks`;
             const endpoints = (await stripe().webhookEndpoints.list({ limit: 100 })).data;
             const hook = endpoints.find((e) => e.url === url);
+            const { API_VERSION } = require('../src/integrations/stripe');
+            const events = Object.keys(require('../src/website/access-card').stripeHandlers());
+            const missing = hook && !hook.enabled_events.includes('*') ? events.filter((e) => !hook.enabled_events.includes(e)) : [];
             if (!hook) fail(`no Stripe webhook endpoint for ${url} (npm run stripe:setup prints the events to add)`);
             else if (hook.status !== 'enabled') fail(`the Stripe webhook for ${url} is ${hook.status}`);
-            else ok(`Stripe webhook ${url} (API version ${hook.api_version || 'account default'})`);
+            else if (hook.api_version !== API_VERSION) fail(`the Stripe webhook for ${url} is on API version ${hook.api_version || 'the account default'}, not ${API_VERSION}`);
+            else if (missing.length) fail(`the Stripe webhook for ${url} does not send ${missing.join(', ')}`);
+            else ok(`Stripe webhook ${url} (API version ${hook.api_version}, ${events.length} events)`);
         } catch (error) {
             fail(`Stripe: ${error.message}`);
         }

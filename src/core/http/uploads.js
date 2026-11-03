@@ -32,6 +32,7 @@ const getUploadFolder = (fieldname) => {
     profile_image: "images",
     video_thumbnails: "images",
     featured_link_images: "images",
+    about_image: "images",
     gifs: "gifs",
     images: "images",
     videos: "videos",
@@ -147,6 +148,8 @@ const upload = multer({
   { name: "profile_image", maxCount: 1 },
   { name: "video_thumbnails", maxCount: 10 },
   { name: "featured_link_images", maxCount: 20 },
+  // A profile page's About image (PUT /my/profile), beside the cover sent as `images`.
+  { name: "about_image", maxCount: 1 },
   { name: "gifs", maxCount: 10 },
   { name: "images", maxCount: 20 },
   { name: "videos", maxCount: 10 },
@@ -182,6 +185,7 @@ const handleFileUploads = (req, res, next) => {
         "profile_image",
         "video_thumbnails",
         "featured_link_images",
+        "about_image",
         "gifs",
         "images",
         "videos",
@@ -195,7 +199,8 @@ const handleFileUploads = (req, res, next) => {
             const folder =
               type === "profile_image" ||
               type === "video_thumbnails" ||
-              type === "featured_link_images"
+              type === "featured_link_images" ||
+              type === "about_image"
                 ? "images"
                 : type === "csv_file"
                 ? "csv"

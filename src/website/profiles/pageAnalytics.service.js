@@ -1,7 +1,8 @@
 // Page analytics (Phase 6, the website's requests): the website reports views of a professional's or brand's page and
-// clicks on its links (website, Access card, products, booking, social, email, phone), as card analytics does for
-// cards, and the owner sees the numbers in the dashboard (GET /my/profile/analytics; admins any page's). An event keeps
-// no address or browser string: the visitor's random id (for unique visitors), the kind of device and what was clicked.
+// clicks on its links (website, Access card, products, booking, social, email, phone; since Nov 3 also sharing the page,
+// its media, education, podcast episodes and journal articles), as card analytics does for cards, and the owner sees
+// the numbers in the dashboard (GET /my/profile/analytics; admins any page's). An event keeps no address or browser
+// string: the visitor's random id (for unique visitors), the kind of device and what was clicked.
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
@@ -9,7 +10,10 @@ const { deviceType, isRobot } = require('../../core/http/visitor');
 const { visibleAccountId, pageLinks } = require('./profileQuery');
 
 const VIEW = 'PAGE_VIEW';
-const EVENTS = [VIEW, 'WEBSITE_CLICK', 'ACCESS_CARD_CLICK', 'PRODUCT_CLICK', 'BOOKING_CLICK', 'SOCIAL_CLICK', 'EMAIL_CLICK', 'PHONE_CLICK'];
+const EVENTS = [
+    VIEW, 'WEBSITE_CLICK', 'ACCESS_CARD_CLICK', 'PRODUCT_CLICK', 'BOOKING_CLICK', 'SOCIAL_CLICK', 'EMAIL_CLICK', 'PHONE_CLICK',
+    'SHARE_CLICK', 'MEDIA_CLICK', 'EDUCATION_CLICK', 'PODCAST_CLICK', 'JOURNAL_CLICK',
+];
 
 const refuse = (field, message, code = 'INVALID_INPUT') => ApiError.withCode(httpStatus.BAD_REQUEST, message, code, { field });
 const clip = (value, max) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim().slice(0, max) || null : null);

@@ -80,6 +80,19 @@ test('an owner\'s change too; a visitor\'s write or a refused change sends nothi
     assert.equal(await callAfter(seen), null);
 });
 
+test('a page\'s media and education, by its owner or an admin, refresh its pages (Nov 3)', async () => {
+    const { createSession } = require('../src/shared/identity');
+    const token = (await createSession({ id: brand.user_id }, { client: 'test' })).tokens.access_token;
+    let seen = calls.length;
+    assert.equal((await app.request('POST', '/api/v1/my/profile/media', { body: { url: 'https://youtu.be/rrrrrrrrrrr' }, token })).status, 201);
+    assert.deepEqual((await callAfter(seen)).body, { tags: ['profiles'] });
+
+    seen = calls.length;
+    const post = { kind: 'article', title: `Refreshed post ${stamp}`, body: '<p>x</p>' };
+    assert.equal((await app.request('POST', `/api/v1/profiles/admin/${brand.user_id}/education`, { body: post, headers: auth })).status, 201);
+    assert.deepEqual((await callAfter(seen)).body, { tags: ['profiles'] });
+});
+
 test('the website not answering changes nothing for the API', async () => {
     answer = 500;
     const seen = calls.length;

@@ -1,4 +1,5 @@
 const { revokeUserSessions } = require("../identity");
+const { endBillingOf } = require("../billing");
 const httpStatus = require("../../core/http/status");
 const { Op } = require("sequelize");
 const { User, UserAttachment, Profile, Role, Timezone, Review, State, City, Follow, Post, PostTag, Feed, PostLike, PostAttachment, PostComment, PostFavorite, Service, ServiceAttachment, UserReport, UserBlock, FeedPost, Album, AlbumAttachment, Reel, UserToken, UserLoginTiming, ReelLike, ReelComment, BookingSlot, Case, Booking, Availability, PostReport, Tag, ReelTag, AlbumAttachmentLike, UserAddress, Country, AlbumLike, AlbumComment, AlbumAttachmentComment, ProductReview, Product, ProductAttachment, Cart, Brand, Vendor, ServiceLocation, PromotionPayment, ProductTypeMapping, ProductCategoryMapping, CRMPayment, OrderDetails, OrderParcelDetails, Payment, Order, BusinessCard } = require("../../models");
@@ -210,6 +211,9 @@ const decrementTagCount = async (tagIds) => {
 
 const deactivateAccount = async (reqBody) => {
   const { user } = reqBody;
+
+  // What still bills the account ends first (Access Pro is cancelled at Stripe now, with no proration and no refund).
+  await endBillingOf(user.id);
 
   // Deactivate albums and their attachments
   const albumDocs = await Album.findAll({

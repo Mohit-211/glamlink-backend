@@ -1,18 +1,19 @@
-const { Op } = require('sequelize');
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
-const { AccessSubscription, BusinessLocation, BusinessHour, BusinessGalleryMedia } = require('../../models');
-const { seatOf, isPro, PRO_STATUSES } = require('./seats');
+const catchAsync = require('../../core/http/catchAsync');
+const { BusinessLocation, BusinessHour, BusinessGalleryMedia } = require('../../models');
+const { seatOf, isPro } = require('./seats');
 const { getSettings } = require('./catalog');
 
 // What a card's owner may do on their plan (docs/access.md section 2), from the settings' entitlements:
-// Free and Pro, each with photos and videos allowed, editing details and media once the card is live, special
-// offers. A card still a draft, waiting for review or rejected can always be edited; admins are not limited.
+// Free and Pro, each with photos and videos allowed, editing details and media once the card is live, the card's
+// analytics. A card still a draft, waiting for review or rejected can always be edited; admins are not limited.
+// Special offers are retired (Oct 23): no plan has them, and no card shows one.
 
 const MESSAGES = {
     edit_details: 'Changing your card once it is live is part of Access Pro.',
     edit_media: 'Swapping your photos and video anytime is part of Access Pro.',
-    special_offers: 'Special offers are part of Access Pro.',
+    analytics: 'Profile analytics are part of Access Pro.',
 };
 const upgradeRequired = (feature) =>
     ApiError.withCode(httpStatus.FORBIDDEN, MESSAGES[feature], 'UPGRADE_REQUIRED', { feature });
@@ -23,8 +24,6 @@ const entitlementsFor = async (userId) => {
     const tier = userId && isPro(await seatOf(userId)) ? 'pro' : 'free';
     return { tier, ...settings.entitlements[tier] };
 };
-
-const OFFER_FIELDS = ['offer_promotion', 'promotion_details'];
 
 const comparable = (value) => {
     if (value === null || value === undefined || value === '') return null;
@@ -56,10 +55,6 @@ const checkOwnerEdit = async (cardDoc, edit, rights) => {
     const current = cardDoc.get({ plain: true });
     const changed = changedFields(edit.card, current);
 
-    if (!rights.special_offers && changed.some((key) => OFFER_FIELDS.includes(key)) && (edit.card.offer_promotion ?? current.offer_promotion)) {
-        throw upgradeRequired('special_offers');
-    }
-
     const { media } = edit;
     let mediaChanged = Boolean(media.profileImage) || media.add.length > 0 || media.removeIds.length > 0;
     if (!mediaChanged && media.update.length) {
@@ -72,7 +67,7 @@ const checkOwnerEdit = async (cardDoc, edit, rights) => {
     if (!rights.edit_media && mediaChanged) throw upgradeRequired('edit_media');
 
     if (rights.edit_details) return;
-    let detailsChanged = changed.some((key) => !OFFER_FIELDS.includes(key));
+    let detailsChanged = changed.length > 0;
     if (!detailsChanged && edit.locations) {
         const stored = await BusinessLocation.findAll({ where: { business_card_id: cardDoc.id }, order: [['sort_order', 'ASC']] });
         detailsChanged = !sameRows(edit.locations, stored, LOCATION_KEYS);
@@ -84,31 +79,31 @@ const checkOwnerEdit = async (cardDoc, edit, rights) => {
     if (detailsChanged) throw upgradeRequired('edit_details');
 };
 
-// A new card's special offer needs Pro (an admin may set one).
-const checkNewCard = (card, rights) => {
-    if (card.offer_promotion && !rights.special_offers) throw upgradeRequired('special_offers');
+// The retired special offer's fields, left in the table until a clean-up and never served. `card` is a model or a
+// plain object; changed in place.
+const OFFER_FIELDS = ['offer_promotion', 'promotion_details'];
+const withoutOffers = (card) => {
+    const values = card?.dataValues ?? card;
+    if (values) for (const field of OFFER_FIELDS) delete values[field];
+    return card;
 };
 
-/**
- * Public cards show a special offer only while their owner's plan includes offers. `cards` are plain objects with
- * user_id (before cardPublic.js removes it); changed in place.
- */
+// Cards as anyone sees them: without the retired special offer. (The name of the time offers were Pro's, kept for the
+// calls in businessCard.service.js.)
 const hideOffersOffPlan = async (cards) => {
-    const list = cards.filter((card) => card && card.offer_promotion);
-    if (!list.length) return cards;
-    const settings = await getSettings();
-    if (settings.entitlements.free.special_offers) return cards;
-    const ownerIds = [...new Set(list.map((card) => card.user_id).filter(Boolean))];
-    const pro = settings.entitlements.pro.special_offers && ownerIds.length
-        ? new Set((await AccessSubscription.findAll({ where: { user_id: { [Op.in]: ownerIds }, status: PRO_STATUSES }, attributes: ['user_id'] })).map((s) => String(s.user_id)))
-        : new Set();
-    for (const card of list) {
-        if (!pro.has(String(card.user_id))) {
-            card.offer_promotion = false;
-            card.promotion_details = null;
-        }
-    }
+    for (const card of cards) withoutOffers(card);
     return cards;
 };
 
-module.exports = { entitlementsFor, checkOwnerEdit, checkNewCard, hideOffersOffPlan, upgradeRequired };
+/**
+ * Card analytics are Access Pro's (Oct 23): after requireOwnerOrAdmin, a card's owner on Free is refused with
+ * UPGRADE_REQUIRED { feature: 'analytics' }; an admin always passes.
+ */
+const requireAnalyticsPlan = catchAsync(async (req, res, next) => {
+    if (req.isAdmin) return next();
+    const rights = await entitlementsFor(req.user?.id);
+    if (!rights.analytics) throw upgradeRequired('analytics');
+    next();
+});
+
+module.exports = { entitlementsFor, checkOwnerEdit, withoutOffers, hideOffersOffPlan, requireAnalyticsPlan, upgradeRequired };

@@ -35,6 +35,21 @@ const profileMagazine = catchAsync(async (req, res) => {
     return responseWrapper(res, data, '');
 });
 
+const profileMedia = catchAsync(async (req, res) => {
+    const data = await profileService.profileMedia(req.params.slug, req.query);
+    return responseWrapper(res, data, '');
+});
+
+const profileEducation = catchAsync(async (req, res) => {
+    const data = await profileService.profileEducation(req.params.slug, req.query);
+    return responseWrapper(res, data, '');
+});
+
+const profileEducationItem = catchAsync(async (req, res) => {
+    const data = await profileService.profileEducationItem(req.params.slug, req.params.itemSlug);
+    return responseWrapper(res, data, '');
+});
+
 const adminListPages = catchAsync(async (req, res) => {
     const data = await profileAdminService.listPages(req.query);
     return responseWrapper(res, data, '');
@@ -46,7 +61,7 @@ const adminGetPage = catchAsync(async (req, res) => {
 });
 
 const adminUpdatePage = catchAsync(async (req, res) => {
-    const data = await profileAdminService.updatePage(req.params.userId, req.body);
+    const data = await profileAdminService.updatePage(req.params.userId, req.body, req.files);
     return responseWrapper(res, data, 'Page saved.');
 });
 
@@ -71,6 +86,6 @@ const adminAnalytics = catchAsync(async (req, res) => {
 });
 
 module.exports = {
-    listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, trackEvent,
-    adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite, adminAnalytics,
+    listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, profileMedia, profileEducation,
+    profileEducationItem, trackEvent, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite, adminAnalytics,
 };

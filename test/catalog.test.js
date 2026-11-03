@@ -19,7 +19,7 @@ before(async () => {
 });
 // Back to the seeded prices for the other test files.
 after(async () => {
-    await q("UPDATE access_products SET amount_cents = 499 WHERE code = 'pro'");
+    await q("UPDATE access_products SET amount_cents = 999 WHERE code = 'pro'");
     await q("UPDATE access_products SET amount_cents = 3999 WHERE code = 'keychain'");
     await q('DELETE FROM access_discounts');
     await q('DELETE FROM access_price_overrides');
@@ -27,6 +27,8 @@ after(async () => {
 });
 
 const plans = async (options) => (await app.request('GET', '/api/v1/access/plans', options)).body.data;
+// A plan's entitlements as an older admin panel sends them, with the retired special_offers.
+const tier = (pro) => ({ photos: 4, videos: 1, edit_details: true, edit_media: pro, special_offers: pro, analytics: pro, priority_search: pro });
 const plan = (data, code) => data.plans.find((p) => p.code === code);
 const asAdmin = (method, path, body) => app.request(method, `/api/v1${path}`, { token: tokens.admin, body });
 
@@ -37,16 +39,32 @@ describe('the plans as the website shows them', () => {
         assert.equal(plan(data, 'free').due_today, 0);
         assert.equal(plan(data, 'nfc_only').due_today, 3999);
         assert.equal(plan(data, 'nfc_only').monthly, null);
-        assert.equal(plan(data, 'subscription_only').due_today, 499);
-        assert.equal(plan(data, 'subscription_only').monthly, 499);
+        assert.equal(plan(data, 'subscription_only').due_today, 999, 'Access Pro at $9.99 a month (migration 20261101-1100)');
+        assert.equal(plan(data, 'subscription_only').monthly, 999);
         const both = plan(data, 'nfc_with_subscription');
-        assert.equal(both.due_today, 4498);
+        assert.equal(both.due_today, 4998);
         assert.equal(both.badge, 'Most popular');
         assert.deepEqual(both.includes, { subscription: true, keychain: true });
-        assert.ok(both.features.some((f) => f.soon && f.text === 'Performance analytics'));
         assert.ok(both.features.some((f) => f.highlight === 'keychain'));
         assert.equal(data.sale, null);
         assert.deepEqual(data.owned, { subscription: false, keychain: false });
+        assert.deepEqual(data.entitlements.free, { photos: 4, videos: 1, edit_details: true, edit_media: false, analytics: false, priority_search: false });
+        assert.equal(data.entitlements.pro.analytics, true);
+    });
+
+    test('the copy: no special offers, nothing "soon", and each plan holds the one before it in the same words', async () => {
+        const data = await plans();
+        const texts = (code) => plan(data, code).features.map((f) => f.text);
+        for (const p of data.plans) {
+            assert.ok(!p.features.some((f) => f.soon), `${p.code}: nothing marked soon`);
+            assert.ok(!p.features.some((f) => /offer/i.test(f.text)), `${p.code}: no special offers`);
+        }
+        const adds = (code, previous) => texts(code).filter((text) => !texts(previous).includes(text));
+        assert.ok(texts('free').every((text) => texts('subscription_only').includes(text)), 'Pro has every Free feature, in the same words');
+        assert.deepEqual(adds('subscription_only', 'free'), ['Swap your featured video anytime', 'Refresh your photos anytime', 'Profile analytics']);
+        assert.deepEqual(adds('nfc_with_subscription', 'subscription_only'), ['NFC keychain — tap to share your profile']);
+        assert.deepEqual(adds('nfc_only', 'free'), ['NFC keychain — tap to share your profile']);
+        assert.ok(texts('subscription_only').every((text) => texts('nfc_with_subscription').includes(text)));
     });
 
     test('admin routes need an admin', async () => {
@@ -60,7 +78,7 @@ describe('prices', () => {
         assert.equal(res.status, 200, res.body.message);
         assert.equal(plan(await plans(), 'subscription_only').due_today, 599);
         const changes = (await asAdmin('GET', '/access/admin/price-changes')).body.data;
-        assert.deepEqual([changes[0].product_code, changes[0].amount_before, changes[0].amount_after], ['pro', 499, 599]);
+        assert.deepEqual([changes[0].product_code, changes[0].amount_before, changes[0].amount_after], ['pro', 999, 599]);
         assert.equal((await asAdmin('PUT', '/access/admin/products/pro/price', { amount_cents: 20 })).status, 400, 'Stripe\'s minimum is 50 cents');
         assert.equal((await asAdmin('PUT', '/access/admin/products/pro/price', { amount_cents: 4.99 })).status, 400, 'whole cents');
     });
@@ -159,6 +177,10 @@ describe('plans and settings', () => {
         assert.deepEqual(res.body.data.shipping, shipping);
         assert.equal((await asAdmin('PUT', '/access/admin/settings', { shipping: { ...shipping, countries: ['MX'] } })).status, 400);
         assert.equal((await asAdmin('PUT', '/access/admin/settings', { entitlements: { free: { photos: 4 } } })).status, 400);
+        // The retired special_offers switch, sent by an older admin panel, is dropped rather than refused.
+        const saved = await asAdmin('PUT', '/access/admin/settings', { entitlements: { free: tier(false), pro: tier(true) } });
+        assert.equal(saved.status, 200, saved.body.message);
+        assert.equal('special_offers' in saved.body.data.entitlements.pro, false);
         const catalog = (await asAdmin('GET', '/access/admin/catalog')).body.data;
         assert.equal(catalog.settings.shipping.mode, 'flat');
         assert.deepEqual(catalog.products.map((p) => p.code).sort(), ['keychain', 'pro', 'shipping']);

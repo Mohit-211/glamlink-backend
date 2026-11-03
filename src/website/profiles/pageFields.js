@@ -1,6 +1,8 @@
 // The fields set on a page, by its owner (PUT /my/profile) or an admin: checked and cleaned here. `about` is rich
-// text cleaned like the card bio; images are uploads on the API host; `social` is a list of links. Admins also set
-// the slug, whether the page is listed, and featuring. A refusal names the field (400 INVALID_PAGE).
+// text cleaned like the card bio; images are uploads on the API host; `social` is a list of links. Since Nov 3: the
+// hero's `intro`, the Quick Info's `category` (a brand's from the list in quickInfo.js, a professional's as they name
+// it) and `shipping`, and the `about_image`. Admins also set the slug, whether the page is listed, and featuring. A
+// refusal names the field (400 INVALID_PAGE); the page's media and education use the same refusals.
 const sanitizeHtml = require('sanitize-html');
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
@@ -8,8 +10,9 @@ const { isUploadedImage } = require('../../core/http/uploadedFiles');
 const { isYes, wholeNumber } = require('../../core/utils/formValues');
 const { toSlug } = require('../../core/utils/slug');
 const { sanitizeBio } = require('../access-card');
+const { BRAND_CATEGORIES, SHIPPING } = require('./quickInfo');
 
-const LIMITS = { tagline: 150, about: 2000, link: 500, socialTitle: 30, social: 10, slug: 60 };
+const LIMITS = { tagline: 150, intro: 300, category: 60, about: 2000, link: 500, socialTitle: 30, social: 10, slug: 60 };
 
 const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, 'INVALID_PAGE', { field });
 const empty = (value) => value === null || value === undefined || (typeof value === 'string' && !value.trim());
@@ -67,10 +70,42 @@ const socialLinks = (value) => {
     });
 };
 
+// A list sent as JSON, or as a JSON string in a form field (a gallery's captions, an order's ids); undefined when
+// empty.
+const jsonList = (value, field) => {
+    if (empty(value)) return undefined;
+    let list = value;
+    if (typeof list === 'string') {
+        try {
+            list = JSON.parse(list);
+        } catch {
+            throw refuse(field, `${field} must be a JSON list.`);
+        }
+    }
+    if (!Array.isArray(list)) throw refuse(field, `${field} must be a list.`);
+    return list;
+};
+
 const image = (value, field) => {
     if (empty(value)) return null;
     if (!isUploadedImage(value)) throw refuse(field, `${field} must be an image uploaded to the API.`);
     return value;
+};
+
+// A brand's category is a key from the list; a professional's is their specialty's name.
+const category = (value, type) => {
+    if (empty(value)) return null;
+    if (type !== 'brand') return text(value, 'category', LIMITS.category);
+    const key = String(value).trim().toLowerCase();
+    if (!Object.hasOwn(BRAND_CATEGORIES, key)) throw refuse('category', `category is one of ${Object.keys(BRAND_CATEGORIES).join(', ')}.`);
+    return key;
+};
+
+const shipping = (value) => {
+    if (empty(value)) return null;
+    const key = String(value).trim();
+    if (!Object.hasOwn(SHIPPING, key)) throw refuse('shipping', `shipping is one of ${Object.keys(SHIPPING).join(', ')}.`);
+    return key;
 };
 
 // A slug from what an admin typed ("Kate Sue Beauty" -> kate-sue-beauty); whether it is free is checked by the caller.
@@ -80,13 +115,17 @@ const slug = (value) => {
     return out;
 };
 
-const pageFields = (body, { admin = false } = {}) => {
+// `type`: the account's (brand or individual), which says what its category may be.
+const pageFields = (body, { admin = false, type = 'individual' } = {}) => {
     const fields = {};
     if (body.tagline !== undefined) fields.tagline = text(body.tagline, 'tagline', LIMITS.tagline);
+    if (body.intro !== undefined) fields.intro = text(body.intro, 'intro', LIMITS.intro);
+    if (body.category !== undefined) fields.category = category(body.category, type);
+    if (body.shipping !== undefined) fields.shipping = shipping(body.shipping);
     if (body.about !== undefined) fields.about = about(body.about);
     if (body.website !== undefined) fields.website = webLink(body.website, 'website');
     if (body.social !== undefined) fields.social = socialLinks(body.social);
-    for (const field of ['image', 'cover_image']) if (body[field] !== undefined) fields[field] = image(body[field], field);
+    for (const field of ['image', 'cover_image', 'about_image']) if (body[field] !== undefined) fields[field] = image(body[field], field);
     if (admin) {
         if (body.slug !== undefined) fields.slug = slug(body.slug);
         if (body.is_listed !== undefined) fields.is_listed = isYes(body.is_listed);
@@ -100,4 +139,18 @@ const pageFields = (body, { admin = false } = {}) => {
     return fields;
 };
 
-module.exports = { pageFields, slug, refuse };
+// The page's images sent as files (a form), which win over links: `profile_image` the image, `images` (one) the
+// cover, `about_image` the About image.
+const PAGE_FILES = { profile_image: 'image', images: 'cover_image', about_image: 'about_image' };
+const pageFiles = (files = {}) => {
+    const fields = {};
+    for (const [name, field] of Object.entries(PAGE_FILES)) {
+        const file = files?.[name]?.[0];
+        if (!file) continue;
+        if (!(file.mimetype || '').startsWith('image/')) throw refuse(field, `${field} must be an image.`);
+        fields[field] = file.filename;
+    }
+    return fields;
+};
+
+module.exports = { pageFields, pageFiles, slug, refuse, text, image, empty, jsonList };

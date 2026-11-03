@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../../shared/admin');
-const { limitPublicForms } = require('../../core/http/rateLimiter');
+const httpStatus = require('../../core/http/status');
+const ApiError = require('../../core/http/ApiError');
 const directoryApplicationController = require('./directoryApplication.controller');
 
-// Public (the website's directory form)
-router.post('/applications', limitPublicForms, directoryApplicationController.createApplication);
+// The website's directory form is retired (Mohit, Nov 1): people create their profile with the Access form, and
+// claim a Google listing from there. Pages still open from caches get this answer.
+router.post('/applications', (req, res, next) =>
+    next(ApiError.withCode(httpStatus.GONE, 'The directory form is retired. Create your free profile at /access.', 'FORM_RETIRED')));
 
 // Admin
 router.get('/applications', requireAdmin, directoryApplicationController.listApplications);

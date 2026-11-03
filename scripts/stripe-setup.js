@@ -14,15 +14,9 @@ const { AccessProduct } = require('../src/models');
 const { ensureStripeProduct, ensureListPrice } = require('../src/website/access-card/stripeCatalog');
 const sequelize = require('../src/core/db/central.db');
 
-const EVENTS = [
-    'invoice.paid',
-    'invoice.payment_failed',
-    'customer.subscription.updated',
-    'customer.subscription.deleted',
-    'payment_intent.succeeded',
-    'payment_intent.payment_failed',
-    'charge.succeeded',
-];
+// The events the webhook endpoint must send: every one the Access handlers take (website/access-card/payments.js),
+// charge.succeeded among them (the app's payments too).
+const EVENTS = Object.keys(require('../src/website/access-card').stripeHandlers());
 
 (async () => {
     const mode = String(config.STRIPE_SECRET_KEY || '').startsWith('sk_live') ? 'LIVE' : 'test';
