@@ -21,6 +21,9 @@ calls of the Directory, Professionals and Brands pages (sorting and filters in s
 and `GET /directory/map` in section 10.13) and the Shop's sorting, price bands and saved products (section 10.3), the
 two newer Nov 3 rows, which need no migration.
 
+**Nov 4:** product tags, categories and the button label (the Nov 4 row, sections 10.3 and 10.14) are built and tested
+on the backend's `master`, not deployed; deploying them takes `npm run migrate`.
+
 ## Checklist before the switch
 
 Found by reviewing the website code (`glamlink_web`, Oct 16) against the new backend. Details in the sections below.
@@ -74,6 +77,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Nov 4 | **Product tags, categories and the button label** (sections 10.3 and 10.14; built and tested, not deployed; needs `npm run migrate`). Every product row (the shop's lists, `slug/:slug`, `findById/:id`, a page's products, `/my/products`, the site-wide search) adds `tag` (`{ id, name, is_editorial }` or null) and `button_label` (null when unset), beside `category`. New `GET /discover/shop/tags`: the tags, in the admins' order. `GET /discover/shop/filters` lists the 8 categories first, in their order with zeros, then any other stored category. `/my/products` takes `category` (one of the 8; else 400 `INVALID_PRODUCT`), `button_label` (30 characters) and `tag_id` (an open tag; an editorial one, or changing or clearing one an admin set, is 403 `TAG_ADMIN_ONLY`) | **New:** the tag top-left on product cards and the product page; the button reads `button_label`, else "Shop now"; the category filter shows all 8. In the dashboard's Products: Category (a select of the 8), Tag (the open tags; an editorial one shown, locked) and Button label |
 | Nov 3 | **Shop sorting, price bands and saved products** (section 10.3; built and tested, not deployed; no migration). `GET /discover/shop` takes `sort` (`featured`, `newest`, `price_asc`, `price_desc`, `name`), `min_price` (in the band) and `max_price` (not), and `ids` (up to 100 saved products, in their order unless sorted); a value it cannot take is 400 `INVALID_SHOP_QUERY`. `GET /discover/shop/filters` adds `price: { min, max }` (null when no product has a price) | **New:** sorting and price bands on /shop, and saved products (their ids in a cookie, most recent first). Don't call the list with an empty `ids`: it would answer every product |
 | Nov 3 | **The Directory, Professionals and Brands pages** (sections 10.6 and 10.13; built and tested, not deployed; no migration). `GET /profiles` takes `sort` (`name`, `recommended`, `newest`, `nearest`), `specialty`, `category`, `shipping`, `state` (a U.S. state by code or name), `city`, `lat` and `lng` (each row then has `distance_miles`) and `radius`; a value it cannot take is 400 `INVALID_PROFILE_QUERY`. Its rows (and the site-wide search's professionals and brands) add `category`, `category_label` and `shipping`. New `GET /directory/filters?type=individual\|brand` (each option with as many pages as the list finds for it) and `GET /directory/map` (the hero map's pins: professionals' pages with a point, to 3 decimals; `north`, `south`, `east`, `west`, `limit`) | **New:** the directory's map hero and its three sections (our professionals, 15 Google listings from `GET /directory/google?lat=36.1699&lng=-115.1398&limit=15`, a few brands), and the Professionals and Brands pages with their sorting and filters. Show `category_label`, else `specialty` |
 | Nov 3 | **Profile pages in the owner's design** (section 10.6.1; built and tested, not deployed). `GET /profiles/:slug` adds `intro` (else the card bio as text, 300 characters), `category` and `category_label` (a brand's from a list of 8 keys, "Skincare Brand"; a professional's specialty), `shipping` and `shipping_label`, `about_image` (else the page's first photo, else the card's cover photo), `quick_info` (`has_education`, `on_podcast`, `in_journal`), and the lists `media` (5), `education` (3) and `podcast` (the newest Beauty Vault episode); `cover_image` falls back to the card gallery's cover photo; `products` holds 8. New public `GET /profiles/:slug/media` (the card's gallery, `source: "card"`, until the page has its own), `GET /profiles/:slug/education`, `GET /profiles/:slug/education/:itemSlug`, and `?series=` on `GET /profiles/:slug/videos`. The owner's `GET`/`PUT /my/profile` read and write `intro`, `category`, `shipping` and `about_image` (the file `about_image`, or a link; `""` clears). New owner endpoints for Media & Images (`/my/profile/media`: list, add photos, MP4s or a YouTube/Vimeo link, `import-card`, order, caption and alt, delete; the first add copies the card's gallery in) and Education (`/my/profile/education`: list, one, add, edit, order, delete; `POST /my/profile/uploads` for images in an article's text). Page events add `SHARE_CLICK`, `MEDIA_CLICK`, `EDUCATION_CLICK`, `PODCAST_CLICK`, `JOURNAL_CLICK` | **New:** the page's new layout, the View-all pages (`media`, `education`, `podcast` with `series=beauty-vault-podcast`), the education item page, and the dashboard's new My Page fields and Media & Images and Education tabs. Allow frames from YouTube and Vimeo's player and their thumbnails' hosts (`i.ytimg.com`, `i.vimeocdn.com`); render article bodies through DOMPurify too |
@@ -807,7 +811,7 @@ topic of that name exists; admins create the missing ones.
 An image is `null` until an admin sets it: keep the placeholder until then. The popular searches start as the
 mockup's five; a chip opens the site-wide search (section 10.11), which the website uses.
 
-### 10.3 Shop (done Oct 23; sorting, price bands and saved products Nov 3)
+### 10.3 Shop (done Oct 23; sorting, price bands and saved products Nov 3; tags, categories and the button label Nov 4)
 
 `GET /discover/shop` with any of these parameters answers one page of published products, in the order admins
 arranged them (then by title):
@@ -871,6 +875,31 @@ numbers; `null` when none has. Offer only the price bands that can match.
 | --- | --- |
 | The Shop page, sorted and by price | `GET /discover/shop?page=1&limit=12&sort=price_asc&min_price=50&max_price=100` (with the filters above) |
 | Saved products | `GET /discover/shop?ids=<the saved ids, most recent first>&limit=50` |
+
+**Tags, categories and the button label** (Mohit, Nov 4; built and tested, not deployed). A product carries one tag,
+shown top-left on its card and on its page; admins keep the list of tags. Its category comes from a fixed list of 8,
+and its button may have its own label. Every product row (the shop's lists, `GET /discover/shop/slug/:slug`,
+`findById/:id`, a page's products, `/my/products`, the site-wide search's products) adds:
+
+```json
+{ "tag": { "id": 2, "name": "Editor's Pick", "is_editorial": true }, "tag_id": 2, "button_label": "Book a demo",
+  "category": "Body & Bath" }
+```
+
+- `tag`: `{ id, name, is_editorial }` or null. Show its name top-left.
+- `button_label`: null when unset: the button reads `button_label || "Shop now"`.
+- `category`: as stored, the label of one of Skincare, Haircare, Makeup, Nails, Body & Bath, Fragrance, Wellness &
+  Supplements, Devices & Tools. Values stored before the list (none of today's products has one) stay until edited.
+
+**`GET /discover/shop/tags`** (no sign-in): `[{ id, name, is_editorial, sort_order }]` in the admins' order, then by
+name. An editorial tag ("Featured in The Beauty Vault", "Editor's Pick") is set by admins only; an open one ("Pro
+Favorite", "New", "Best Seller") by owners too (section 10.14).
+
+`GET /discover/shop/filters` now lists the 8 categories first, in that order with zeros, so the website can show the
+whole list, then any other stored category as before: `{ slug, name, count }`. Their slugs are as the list has always
+made them: `skincare`, `haircare`, `makeup`, `nails`, `body-and-bath`, `fragrance`, `wellness-and-supplements`,
+`devices-and-tools`. `GET /discover/shop?category=` takes a slug or a label (`body-bath` works too), and finds every
+stored spelling of the category.
 
 ### 10.4 Newsletter and feature requests (done Oct 23)
 
@@ -1341,12 +1370,20 @@ no "Directory listing" section yet, so listing owners cannot do this today (W-5)
 | Method | Path | Body | Answers |
 | --- | --- | --- | --- |
 | GET | `/my/products` | `page`, `limit` | `{ count, rows }`: their products, drafts too, newest first |
-| POST | `/my/products` | `title` (required), `short_description`, `description`, `category`, `brand` (text), `price` (dollars, `12.50`), `link` (a web link), `status` (`published` by default, or `draft`); the cover as `images` (one file) | 201, the product (with `owner`, `brand_profile`, `status`) |
+| POST | `/my/products` | `title` (required), `short_description`, `description`, `category`, `brand` (text), `price` (dollars, `12.50`), `link` (a web link), `status` (`published` by default, or `draft`); the cover as `images` (one file). Nov 4: `tag_id`, `button_label` (below) | 201, the product (with `owner`, `brand_profile`, `status`; Nov 4 `tag`, `button_label`) |
 | PUT | `/my/products/:id` | the same fields (`cover_image: ""` removes the cover) | The product |
 | DELETE | `/my/products/:id` | | `{ deleted: true }` |
 
 A brand's products are its own make (`brand_id` is the brand). Refusals: 400 `INVALID_PRODUCT` with `details.field`;
 another account's product answers 404.
+
+Since Nov 4 (Mohit; built and tested, not deployed): `category` is one of the 8 of section 10.3, sent as its label in any
+case or its slug (`body-and-bath`, or `body-bath`); the label is stored and `""` clears it; anything else is 400
+`INVALID_PRODUCT` (`details.field: "category"`). `button_label` is the button's own label, trimmed, at most 30
+characters (else 400); `""` clears it. `tag_id` is an open tag of `GET /discover/shop/tags`, or `""` to clear it. An
+editorial tag is Glamlink's to give: sending one is 403 `TAG_ADMIN_ONLY` (`details.field: "tag_id"`), and while the
+product carries one (an admin set it), sending another `tag_id` or `""` is the same 403. Sending the same id, or no
+`tag_id`, is fine, and other edits keep the tag: show the editorial tag in the form, locked.
 
 ### 10.15 Calls by slug (done Oct 23)
 

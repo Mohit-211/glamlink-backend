@@ -16,6 +16,7 @@ const PodcastSchedule = require('./podcastSchedule.model');
 const Education = require('./education.model');
 const Event = require('./event.model');
 const Shop = require('./shop.model');
+const ProductTag = require('./productTag.model');
 const Ad = require('./ad.model');
 const Blog = require('./blog.model');
 const BlogCategory = require('./blogCategory.model');
@@ -312,4 +313,4 @@ const associate = ({ User }) => {
   });
 };
 
-module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, Author, PodcastSchedule, Education, Event, Shop, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment, SiteSetting, JournalMention }, associate };
+module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, Author, PodcastSchedule, Education, Event, Shop, ProductTag, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment, SiteSetting, JournalMention }, associate };

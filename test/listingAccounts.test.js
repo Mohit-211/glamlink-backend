@@ -137,7 +137,7 @@ describe('the owner', () => {
     test('manages their own products, shown at once; a brand\'s are its own make', async () => {
         const token = await tokenFor(ids.kateAccount);
         const created = await app.form('POST', '/api/v1/my/products', {
-            fields: { title: `Lash Serum ${stamp}`, price: '24.50', link: 'https://shop.example/serum', category: 'Serums' },
+            fields: { title: `Lash Serum ${stamp}`, price: '24.50', link: 'https://shop.example/serum', category: 'skincare' },
             files: { images: [photo('serum.png')] },
             token,
         });

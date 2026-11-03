@@ -358,6 +358,9 @@ pm2 reload glamlink-api
 When a pull changes the Stripe products, prices or webhook events (the Nov 1 code does), run `npm run stripe:setup`
 after `npm run migrate`, and update the webhook endpoint with the events it prints.
 
+The next pull (Nov 4, product tags, on `master`) needs `npm run migrate`: `20261104-0100` adds the
+`product_tags` table and the products' `tag_id` and `button_label`.
+
 ### Once, with the Nov 1 code: Access payments, one form, claims
 
 Deploy this before the website and the admin panel's Nov 1–2 changes: both rely on its answers.

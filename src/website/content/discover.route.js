@@ -8,6 +8,13 @@ const discoverController = require("./discover.controller");
 // The shop's filter values: its categories and brands with counts.
 router.get("/shop/filters", discoverController.getShopFilters);
 
+// Product tags (Nov 4): the list is public, admins keep it. Before /:type, as /shop/filters is.
+router.get("/shop/tags", discoverController.listShopTags);
+router.post("/shop/tags", requireAdmin, discoverController.createShopTag);
+router.put("/shop/tags/order", requireAdmin, discoverController.orderShopTags);
+router.put("/shop/tags/:id", requireAdmin, discoverController.updateShopTag);
+router.delete("/shop/tags/:id", requireAdmin, discoverController.deleteShopTag);
+
 // A product by its slug (by its id: /shop/findById/:id).
 router.get("/shop/slug/:slug", discoverController.findProductBySlug);
 

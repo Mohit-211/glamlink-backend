@@ -4,6 +4,27 @@ Newest first. Each phase lists its commits; branches chain from `main` (old code
 every phase below and, up to Phase 6, is the code deployed on api.glamlink.net; the Nov 1–2 and Nov 3 work is not
 deployed.
 
+## Product tags, categories and the button label (Nov 4, on `master`; not deployed yet)
+
+Mohit's decisions of Nov 4: one tag per product, top-left on its card and page, from a list admins keep (an editorial
+tag is theirs to set; an open one owners set too); a category from a fixed list of 8; a button label of the product's
+own ("Shop now" without one). The website and the admin panel build against the same contract (their handoffs, Nov 4
+rows).
+
+- Migration `20261104-0100`: the `product_tags` table, seeded with five tags; the products' `tag_id` (emptied when its
+  tag is deleted) and `button_label`. Model `website/content/models/productTag.model.js`.
+- `productTags.service.js`: `GET /discover/shop/tags` and the admins' add, edit, order and delete; the owners' rules
+  (403 `TAG_ADMIN_ONLY`). `productForm.js`: the 8 categories (the label stored; slugs `body-and-bath` and
+  `body-bath` both read) and the button label, for the admin and owner product writes.
+- Every product row adds `tag` and `button_label` (`withLinks`); the shop's filters list the 8 categories first.
+- Card creation's speed (the website saw about 1 s before the first byte, `/api/healthcheck` too): nothing in
+  `POST /businessCard` re-encodes, hashes or reads a whole file (multer streams each file to disk), and the request
+  waits only on the database; e-mail, the QR code, geocoding and the website's refresh run after the answer. Locally a
+  card with four 4 MB photos takes about 23 ms and the health check 0.3 ms, so the second is spent before the request
+  reaches the app (DNS, TLS, nginx, the network). Nothing changed for it.
+- Checks: 382 of 382 tests pass on a throwaway MariaDB (374 before; new `test/productTags.test.js`); `npm run lint`
+  passes. **For Mohit to do:** `npm run migrate` with the next deploy.
+
 ## Profile pages in the owner's design (Nov 3, on `master`; not deployed yet)
 
 Mohit's decisions of Nov 3: one page layout for brands and professionals (the Epicutis mockup without reviews, the

@@ -91,7 +91,9 @@ describe('GET /discover/shop/filters', () => {
         const res = await app.request('GET', '/api/v1/discover/shop/filters');
         assert.equal(res.status, 200);
         const { categories, brands } = res.body.data;
-        assert.deepEqual(categories.map((c) => [c.slug, c.count]), [['lash-care', 1], ['oils', 1], ['serums', 2]]);
+        // Since Nov 4 the 8 categories of the list come first, zeros included; then the others stored, by name.
+        const listed = ['skincare', 'haircare', 'makeup', 'nails', 'body-and-bath', 'fragrance', 'wellness-and-supplements', 'devices-and-tools'];
+        assert.deepEqual(categories.map((c) => [c.slug, c.count]), [...listed.map((slug) => [slug, 0]), ['lash-care', 1], ['oils', 1], ['serums', 2]]);
         assert.deepEqual(brands.map((b) => [b.slug, b.count]), [['lashify', 1], [toSlug('Pure_Co'), 1], ['skinmedica', 2]]);
         assert.ok(categories.every((c) => typeof c.name === 'string' && c.name.trim() === c.name));
     });

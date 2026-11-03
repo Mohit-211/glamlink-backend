@@ -11,6 +11,8 @@ const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
 const { Event, Shop, JournalTopic, User } = require("../../models");
 const { pageLinks, visibleAccountId } = require("../profiles");
+const { PRODUCT_CATEGORIES, productCategory, categoryField, buttonLabelField } = require("./productForm");
+const { tagsByIds, adminTagId } = require("./productTags.service");
 const sharp = require("sharp");
 const { parse } = require("csv-parse/sync");
 const path = require("path");
@@ -48,11 +50,16 @@ const accountField = async (value, field) => {
 };
 
 // Each product with links to its owner's and its brand's pages: { id, slug, name }, null without a visible page.
+// Nov 4: and its tag, { id, name, is_editorial } or null.
 const withLinks = async (rows) => {
-  const links = await pageLinks(rows.flatMap((row) => [row.owner_id, row.brand_id]));
+  const [links, tags] = await Promise.all([
+    pageLinks(rows.flatMap((row) => [row.owner_id, row.brand_id])),
+    tagsByIds(rows.map((row) => row.tag_id)),
+  ]);
   for (const row of rows) {
     row.dataValues.owner = links.get(Number(row.owner_id)) ?? null;
     row.dataValues.brand_profile = links.get(Number(row.brand_id)) ?? null;
+    row.dataValues.tag = tags.get(Number(row.tag_id)) ?? null;
   }
   return rows;
 };
@@ -115,13 +122,19 @@ const createDiscover = async (type, reqBody, files) => {
     if (reqBody.featured_order !== undefined && reqBody.featured_order !== "") {
       obj.featured_order = featuredOrder(reqBody.featured_order);
     }
+    // Nov 4: a category from the list of 8, any tag, the button's label (productForm.js, productTags.service.js).
+    if (reqBody.category !== undefined) obj.category = categoryField(reqBody.category);
+    if (reqBody.tag_id !== undefined) obj.tag_id = await adminTagId(reqBody.tag_id);
+    if (reqBody.button_label !== undefined) obj.button_label = buttonLabelField(reqBody.button_label);
   }
 
   if (files?.images?.length) {
     obj.cover_image = files.images[0].filename;
   }
 
-  return await Model.create(obj);
+  const doc = await Model.create(obj);
+  // A product answers as every product row does (its links and tag).
+  return type === "shop" ? (await withLinks([doc]))[0] : doc;
 };
 
 const getAllDiscover = async (type) => {
@@ -140,10 +153,10 @@ const getAllDiscover = async (type) => {
 
 const PUBLISHED = { is_active: true, status: "published" };
 
-// What a list shows of a product: all but the longer description.
+// What a list shows of a product: all but the longer description. Nov 4: its tag (withLinks adds `tag`) and button label.
 const PRODUCT_CARD = [
-  "id", "slug", "title", "short_description", "category", "brand", "owner_id", "brand_id", "price", "cover_image", "link",
-  "is_featured", "featured_order", "sort_order", "created_at", "updated_at",
+  "id", "slug", "title", "short_description", "category", "tag_id", "brand", "owner_id", "brand_id", "price", "cover_image", "link",
+  "button_label", "is_featured", "featured_order", "sort_order", "created_at", "updated_at",
 ];
 
 const EMPTY_LIST = () => ({ count: 0, rows: [] });
@@ -152,10 +165,20 @@ const EMPTY_LIST = () => ({ count: 0, rows: [] });
 const sitemapProducts = () =>
   Shop.findAll({ attributes: ["id", "slug", "updated_at"], where: PUBLISHED, order: [["id", "ASC"]], raw: true });
 
-// The texts of a free-text column (category, brand) that share this slug: "Skin Care" and "skin care " are one.
-const valuesWithSlug = async (column, slug) => {
+// The texts of a free-text column (category, brand) among published products that `keep` keeps.
+const storedValues = async (column, keep) => {
   const rows = await Shop.findAll({ attributes: [column], where: { ...PUBLISHED, [column]: { [Op.ne]: null } }, group: [column], raw: true });
-  return rows.map((row) => row[column]).filter((value) => toSlug(value) === toSlug(slug));
+  return rows.map((row) => row[column]).filter(keep);
+};
+
+// The texts that share this slug: "Skin Care" and "skin care " are one.
+const valuesWithSlug = (column, slug) => storedValues(column, (value) => toSlug(value) === toSlug(slug));
+
+// The category texts the list filters by (Nov 4): every spelling of one of the 8 (productForm.js), else those sharing
+// the slug, as before.
+const categoryValues = (value) => {
+  const label = productCategory(value);
+  return label ? storedValues("category", (text) => productCategory(text) === label) : valuesWithSlug("category", value);
 };
 
 const ADMIN_ORDER = [["sort_order", "ASC"], ["title", "ASC"], ["id", "ASC"]];
@@ -234,7 +257,7 @@ const listShop = async (query = {}, { rank = false } = {}) => {
   if (min !== null || max !== null) where.price = { ...(min !== null && { [Op.gte]: min }), ...(max !== null && { [Op.lt]: max }) };
 
   if (query.category) {
-    const values = await valuesWithSlug("category", query.category);
+    const values = await categoryValues(query.category);
     if (!values.length) return EMPTY_LIST();
     where.category = values;
   }
@@ -317,19 +340,35 @@ const priceRange = async () => {
   return row && row.min !== null ? { min: Number(row.min), max: Number(row.max) } : null;
 };
 
+// The filters' categories (Nov 4): the 8 of the list in its order, zeros included (slugs as the list makes them; every
+// spelling of one counts in it), then any other category stored, as before.
+const categoriesOf = async () => {
+  const listed = PRODUCT_CATEGORIES.map((name) => ({ slug: toSlug(name), name, count: 0 }));
+  const others = [];
+  for (const value of await valuesOf("category")) {
+    const label = productCategory(value.name);
+    if (label) listed[PRODUCT_CATEGORIES.indexOf(label)].count += value.count;
+    else others.push(value);
+  }
+  return [...listed, ...others];
+};
+
 // GET /discover/shop/filters: the shop's categories and brands; each slug is the list's filter value. Nov 3: `price`,
 // the range of the prices, so the website offers only the price bands that can match.
-const shopFilters = async () => ({ categories: await valuesOf("category"), brands: await valuesOf("brand"), price: await priceRange() });
+const shopFilters = async () => ({ categories: await categoriesOf(), brands: await valuesOf("brand"), price: await priceRange() });
 
 const getAllDiscoverByAdmin = async (type) => {
   const Model = getModel(type);
 
-  return await Model.findAndCountAll({
+  const result = await Model.findAndCountAll({
     where: {
       is_active: true,
     },
     order: [["sort_order", "ASC"]],
   });
+  // Products answer as every product row does (their links and tag).
+  if (type === "shop") await withLinks(result.rows);
+  return result;
 };
 
 // A missing one answers 404. Drafts only for admins (the admin panel edits them).
@@ -384,7 +423,8 @@ const updateDiscover = async (type, reqBody, id, files) => {
   if (reqBody.title) doc.title = reqBody.title;
   if (reqBody.short_description)
     doc.short_description = reqBody.short_description;
-  if (reqBody.category) doc.category = reqBody.category;
+  // A product's category comes from the list of 8 (below).
+  if (reqBody.category && type !== "shop") doc.category = reqBody.category;
   if (reqBody.status) doc.status = reqBody.status;
 
   if (type === "education") {
@@ -435,6 +475,19 @@ const updateDiscover = async (type, reqBody, id, files) => {
     if (reqBody.featured_order !== undefined && reqBody.featured_order !== "") {
       doc.featured_order = featuredOrder(reqBody.featured_order);
     }
+
+    // Nov 4: a category from the list of 8 ("" clears it), any tag ("" or null clears it), the button's label.
+    if (reqBody.category !== undefined) {
+      doc.category = categoryField(reqBody.category);
+    }
+
+    if (reqBody.tag_id !== undefined) {
+      doc.tag_id = await adminTagId(reqBody.tag_id);
+    }
+
+    if (reqBody.button_label !== undefined) {
+      doc.button_label = buttonLabelField(reqBody.button_label);
+    }
   }
 
   if (files?.images?.length) {
@@ -443,7 +496,8 @@ const updateDiscover = async (type, reqBody, id, files) => {
 
   await doc.save();
 
-  return doc;
+  // A product answers as every product row does (its links and tag).
+  return type === "shop" ? (await withLinks([doc]))[0] : doc;
 };
 
 const deleteDiscover = async (type, body) => {

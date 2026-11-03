@@ -17,6 +17,9 @@ matching changes (on its `main`, Nov 4) rely on them: deploy the API first.
 **Nov 3:** the profile pages' new fields, media and education (the Nov 3 row, section 8.6) are built and tested in the
 backend, not deployed. The panel's screens for them come later; the endpoints are ready.
 
+**Nov 4:** product tags, categories and the button label (the Nov 4 row, section 8.3) are built and tested on the
+backend's `master`, not deployed. Deploying them takes `npm run migrate`.
+
 ## Checklist before the switch
 
 Found by reviewing the admin panel code (Oct 16) against the new backend; checked again on Oct 30 against the panel's
@@ -55,6 +58,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Nov 4 | **Product tags, categories and the button label** (section 8.3; built and tested, not deployed; needs `npm run migrate`). Tags: `GET /discover/shop/tags` (public) and, for admins, `POST /discover/shop/tags` `{ name, is_editorial }`, `PUT /discover/shop/tags/:id` `{ name?, is_editorial? }`, `PUT /discover/shop/tags/order` `{ ids }` and `DELETE /discover/shop/tags/:id` (answers `{ id, products_untagged }`); 400 `INVALID_TAG`, 409 `TAG_EXISTS` (a name in any case), 404. Products (`POST /discover/shop`, `PUT /discover/shop/:id`) take `category` (one of 8, by its label or slug; `""` clears; anything else 400 `INVALID_PRODUCT`), `tag_id` (any tag; `""` or `null` clears) and `button_label` (30 characters; `""` clears). Every product answer carries `tag` (`{ id, name, is_editorial }` or null), `button_label` and `category`: the admin list, `findById`, and now the create and edit answers too. Four new admin routes (279 in all) | **New:** a Product Tags screen (add, rename, editorial or open, order, delete; deleting says how many products lost the tag) and, on the product form, Category (a select of the 8), Tag (the list, editorial ones marked) and Button label ("Shop now" when empty) |
 | Nov 3 | **Profile pages in the owner's design** (section 8.6; built and tested, not deployed). `PUT /profiles/admin/:userId` also takes `intro`, `category` (a brand's: one of 8 keys; a professional's: a specialty's name), `shipping` and `about_image`, and, as the owner sends them, the images as files (`profile_image`, `images` the cover, `about_image`); the view's `page` answers the four fields. Thirteen new admin routes (275 in all) for any page's Media & Images (`/profiles/admin/:userId/media`: list, add, `import-card`, order, edit with `is_hidden`, delete), Education (`/profiles/admin/:userId/education`: list, one, add, edit, order, delete) and article images (`/profiles/admin/:userId/uploads`). Owners' media and education show at once; admins hide media (`is_hidden`) or unpublish education (`status: "draft"`) | **Done on Nov 3** in the panel (uncommitted on `main`, its `progress.md` pass 12): `/pages/:userId` in tabs, with the four fields (images upload through `POST /journal/upload` and are sent as links; the new file fields aren't used), Media & Images (Hide and Show, captions, order, delete, photos, MP4s with posters, links, the card import), Education (drafts, Publish and Unpublish, order, the editor's `article` mode with pictures through `.../uploads`) and a read-only Tagged in (`GET /profiles/:slug/articles` and `/videos?series=beauty-vault-podcast`). Page analytics name the five new events |
 | Nov 1 | **Access orders, listing claims, card types** (Mohit's decisions of Nov 1; built and tested, not deployed). **Orders** (sections 7.4, 7.5): `GET /businessCard/access-orders` reads `page`, `limit` (10 by default, at most 100), `search`, `payment_status`, `fulfillment_status` and `cancelled=true\|false` from the query string (A-ACC-1 fixed), and an unknown status is 400 `INVALID_INPUT`; the order detail adds `checkout` and `cancelled_at`, `cancel_reason`, `refunded_amount`, `refunded_at`, `dispute_status`, `disputed_at`; new `POST /businessCard/access-orders/:id/cancel` `{ reason? }` cancels with no refund (a keychain not yet shipped won't ship, Access Pro bought with it ends now); order payment states add `partially_refunded` and `disputed`, fulfillment `cancelled`, payment rows `REFUNDED` and `DISPUTED` (refunds and disputes made in Stripe are recorded); a cancelled order's label is 409 `ORDER_CANCELLED`. **Claims** (8.14): the website's Access form can claim a Google listing (`claimed_place_id` on the card); new `GET /directory/claims` and `PUT /directory/claims/:cardId` `{ action: "verify" \| "reject" }` (409 `PLACE_ALREADY_CLAIMED`). **Cards** (section 7): `professional_type` (`individual` or `brand`) on create and edit; a brand's title, specialties and booking method are optional; locations are optional; special offers are no longer read or answered. **Directory applications** (8.5): the website's form is retired (`POST /directory/applications` answers 410 `FORM_RETIRED`); the admin endpoints stay. **Pricing and seats** (7.1, 7.2): Access Pro $9.99 for new purchases (subscribers keep their price); the new plan copy; `special_offers` gone from the entitlements (dropped if sent); a seat past due stays Pro at most 21 days; Stripe's refusals answer 502 `PAYMENT_UNAVAILABLE`. **Analytics** (8.13): an owner on Free is refused the card's and the page's numbers; admins are not. Deleting an account (`POST /admin/users/delete`) ends its Access Pro at Stripe at once, no refund; if Stripe refuses, the account is not deleted. Three new admin routes (262 in all) | **Done on Nov 1–2** in the panel (uncommitted on `main`): Access Orders pages on the server (50 a page) with Payment and Fulfillment filters and Cancel order (confirmation, optional reason); the dashboard's "Keychain orders to ship" counts paid orders that are pending or processing; a Type column, filter and select on cards; the new Listing Claims screen (`/directory-claims`); the applications screens say the form is retired. **Matched on Nov 2:** a cancelled order is read from `cancelled_at`, the "Cancelled" filter sends `cancelled=true`, a repeat cancel is handled like the first, and the payment filter offers `partially_refunded` and `disputed`. **Nov 3:** the order's details show its refund, dispute and cancellation; special offers left the pricing settings |
 | Oct 30 | No API change. This note checked against the code (backend `master` `aadb56a`, audit of Oct 30): checklist ticked; limits, answer shapes and errors corrected in sections 2, 4, 5, 7 and 8; new section 9 (behaviour the sections left out); the appendix lists all 259 admin routes, with the 92 app back-office routes apart | **Panel fixes (contract audit):** A-OTH-1 expanding a user in Login History crashes the panel on a null IP: make the cell null-safe; A-ACC-2 Edit card sends `website` as `booking_link`; A-ACC-3 dragging featured links sends unsaved links and reloads the form on an error; A-ACC-4 a directory's empty `description` is sent as "undefined" or "null"; A-OTH-3 an ad slot without a height sends `height="null"`; A-OTH-10 the "ADMIN" option sends role 1, which is always refused; A-OTH-11 the form status PENDING is always refused; A-CNT-8 dragging while a search filter is on saves only the visible rows. **Known API gaps (backend fixes pending):** A-CNT-1 saving an article with topics answers 500 and soft-deletes its topic links (the FAQ change is lost too); A-ACC-1 the access-orders list reads paging from the body of a GET, so it always shows the newest 10; A-CNT-3 public topic pages show draft articles and products; A-CNT-4 after a topic is deleted, saving its products or podcasts ends in an error; A-CNT-5 a CSV typed `application/vnd.ms-excel` is refused; A-CNT-6 a large CSV import times out while rows keep being added; A-OTH-1 new logins save no IP; A-OTH-7 brand accounts (role 8) are on no list; A-OTH-9 user detail sends the password hash and tokens; X-1 Contact Us messages have no screen and email nobody; X-2 some "by id" calls answer 200 with a string (section 9) |
@@ -207,7 +211,7 @@ Many changed after that; the changelog dates each change:
 - Topics: home tiles (8.2); renaming one changes its slug, and adding one with a deleted topic's name brings that
   topic back (section 9).
 - Discover: product owner, brand, featured and description (8.3), slugs (8.12); `GET /discover/:type/findById/:id`
-  answers 404 `NOT_FOUND` for a missing id.
+  answers 404 `NOT_FOUND` for a missing id. Product tags, categories and the button label (8.3, Nov 4).
 - Ads: counts (8.11).
 
 Still as on Oct 14: partnership inquiries and professions; contact, guest applications, blog, departments and roles
@@ -364,7 +368,7 @@ lands.
 
 It answers the settings as saved. Refusals: 400 `INVALID_SETTING`, `details.field` naming the field.
 
-### 8.3 Products for the home page (done Oct 23)
+### 8.3 Products for the home page (done Oct 23; tags, categories and the button label Nov 4)
 
 On `POST /discover/shop` and `PUT /discover/shop/:id`:
 
@@ -375,12 +379,36 @@ On `POST /discover/shop` and `PUT /discover/shop/:id`:
 | `description` | The product page's longer text (the page shows `short_description` without it) |
 | `owner_id` | The account that put the product up: a professional or brand account's id, or `""` for none (Glamlink's own pick) |
 | `brand_id` | The brand account that makes it: a brand account's id, or `""`. The free-text `brand` stays the name shown |
+| `category` | Nov 4: one of Skincare, Haircare, Makeup, Nails, Body & Bath, Fragrance, Wellness & Supplements, Devices & Tools, by its label (any case) or its slug (`body-and-bath`; `body-bath` works too). The label is stored; `""` clears it. Values stored before stay until the product is edited |
+| `tag_id` | Nov 4: any tag's id (below), editorial or open; `""` or `null` clears it |
+| `button_label` | Nov 4: the product button's label, trimmed, 30 characters at most; `""` clears it (the website shows "Shop now") |
 
 The shop page follows the order set with `POST /discover/shop/sort-order` (then title); it used to ignore it. Only the
 paged list (`GET /discover/shop?page=…`, what the website's shop uses) follows it: the unpaged `GET /discover/:type`
 lists by title, so the order of education and events shows nowhere (no website page reads them). A wrong
 owner or brand is 400 `INVALID_PRODUCT` with `details.field`. Pick the accounts from `GET /profiles/admin/list`
 (section 8.6; `?type=brand` for brands).
+
+**Product tags** (Mohit, Nov 4; built and tested, not deployed). A product carries one tag, shown top-left on its card
+and page. Admins keep the list. An editorial tag ("Featured in The Beauty Vault", "Editor's Pick") is set by admins
+only, so owners can't claim a feature they didn't get; an open one ("Pro Favorite", "New", "Best Seller") by owners
+too, from their dashboard. While a product carries an editorial tag, its owner can't change or clear it (403
+`TAG_ADMIN_ONLY`); their other edits keep it.
+
+| Method and path | Takes | Answers |
+| --- | --- | --- |
+| `GET /discover/shop/tags` (no sign-in) | | `[{ id, name, is_editorial, sort_order }]`, by `sort_order`, then name |
+| `POST /discover/shop/tags` | `{ name, is_editorial }` (`"true"`/`"false"`) | 201, the tag, last in the order |
+| `PUT /discover/shop/tags/:id` | `{ name?, is_editorial? }` | The tag |
+| `PUT /discover/shop/tags/order` | `{ ids }`: the tag ids in their new order (send them all; any left out follow, in their order) | The list, in the new order |
+| `DELETE /discover/shop/tags/:id` | | `{ id, products_untagged }`: the products that carried it lose it |
+
+A name is trimmed, 1 to 40 characters, and no other tag's in any case: 400 `INVALID_TAG` with `details.field: "name"`,
+409 `TAG_EXISTS`. An id in `order` that is not a tag is 400 `INVALID_TAG` (`details.field: "ids"`); a missing tag is
+404 `NOT_FOUND`. A `tag_id` on a product that is not a tag is 400 `INVALID_PRODUCT` (`details.field: "tag_id"`).
+Every product answer carries `tag` (`{ id, name, is_editorial }` or null) beside `tag_id`, and `button_label`: the
+admin list (`GET /discover/shop/admin`), `findById`, and the create and edit answers (which now also carry `owner`
+and `brand_profile`, as every product answer does).
 
 ### 8.4 Newsletter subscribers and feature requests (done Oct 23)
 
@@ -597,12 +625,12 @@ Check that the claim is genuine before verifying: the card's email and phone aga
 
 Checked against the code on Oct 30 (backend `master`, `aadb56a`): 259 routes need an admin token, sent as
 `Authorization: Bearer <token>` (what the panel sends) or `x-access-token`; 262 since Nov 1 (the three new ones are
-marked Nov 1) and 275 since Nov 3 (thirteen more for profile pages, marked Nov 3). Any active admin may call any of
-them: roles and permissions are not checked yet (SEC-05). "(no screen)" marks a route the panel (`main`, Oct 30) never
-calls: 38 of the 167 website and shared routes of Oct 30 (the panel's Nov 1–2 changes call the three new ones; no
-screen calls the Nov 3 ones yet).
+marked Nov 1), 275 since Nov 3 (thirteen more for profile pages, marked Nov 3) and 279 since Nov 4 (four for product
+tags, marked Nov 4). Any active admin may call any of them: roles and permissions are not checked yet (SEC-05). "(no
+screen)" marks a route the panel (`main`, Oct 30) never calls: 38 of the 167 website and shared routes of Oct 30 (the
+panel's Nov 1–2 changes call the three new ones; no screen calls the Nov 3 or Nov 4 ones yet).
 
-### Website and shared (183)
+### Website and shared (187)
 
 **/access** (`src/website/access-card/access.route.js`)
 
@@ -729,6 +757,10 @@ screen calls the Nov 3 ones yet).
 
 **/discover** (`src/website/content/discover.route.js`)
 
+- `POST /discover/shop/tags` (Nov 4)
+- `PUT /discover/shop/tags/order` (Nov 4)
+- `PUT /discover/shop/tags/:id` (Nov 4)
+- `DELETE /discover/shop/tags/:id` (Nov 4)
 - `POST /discover/:type`
 - `GET /discover/:type/admin`
 - `PUT /discover/:type/:id`

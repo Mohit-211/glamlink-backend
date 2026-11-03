@@ -33,8 +33,14 @@ Shop.init(
       allowNull: true,
     },
 
+    // One of the 8 product categories, as its label (website/content/productForm.js); older values stay until edited.
     category: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // Its tag (Nov 4): one of product_tags, shown top-left on its card and page.
+    tag_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
     },
 
@@ -64,6 +70,11 @@ Shop.init(
 
     link: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Its button's label (Nov 4); the website shows "Shop now" without one.
+    button_label: {
+      type: DataTypes.STRING(30),
       allowNull: true,
     },
 

@@ -1,11 +1,14 @@
 // A professional's or brand's own products (/my/products; Mohit, Oct 23): they show as soon as they are saved, and
 // admins can still edit, unpublish or delete them (the admin product calls). A brand's products are its own make.
+// Nov 4: a category from the list of 8, an open tag, the button's label (productForm.js, productTags.service.js).
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const { paging } = require('../../core/http/paging');
 const { isUploadedImage, removeUploadedFile } = require('../../core/http/uploadedFiles');
 const { Shop } = require('../../models');
 const { withLinks, PRODUCT_CARD } = require('./discover.service');
+const { categoryField, buttonLabelField } = require('./productForm');
+const { ownerTagId } = require('./productTags.service');
 
 const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, 'INVALID_PRODUCT', { field });
 const empty = (value) => value === null || value === undefined || (typeof value === 'string' && !value.trim());
@@ -17,12 +20,15 @@ const text = (value, field, max) => {
     return out;
 };
 
-const TEXTS = { title: 255, short_description: 1000, description: 5000, category: 100, brand: 100 };
+const TEXTS = { title: 255, short_description: 1000, description: 5000, brand: 100 };
 
-// The fields sent (form fields or JSON). The cover is a file (`images`, one) or "" to remove it.
+// The fields sent (form fields or JSON). The cover is a file (`images`, one) or "" to remove it. The tag has its own
+// rules (ownerTagId).
 const productFields = (body, files, { creating = false } = {}) => {
     const fields = {};
     for (const [field, max] of Object.entries(TEXTS)) if (body[field] !== undefined || creating) fields[field] = text(body[field], field, max);
+    if (body.category !== undefined) fields.category = categoryField(body.category);
+    if (body.button_label !== undefined) fields.button_label = buttonLabelField(body.button_label);
     if (creating && !fields.title) throw refuse('title', 'title is required.');
     if (body.title !== undefined && !fields.title) throw refuse('title', 'title is required.');
     if (body.price !== undefined) {
@@ -69,8 +75,11 @@ const listMine = async (user, query = {}) => {
 };
 
 const createMine = async (user, body, files) => {
+    const fields = productFields(body, files, { creating: true });
+    const tagId = await ownerTagId(body.tag_id);
     const product = await Shop.create({
-        ...productFields(body, files, { creating: true }),
+        ...fields,
+        ...(tagId !== undefined && { tag_id: tagId }),
         status: body.status === 'draft' ? 'draft' : 'published',
         owner_id: user.id,
         brand_id: user.professional_type === 'brand' ? user.id : null,
@@ -81,6 +90,8 @@ const createMine = async (user, body, files) => {
 const updateMine = async (user, id, body, files) => {
     const product = await own(user, id);
     const fields = productFields(body, files);
+    const tagId = await ownerTagId(body.tag_id, product.tag_id);
+    if (tagId !== undefined) fields.tag_id = tagId;
     const oldCover = product.cover_image;
     await product.update(fields);
     if (fields.cover_image !== undefined && oldCover && oldCover !== fields.cover_image) removeUploadedFile(oldCover);

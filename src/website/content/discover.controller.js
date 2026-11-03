@@ -3,6 +3,7 @@ const ApiError = require("../../core/http/ApiError");
 const catchAsync = require("../../core/http/catchAsync");
 const responseWrapper = require("../../core/http/responseWrapper");
 const discoverService = require("./discover.service");
+const productTags = require("./productTags.service");
 const { identifyAdmin } = require("../../shared/admin");
 
 // With any list parameter, GET /discover/shop answers one page of products (discover.service.js listShop);
@@ -40,6 +41,13 @@ const getShopFilters = catchAsync(async (req, res) => {
 
 	return responseWrapper(res, data, "");
 });
+
+// Product tags (Nov 4): the list for everyone; admins keep it.
+const listShopTags = catchAsync(async (req, res) => responseWrapper(res, await productTags.listTags(), ""));
+const createShopTag = catchAsync(async (req, res) => responseWrapper(res, await productTags.createTag(req.body), "Tag created.", httpStatus.CREATED));
+const updateShopTag = catchAsync(async (req, res) => responseWrapper(res, await productTags.updateTag(req.params.id, req.body), "Tag saved."));
+const orderShopTags = catchAsync(async (req, res) => responseWrapper(res, await productTags.orderTags(req.body), "Tags ordered."));
+const deleteShopTag = catchAsync(async (req, res) => responseWrapper(res, await productTags.deleteTag(req.params.id), "Tag deleted."));
 
 const getAllDiscoverByAdmin = catchAsync(async (req, res) => {
 	const data = await discoverService.getAllDiscoverByAdmin(req.params.type);
@@ -129,6 +137,11 @@ module.exports = {
 	createDiscover,
 	getAllDiscover,
 	getShopFilters,
+	listShopTags,
+	createShopTag,
+	updateShopTag,
+	orderShopTags,
+	deleteShopTag,
 	getAllDiscoverByAdmin,
 	findDiscoverById,
 	findProductBySlug,
