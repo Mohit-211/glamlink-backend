@@ -11,13 +11,25 @@ const PRODUCT_KEY = 'glamlink_access_product';
 
 const productId = (value) => (typeof value === 'string' ? value : value?.id);
 
+// The old flow's price in .env, or null when this Stripe account has no such price (an id from the other mode or
+// another account, as on the test server on Nov 4): there is nothing to adopt then.
+const legacyPrice = async (legacyPriceId) => {
+    try {
+        return await stripe().prices.retrieve(legacyPriceId);
+    } catch (err) {
+        if (err?.code !== 'resource_missing') throw err;
+        logger.warn(`The old flow's Stripe price ${legacyPriceId} (.env) is not in this Stripe account: not adopted`);
+        return null;
+    }
+};
+
 // The Stripe product: remembered; else the product of the old flow's price in .env; else found by its metadata;
 // else made. When the old price still matches the list price, it becomes the list price too.
 const ensureStripeProduct = async (product) => {
     if (product.stripe_product_id) return product.stripe_product_id;
     const legacyPriceId = config.STRIPE_LEGACY_PRICES?.[product.code];
-    if (legacyPriceId) {
-        const price = await stripe().prices.retrieve(legacyPriceId);
+    const price = legacyPriceId ? await legacyPrice(legacyPriceId) : null;
+    if (price) {
         const fits = price.active && price.unit_amount === product.amount_cents && Boolean(price.recurring) === (product.kind === 'subscription');
         await product.update({ stripe_product_id: productId(price.product), ...(fits && product.code !== 'shipping' && { stripe_price_id: price.id }) });
         return product.stripe_product_id;
