@@ -1,10 +1,29 @@
 # Progress
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one. `master` holds
-every phase below and, up to Phase 6, is the code deployed on api.glamlink.net; the Nov 1–2 and Nov 3 work is not
-deployed.
+every phase below and is the code deployed on api.glamlink.net (the Nov 1–4 work since Nov 4). glamlink.net moves to
+the new site and this API at the switch of Nov 5.
 
-## Product tags, categories and the button label (Nov 4, on `master`; not deployed yet)
+## The switch to live (Nov 5, on `master`)
+
+Mohit's decisions of Nov 5: glamlink.net goes live on the new site; the database stays (`glamlinkdb`, the Oct 23 copy,
+where all the work since was done); test.glamlink.net stays, with an API of its own later. The steps: deploy.md
+section 8.
+
+- `stripe:setup` reused the Stripe ids the database had saved, whatever the keys: with live keys it would have printed
+  the test products, and every checkout would have failed ("No such price"). `forgetForeignIds` (`stripeCatalog.js`)
+  forgets the products', prices' and coupons' ids this account doesn't have, and a list price archived in the
+  dashboard, before they are adopted or made; `stripe:setup` runs it first and names the account (`accountName` in
+  `integrations/stripe.js`). Customers were already checked at checkout (`customerExists`) and in the billing portal.
+- `check:server -- --online` names the Stripe account and mode, and fails when a saved Access product or price is not
+  in that account. It also warns about cards whose link names another website.
+- `npm run cards:relink` (`scripts/card-links.js`, `relinkCards` in `cardWriter.js`): the cards made on the test site
+  link to test.glamlink.net, and so do their QR codes. It lists them; `--apply` moves them to `WEBSITE_URL` and draws
+  their QR codes again.
+- Checks: 385 of 385 tests pass on a throwaway MariaDB (382 before; three new in `stripeCatalog.test.js` and
+  `cardSlugs.test.js`); oxlint and the boundary check pass.
+
+## Product tags, categories and the button label (Nov 4, on `master`; deployed Nov 4)
 
 Mohit's decisions of Nov 4: one tag per product, top-left on its card and page, from a list admins keep (an editorial
 tag is theirs to set; an open one owners set too); a category from a fixed list of 8; a button label of the product's
@@ -25,7 +44,7 @@ rows).
 - Checks: 382 of 382 tests pass on a throwaway MariaDB (374 before; new `test/productTags.test.js`); `npm run lint`
   passes. **For Mohit to do:** `npm run migrate` with the next deploy.
 
-## Profile pages in the owner's design (Nov 3, on `master`; not deployed yet)
+## Profile pages in the owner's design (Nov 3, on `master`; deployed Nov 4)
 
 Mohit's decisions of Nov 3: one page layout for brands and professionals (the Epicutis mockup without reviews, the
 verified badge and Follow); Media & Images unlimited on every plan, showing the card's gallery until the owner adds
@@ -58,7 +77,7 @@ takes `sort`, `min_price` and `max_price` (bands that don't overlap) and `ids` (
 order), and `GET /discover/shop/filters` adds `price: { min, max }`; no migration. 371 of 371 tests pass (new
 `test/shopSorting.test.js`); `npm run lint` passes.
 
-## Access fixes, one form, brands and Stripe (Nov 1–2, on `master`; not deployed yet)
+## Access fixes, one form, brands and Stripe (Nov 1–2, on `master`; deployed Nov 4)
 
 Mohit's decisions of Nov 1 (access.md, section 12): build the Oct 23 plan decisions now (Access Pro $9.99, Free with
 the keychain keeps the card live, profile analytics for Pro, special offers retired, plan cards that list only what

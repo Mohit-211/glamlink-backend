@@ -2,6 +2,7 @@ const config = require('../../core/config/config');
 const logger = require('../../core/logger');
 const { stripe } = require('../../integrations/stripe');
 const { AccessProduct } = require('../../models');
+const { isMissing } = require('./stripeErrors');
 
 // The Stripe side of the Access catalog (docs/access.md section 6): a Stripe product for each of ours, the list
 // prices, and a coupon for each discount. Each is made the first time it is needed and remembered;
@@ -11,16 +12,55 @@ const PRODUCT_KEY = 'glamlink_access_product';
 
 const productId = (value) => (typeof value === 'string' ? value : value?.id);
 
-// The old flow's price in .env, or null when this Stripe account has no such price (an id from the other mode or
-// another account, as on the test server on Nov 4): there is nothing to adopt then.
-const legacyPrice = async (legacyPriceId) => {
+// What Stripe answers, or null when this Stripe account has no such object: an id from the other mode or another
+// account (test ids once the keys are live), or one deleted.
+const findInStripe = async (retrieve) => {
     try {
-        return await stripe().prices.retrieve(legacyPriceId);
+        return await retrieve();
     } catch (err) {
-        if (err?.code !== 'resource_missing') throw err;
-        logger.warn(`The old flow's Stripe price ${legacyPriceId} (.env) is not in this Stripe account: not adopted`);
-        return null;
+        if (isMissing(err)) return null;
+        throw err;
     }
+};
+
+// The old flow's price in .env, or null when this Stripe account has no such price (as on the test server on
+// Nov 4): there is nothing to adopt then.
+const legacyPrice = async (legacyPriceId) => {
+    const price = await findInStripe(() => stripe().prices.retrieve(legacyPriceId));
+    if (!price) logger.warn(`The old flow's Stripe price ${legacyPriceId} (.env) is not in this Stripe account: not adopted`);
+    return price;
+};
+
+// Which of a product's saved Stripe ids these keys can't use: 'product' (saved with other keys, as the test ids are
+// once the keys are live; its price goes with it), 'price' (the same, or archived in the dashboard), or null.
+const unusableStripeId = async (product) => {
+    if (product.stripe_product_id && !await findInStripe(() => stripe().products.retrieve(product.stripe_product_id))) return 'product';
+    if (product.stripe_price_id && !(await findInStripe(() => stripe().prices.retrieve(product.stripe_price_id)))?.active) return 'price';
+    return null;
+};
+
+// The Stripe ids the products and discounts (rows) keep that these keys can't use are forgotten, so they are adopted
+// or made again (ensureStripeProduct, ensureListPrice, ensureCoupon): the switch to live keys on Nov 5 kept the
+// database the test keys had filled in. Returns what it forgot. scripts/stripe-setup.js runs it first.
+const forgetForeignIds = async ({ products = [], discounts = [] }) => {
+    const forgotten = [];
+    for (const product of products) {
+        const unusable = await unusableStripeId(product);
+        if (unusable === 'product') {
+            forgotten.push(`${product.code}: product ${product.stripe_product_id}${product.stripe_price_id ? ` and price ${product.stripe_price_id}` : ''}`);
+            await product.update({ stripe_product_id: null, stripe_price_id: null });
+        } else if (unusable === 'price') {
+            forgotten.push(`${product.code}: price ${product.stripe_price_id}`);
+            await product.update({ stripe_price_id: null });
+        }
+    }
+    for (const discount of discounts) {
+        if (discount.stripe_coupon_id && !await findInStripe(() => stripe().coupons.retrieve(discount.stripe_coupon_id))) {
+            forgotten.push(`discount ${discount.id}: coupon ${discount.stripe_coupon_id}`);
+            await discount.update({ stripe_coupon_id: null });
+        }
+    }
+    return forgotten;
 };
 
 // The Stripe product: remembered; else the product of the old flow's price in .env; else found by its metadata;
@@ -102,4 +142,4 @@ const productByCode = async (code) => {
     return product;
 };
 
-module.exports = { ensureStripeProduct, ensureListPrice, ensureCoupon, productByCode };
+module.exports = { ensureStripeProduct, ensureListPrice, ensureCoupon, productByCode, unusableStripeId, forgetForeignIds };

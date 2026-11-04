@@ -48,6 +48,28 @@ const drawQrCode = (link) => {
     return QRCode.toFile(path.join(dir, `${slugOf(link)}.png`), link);
 };
 
+// Cards whose link names another website than WEBSITE_URL: the ones made on the test site before the switch to
+// glamlink.net (Nov 5), whose QR codes hold that link too. With `apply`, each link moves to WEBSITE_URL and its QR
+// code is drawn again. Returns the cards, as { id, status, from, to }.
+const relinkCards = async ({ apply = false } = {}) => {
+    const cards = await BusinessCard.findAll({
+        where: { slug: { [Op.ne]: null }, business_card_link: { [Op.notLike]: `${publicLink('')}%` } },
+        attributes: ['id', 'slug', 'status', 'business_card_link'],
+        order: [['id', 'ASC']],
+    });
+    const moved = [];
+    for (const card of cards) {
+        const from = card.business_card_link;
+        const to = publicLink(card.slug);
+        if (apply) {
+            await card.update({ business_card_link: to });
+            await drawQrCode(to);
+        }
+        moved.push({ id: card.id, status: card.status, from, to });
+    }
+    return moved;
+};
+
 // The card's locations, hours and gallery as the request sets them (undefined leaves them alone).
 const saveDetails = async (cardId, { locations, hours, media }, transaction) => {
     if (locations) {
@@ -118,4 +140,4 @@ const updateCard = async (cardDoc, { body, files, rights, byOwner = false }) => 
     return cardDoc;
 };
 
-module.exports = { createCard, updateCard, MEDIA_LIMITS, publicLink, slugOf };
+module.exports = { createCard, updateCard, relinkCards, MEDIA_LIMITS, publicLink, slugOf };

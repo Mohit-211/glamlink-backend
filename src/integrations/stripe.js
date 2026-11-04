@@ -19,4 +19,11 @@ const stripe = () => {
     return client;
 };
 
-module.exports = { stripe, API_VERSION };
+// The account the secret key belongs to, as the server's scripts name it: its dashboard name and id.
+const accountName = async () => {
+    const account = await stripe().accounts.retrieve();
+    const name = account.settings?.dashboard?.display_name || account.business_profile?.name;
+    return name ? `${name} (${account.id})` : account.id;
+};
+
+module.exports = { stripe, API_VERSION, accountName };

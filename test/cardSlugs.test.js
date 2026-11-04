@@ -1,10 +1,13 @@
 // A card is found by its handle whatever host its link names (migration 20261023-0600): with WEBSITE_URL on the test
 // site, existing cards (whose links name glamlink.net) still open, and a new card never takes an existing handle.
+const fs = require('fs');
+const path = require('path');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startApp } = require('./helpers');
 const { cardFields, cardFiles } = require('./cardFixtures');
 const config = require('../src/core/config/config');
+const { UPLOADS_DIR } = require('../src/core/config/paths');
 
 let app, q;
 const host = config.WEBSITE_URL;
@@ -53,4 +56,26 @@ test('the migration fills in handles from the links', async () => {
     const [row] = await q('SELECT slug, business_card_link FROM business_cards WHERE id = ?', [id]);
     assert.equal(row.slug, row.business_card_link.split('/access/')[1]);
     assert.ok(logs.some((line) => /card handles filled in: [1-9]/.test(line)));
+});
+
+test('cards made on the test site move to WEBSITE_URL with new QR codes (npm run cards:relink)', async () => {
+    const { relinkCards } = require('../src/website/access-card/cardWriter');
+    config.WEBSITE_URL = 'https://test.glamlink.example';
+    const card = await guestCard({ name: `Relink Person ${stamp}`, email: `relink-${stamp}@test.example` });
+    const [made] = await q('SELECT slug, business_card_link FROM business_cards WHERE id = ?', [card.business_card_id]);
+    assert.equal(made.business_card_link, `https://test.glamlink.example/access/${made.slug}`);
+    config.WEBSITE_URL = host;
+
+    const listed = (await relinkCards()).find((c) => c.id === card.business_card_id);
+    assert.deepEqual([listed.from, listed.to], [made.business_card_link, `${host}/access/${made.slug}`]);
+    const [untouched] = await q('SELECT business_card_link FROM business_cards WHERE id = ?', [card.business_card_id]);
+    assert.equal(untouched.business_card_link, made.business_card_link, 'without apply it only lists');
+
+    const qr = path.join(UPLOADS_DIR, 'images', 'qr', `${made.slug}.png`);
+    const drawnBefore = Date.now() - 1000;
+    await relinkCards({ apply: true });
+    const [moved] = await q('SELECT slug, business_card_link FROM business_cards WHERE id = ?', [card.business_card_id]);
+    assert.deepEqual([moved.slug, moved.business_card_link], [made.slug, `${host}/access/${made.slug}`]);
+    assert.ok(fs.statSync(qr).mtimeMs >= drawnBefore, 'the QR code is drawn again');
+    assert.ok(!(await relinkCards()).some((c) => c.id === card.business_card_id));
 });

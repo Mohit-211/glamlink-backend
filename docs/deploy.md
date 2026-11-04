@@ -113,7 +113,7 @@ Fill in `/var/www/api/.env` (every variable is described in the file). For testi
 | `PORT` | `5001` | The old backend has 5000 |
 | `API_BASE_URL` | `https://api.glamlink.net` | Stored file links are rewritten to it by the migrations: set it before migrating |
 | `WEBSITE_URL`, `ADMIN_URL` | `https://test.glamlink.net` while the website is tested there, `https://admin.glamlink.net` | Links in emails (verify email, reset password) and new cards' public links open on `WEBSITE_URL`. Live: `https://glamlink.net` |
-| `WEBSITE_REFRESH_URL`, `WEBSITE_REFRESH_SECRET` | Empty until the website has its receiving route; then its address (for example `https://test.glamlink.net/api/revalidate`) and a secret shared with the website (`openssl rand -hex 32`) | After each change the API tells the website which data changed (website handoff, section 10.18). Empty: off, and cached pages wait for their own expiry |
+| `WEBSITE_REFRESH_URL`, `WEBSITE_REFRESH_SECRET` | `https://test.glamlink.net/api/revalidate` (the website has the route) and a secret shared with the website's `REVALIDATE_SECRET`, in its `.env.local` (`openssl rand -hex 32`) | After each change the API tells the website which data changed (website handoff, section 10.18). Empty: off, and cached pages wait for their own expiry |
 | `ACCESSDOMAINS` | `https://glamlink.net,https://www.glamlink.net,https://admin.glamlink.net,https://test.glamlink.net` | The website's origins: without `https://test.glamlink.net` the API refuses the test site with 403. Add `http://localhost:3000` (and the admin panel's dev URL) while the frontends are tested from a laptop |
 | `JOBS_ENABLED` | `false` | Live: `true`. Off means no scheduled job runs, the Access checkout sweeper included (section 5) |
 | `MAIL_TRANSPORT` | `log` | Emails are written to the log, never sent. Live: `smtp` |
@@ -163,7 +163,8 @@ Logs: `pm2 logs glamlink-api`, and `/var/www/storage/logs`.
 
 1. `npm run stripe:setup`: creates (or adopts) the Stripe products and prices for the keys in `.env`, archives a
    product's earlier list prices once its current one exists (subscriptions on them keep billing), and prints the
-   webhook to create with its events.
+   webhook to create with its events. It first names the Stripe account, and forgets the ids the database saved
+   that this account doesn't have (the test ones, after the switch to live keys), so they are made again.
 2. Stripe dashboard, test mode: Developers > Webhooks > Add endpoint
    - URL `https://api.glamlink.net/api/v1/payment/stripe/charge-intent/webhooks`
    - API version `2026-09-30.endive`
@@ -302,29 +303,42 @@ with its website links, so the verify-email and reset-password links are in
 
 ## 8. The switch to live
 
-Late evening, in this order:
+**Nov 5: the database stays.** The plan was a fresh copy of the old database at the switch. But since the Oct 23
+copy, everything was done on the new system (product tags and categories, featured items, the testing), and nothing
+on the old database (the owner's word, Nov 5), so the switch keeps `glamlinkdb` as it is. What must not go live from
+it: the test purchases, the cards made on the test site (their links and QR codes name test.glamlink.net), and the
+test-mode Stripe ids it saved. Before Nov 5 `stripe:setup` reused those ids, and every live checkout would have failed;
+it now replaces them.
 
-1. `pm2 stop glamlink-api`. Take a fresh copy of the live data: drop and re-create `glamlink_api`, restore a new dump
-   (section 2), and `npm run migrate` again (read its output: new duplicate accounts since the last copy, new
-   drafts). The testing data goes with the old copy.
-2. `rsync -a /var/www/backend/public/uploads/ /var/www/storage/uploads/` again, for files uploaded since.
-3. `.env` to live: Stripe live keys, `MAIL_TRANSPORT=smtp`, `JOBS_ENABLED=true`, `FIREBASE_*`, Shippo live key,
-   the real Turnstile secret, `WEBSITE_URL=https://glamlink.net`. Remove the localhost origins and
-   `https://test.glamlink.net` from `ACCESSDOMAINS`.
-4. `npm run stripe:setup` with the live keys; create the live webhook endpoint (section 5) and put its secret in
-   `.env`; in Stripe, disable the old backend's endpoint. Do the rest of section 5's Stripe steps in live mode too
-   (payment methods with Link, the customer portal, Revenue recovery). Point the Shippo webhook at the new URL.
-5. `pm2 start glamlink-api --update-env`, then `npm run check:server -- --online` (it should say `live mode`).
-6. `npm run stripe:reconcile`, then `npm run stripe:reconcile -- --apply`: seats take Stripe's statuses and renewal
-   dates. Purchases made on the old site between the dump and now are not in the new database (the new API ignores
-   the old purchase flow's events, so resending them does not help): keep that gap short, and the reconcile lists any
-   Stripe subscription with no seat. Send me the list; meanwhile `PUT /access/admin/subscriptions/:userId/comp`
-   gives the person Pro.
-7. Build and deploy the website and the admin panel with the new base URL.
-8. Smoke test: the home page, an article, a podcast, the directory, a public card; sign-up, the email link, sign-in,
-   the dashboard; a purchase; admin sign-in and a journal edit.
-9. When it has run well for a day, stop the old process (`pm2 stop glamlink-backend`; keep its folder and database):
-   its scheduled jobs would otherwise keep changing the old database.
+On the server (`/var/www/backend`, "As deployed"), late evening, in this order:
+
+1. Back up the database (section 11) and keep a copy of `.env` (`cp .env ~/api-env-before-live`).
+2. While the keys are still the test keys, in the admin panel: cancel the test keychain orders and the test Pro
+   subscriptions, and delete the cards and accounts that were only tests (no account is deleted without the
+   owner's say).
+3. `git pull`, `npm ci --omit=dev`, `npm run migrate` (nothing is pending since Nov 4).
+4. `.env` to live: the Stripe live keys (the account the old site's subscribers pay: the old backend's `.env`),
+   `MAIL_TRANSPORT=smtp` with the `SMTP_*` values, `JOBS_ENABLED=true`, the Shippo live key, the real Turnstile
+   secret, `WEBSITE_URL=https://glamlink.net`, and `WEBSITE_REFRESH_URL=https://glamlink.net/api/revalidate` with a
+   new `WEBSITE_REFRESH_SECRET`, the live website's `REVALIDATE_SECRET`. Take the localhost origins out of
+   `ACCESSDOMAINS`. `https://test.glamlink.net` stays in it until the test site has an API of its own: until then
+   it reads and writes live data. `FIREBASE_*` stay empty: the mobile app still calls the old backend.
+5. `npm run stripe:setup`: it names the account, forgets the ids these keys don't have, adopts the old live prices
+   in `.env`, and prints the webhook. Adopting archives the old $4.99 Pro price once the $9.99 one exists, so from
+   here the old site can't start a Pro subscription: go straight on to the website (step 9). Then the Stripe steps of
+   section 5 in live mode: the webhook endpoint (its secret in `.env`), payment methods with Link and the domains,
+   the customer portal, Revenue recovery.
+6. `pm2 reload glamlink-api --update-env`, then `npm run check:server -- --online`. It should say `live mode`, name
+   the right account, find the webhook, and find the Access products' prices in this account.
+7. `npm run stripe:reconcile`, then `npm run stripe:reconcile -- --apply`: the seats take Stripe's statuses and
+   renewal dates. A seat "not found in Stripe" is a test purchase that step 2 missed.
+8. `npm run cards:relink` lists the cards whose link names another website. Delete the test ones in the admin panel,
+   then `npm run cards:relink -- --apply` moves the rest to glamlink.net and draws their QR codes again.
+9. The website: `main`, built for glamlink.net (the website's README, "Deploy the live site").
+10. In Stripe (live), disable the old backend's webhook endpoint. Point the Shippo webhook at the new URL.
+11. Smoke test: the home page, an article, a podcast, the directory, a public card; sign-up, the email link,
+    sign-in, the dashboard; a real Access Pro purchase; admin sign-in and a journal edit.
+12. Leave the old backend running (`glamlink-backend`): the mobile app still calls `node.glamlink.net`.
 
 ### Once, with the Oct 23 code: coordinates for the directory
 
@@ -360,6 +374,10 @@ after `npm run migrate`, and update the webhook endpoint with the events it prin
 
 The next pull (Nov 4, product tags, on `master`) needs `npm run migrate`: `20261104-0100` adds the
 `product_tags` table and the products' `tag_id` and `button_label`.
+
+The Nov 5 pull (the switch, section 8) has no migration. `stripe:setup` replaces the ids saved with other keys,
+`check:server -- --online` names the Stripe account and checks the saved prices, and `npm run cards:relink` moves the
+cards made on the test site to `WEBSITE_URL`.
 
 ### Once, with the Nov 1 code: Access payments, one form, claims
 

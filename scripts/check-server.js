@@ -88,6 +88,9 @@ const storage = () => {
     (files ? ok : warn)(`uploads: ${counts.map(([folder, n]) => `${folder} ${n}`).join(', ')}${files ? '' : ' (copy the old uploads: docs/deploy.md)'}`);
 };
 
+// The Access products' Stripe ids as the database keeps them, checked online against the keys.
+let savedStripeIds = [];
+
 const database = async () => {
     section('Database');
     const { connect } = require('../src/core/db/migrate');
@@ -119,6 +122,13 @@ const database = async () => {
                 const file = path.join(paths.UPLOADS_DIR, decodeURIComponent(sample.url.slice(base.length + 1)));
                 (fs.existsSync(file) ? ok : warn)(`a card photo's file ${fs.existsSync(file) ? 'is in' : 'is missing from'} the uploads folder (${path.basename(file)})`);
             }
+            const site = String(config.WEBSITE_URL || '').replace(/\/+$/, '');
+            const [[elsewhere]] = await sequelize.query(
+                "SELECT COUNT(*) AS n FROM business_cards WHERE deleted_at IS NULL AND business_card_link NOT LIKE CONCAT(?, '/access/%')",
+                { replacements: [site] },
+            );
+            if (Number(elsewhere.n)) warn(`${elsewhere.n} cards link to another website than ${site}, and so do their QR codes (made on the test site?): npm run cards:relink lists them`);
+            [savedStripeIds] = await sequelize.query('SELECT code, stripe_product_id, stripe_price_id FROM access_products ORDER BY id');
         }
     } catch (error) {
         fail(`database: ${error.message}`);
@@ -131,9 +141,18 @@ const services = async () => {
     section('Stripe and Shippo (online)');
     if (value('STRIPE_SECRET_KEY')) {
         try {
-            const { stripe } = require('../src/integrations/stripe');
+            const { stripe, accountName } = require('../src/integrations/stripe');
             await stripe().balance.retrieve();
-            ok('Stripe accepts the secret key');
+            ok(`Stripe accepts the secret key (${keyMode(value('STRIPE_SECRET_KEY'))} mode, account ${await accountName().catch(() => 'unknown')})`);
+            const { unusableStripeId } = require('../src/website/access-card/stripeCatalog');
+            const unusable = [];
+            for (const product of savedStripeIds) {
+                const which = await unusableStripeId(product);
+                if (which) unusable.push(`${product.code} ${which} ${product[`stripe_${which}_id`]}`);
+            }
+            if (unusable.length) fail(`Stripe: the Access ${unusable.join(', ')} ${unusable.length > 1 ? 'are' : 'is'} not in this account (saved with other keys) or archived: run npm run stripe:setup`);
+            else if (savedStripeIds.some((p) => !p.stripe_product_id || (p.code !== 'shipping' && !p.stripe_price_id))) warn('Stripe: some Access products have no Stripe product or price yet: npm run stripe:setup makes them');
+            else if (savedStripeIds.length) ok(`Stripe has the Access products and their prices (${savedStripeIds.map((p) => p.code).join(', ')})`);
             const url = `${String(config.API_BASE_URL || '').replace(/\/+$/, '')}/api/v1/payment/stripe/charge-intent/webhooks`;
             const endpoints = (await stripe().webhookEndpoints.list({ limit: 100 })).data;
             const hook = endpoints.find((e) => e.url === url);
