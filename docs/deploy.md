@@ -317,25 +317,28 @@ On the server (`/var/www/backend`, "As deployed"), late evening, in this order:
    subscriptions, and delete the cards and accounts that were only tests (no account is deleted without the
    owner's say).
 3. `git pull`, `npm ci --omit=dev`, `npm run migrate` (nothing is pending since Nov 4).
-4. `.env` to live: the Stripe live keys (the account the old site's subscribers pay: the old backend's `.env`),
-   `MAIL_TRANSPORT=smtp` with the `SMTP_*` values, `JOBS_ENABLED=true`, the Shippo live key, the real Turnstile
-   secret, `WEBSITE_URL=https://glamlink.net`, and `WEBSITE_REFRESH_URL=https://glamlink.net/api/revalidate` with a
-   new `WEBSITE_REFRESH_SECRET`, the live website's `REVALIDATE_SECRET`. Take the localhost origins out of
-   `ACCESSDOMAINS`. `https://test.glamlink.net` stays in it until the test site has an API of its own: until then
-   it reads and writes live data. `FIREBASE_*` stay empty: the mobile app still calls the old backend.
-5. `npm run stripe:setup`: it names the account, forgets the ids these keys don't have, adopts the old live prices
-   in `.env`, and prints the webhook. Adopting archives the old $4.99 Pro price once the $9.99 one exists, so from
-   here the old site can't start a Pro subscription: go straight on to the website (step 9). Then the Stripe steps of
-   section 5 in live mode: the webhook endpoint (its secret in `.env`), payment methods with Link and the domains,
-   the customer portal, Revenue recovery.
+4. `.env` to live: new Stripe live keys from the dashboard (Developers > API keys; the old backend's keys no longer
+   worked on Nov 5), with `STRIPE_GLAMLINK_MONTHLY_PRICE_ID`, `STRIPE_GLAMLINK_SETUP_PRICE_ID` and
+   `STRIPE_SHIPPING_PRICE_ID` empty: there are no old prices to adopt. `MAIL_TRANSPORT=smtp` with the `SMTP_*`
+   values, `JOBS_ENABLED=true`, the Shippo live key, the real Turnstile secret, `WEBSITE_URL=https://glamlink.net`,
+   and `WEBSITE_REFRESH_URL=https://glamlink.net/api/revalidate` with a new `WEBSITE_REFRESH_SECRET`, the live
+   website's `REVALIDATE_SECRET`. Take the localhost origins out of `ACCESSDOMAINS`. `https://test.glamlink.net`
+   stays in it until the test site has an API of its own: until then it reads and writes live data. `FIREBASE_*`
+   stay empty: the mobile app still calls the old backend.
+5. Check the account the keys belong to (`node -e "require('./src/integrations/stripe').accountName().then(console.log)"`),
+   then `npm run stripe:setup`: it names the account again, forgets the ids these keys don't have, makes the
+   products and prices, and prints the webhook. Then the Stripe steps of section 5 in live mode: the webhook endpoint
+   (its secret in `.env`), payment methods with Link and the domains, the customer portal, Revenue recovery.
 6. `pm2 reload glamlink-api --update-env`, then `npm run check:server -- --online`. It should say `live mode`, name
    the right account, find the webhook, and find the Access products' prices in this account.
 7. `npm run stripe:reconcile`, then `npm run stripe:reconcile -- --apply`: the seats take Stripe's statuses and
-   renewal dates. A seat "not found in Stripe" is a test purchase that step 2 missed.
+   renewal dates. A seat "not found in Stripe" is a test purchase that step 2 missed or, when the account is not
+   the one the old site used, a subscription made on the old site: the client decides whether those people keep Pro.
 8. `npm run cards:relink` lists the cards whose link names another website. Delete the test ones in the admin panel,
    then `npm run cards:relink -- --apply` moves the rest to glamlink.net and draws their QR codes again.
 9. The website: `main`, built for glamlink.net (the website's README, "Deploy the live site").
-10. In Stripe (live), disable the old backend's webhook endpoint. Point the Shippo webhook at the new URL.
+10. In Stripe (live), disable the old backend's webhook endpoint if the account has one. Point the Shippo webhook at
+    the new URL.
 11. Smoke test: the home page, an article, a podcast, the directory, a public card; sign-up, the email link,
     sign-in, the dashboard; a real Access Pro purchase; admin sign-in and a journal edit.
 12. Leave the old backend running (`glamlink-backend`): the mobile app still calls `node.glamlink.net`.

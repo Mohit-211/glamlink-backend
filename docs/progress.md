@@ -7,8 +7,9 @@ the new site and this API at the switch of Nov 5.
 ## The switch to live (Nov 5, on `master`)
 
 Mohit's decisions of Nov 5: glamlink.net goes live on the new site; the database stays (`glamlinkdb`, the Oct 23 copy,
-where all the work since was done); test.glamlink.net stays, with an API of its own later. The steps: deploy.md
-section 8.
+where all the work since was done); test.glamlink.net stays, with an API of its own later. The old site's Stripe
+keys no longer work, so live runs on new keys and `stripe:setup` makes the products and prices (no old prices to
+adopt). The steps: deploy.md section 8.
 
 - `stripe:setup` reused the Stripe ids the database had saved, whatever the keys: with live keys it would have printed
   the test products, and every checkout would have failed ("No such price"). `forgetForeignIds` (`stripeCatalog.js`)
