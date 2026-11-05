@@ -105,7 +105,8 @@ asks Stripe and Shippo whether the keys and the webhook work.
 
 ## 3. `.env`
 
-Fill in `/var/www/api/.env` (every variable is described in the file). For testing mode:
+Fill in `/var/www/api/.env`: `.env.example` lists what the website needs, with live values where they are not
+secrets, and names the rest at its end. For testing mode:
 
 | Variable | Testing mode | Notes |
 | --- | --- | --- |
@@ -165,7 +166,10 @@ Logs: `pm2 logs glamlink-api`, and `/var/www/storage/logs`.
    product's earlier list prices once its current one exists (subscriptions on them keep billing), and prints the
    webhook to create with its events. It first names the Stripe account, and forgets the ids the database saved
    that this account doesn't have (the test ones, after the switch to live keys), so they are made again.
-2. Stripe dashboard, test mode: Developers > Webhooks > Add endpoint
+2. The webhook endpoint: `npm run stripe:webhook` makes it with the keys in `.env`, on the code's API version with
+   the 15 events, and writes its signing secret into `.env`; then `pm2 reload glamlink-api --update-env`. Use it on a
+   new Stripe account: the dashboard offers only the account's default and newest API versions, and a new account's
+   default is not the code's. By hand instead (Developers > Webhooks > Add endpoint):
    - URL `https://api.glamlink.net/api/v1/payment/stripe/charge-intent/webhooks`
    - API version `2026-09-30.endive`
    - events (15 since Nov 1; `stripe:setup` prints the same list):
@@ -327,8 +331,9 @@ On the server (`/var/www/backend`, "As deployed"), late evening, in this order:
    stay empty: the mobile app still calls the old backend.
 5. Check the account the keys belong to (`node -e "require('./src/integrations/stripe').accountName().then(console.log)"`),
    then `npm run stripe:setup`: it names the account again, forgets the ids these keys don't have, makes the
-   products and prices, and prints the webhook. Then the Stripe steps of section 5 in live mode: the webhook endpoint
-   (its secret in `.env`), payment methods with Link and the domains, the customer portal, Revenue recovery.
+   products and prices. `npm run stripe:webhook` makes the webhook endpoint and puts its secret in `.env`. Then the
+   dashboard steps of section 5 in live mode: payment methods with Link and the domains, the customer portal,
+   Revenue recovery.
 6. `pm2 reload glamlink-api --update-env`, then `npm run check:server -- --online`. It should say `live mode`, name
    the right account, find the webhook, and find the Access products' prices in this account.
 7. `npm run stripe:reconcile`, then `npm run stripe:reconcile -- --apply`: the seats take Stripe's statuses and

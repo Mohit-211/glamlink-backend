@@ -26,6 +26,7 @@
     "check:contract": "node scripts/contract-check.js compare",
     "check:server": "node scripts/check-server.js",
     "stripe:setup": "node scripts/stripe-setup.js",
+    "stripe:webhook": "node scripts/stripe-webhook.js",
     "stripe:reconcile": "node scripts/stripe-reconcile.js",
     "cards:relink": "node scripts/card-links.js",
     "magazine:covers": "node scripts/magazine-covers.js",

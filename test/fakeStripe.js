@@ -1,5 +1,6 @@
 // A fake Stripe for tests: the app's Stripe client (integrations/stripe.js) with its API calls replaced by
 // recording fakes that answer like Stripe's API 2026-09-30. Webhook signing stays real.
+require('./env'); // test mode before anything reads the config, whatever .env's NODE_ENV
 const WEBHOOK_SECRET = 'whsec_test_glamlink_webhook';
 process.env.STRIPE_WEBHOOK_SECRET_INTENT_CHARGE = WEBHOOK_SECRET; // before the app reads its config
 

@@ -31,10 +31,10 @@ const EVENTS = Object.keys(require('../src/website/access-card').stripeHandlers(
         console.log(`${product.code.padEnd(9)} ${String(product.amount_cents).padStart(5)}¢  product ${productId}  price ${priceId}`);
     }
     console.log(`
-Webhook endpoint (Workbench > Webhooks, or the API), on API version ${API_VERSION}:
+Next, the webhook endpoint: npm run stripe:webhook makes it on API version ${API_VERSION} and puts its signing
+secret in .env (STRIPE_WEBHOOK_SECRET_INTENT_CHARGE). By hand instead (Workbench > Webhooks), on that version:
   ${config.API_BASE_URL}/api/v1/payment/stripe/charge-intent/webhooks
-  events: ${EVENTS.join(', ')}
-Put its signing secret in .env as STRIPE_WEBHOOK_SECRET_INTENT_CHARGE.`);
+  events: ${EVENTS.join(', ')}`);
     await sequelize.close();
 })().catch(async (err) => {
     console.error(err.message);

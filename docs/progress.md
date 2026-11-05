@@ -21,8 +21,16 @@ adopt). The steps: deploy.md section 8.
 - `npm run cards:relink` (`scripts/card-links.js`, `relinkCards` in `cardWriter.js`): the cards made on the test site
   link to test.glamlink.net, and so do their QR codes. It lists them; `--apply` moves them to `WEBSITE_URL` and draws
   their QR codes again.
-- Checks: 385 of 385 tests pass on a throwaway MariaDB (382 before; three new in `stripeCatalog.test.js` and
-  `cardSlugs.test.js`); oxlint and the boundary check pass.
+- `npm run stripe:webhook` (`scripts/stripe-webhook.js`, `webhookEndpoint.js`): makes the webhook endpoint through the
+  API on the code's version with the 15 events, and writes its signing secret into `.env` unprinted. A new Stripe
+  account's dashboard offers only its default and newest versions, neither of them the code's.
+- `.env.example` lists only what the website needs (live values where they are not secrets) and names the rest at its
+  end. Its ship-from address says to write values plainly: the server's had curly quotes, which Node keeps as part of
+  the value, so Shippo got "”Melanie Marks”".
+- `test/fakeStripe.js` loads `test/env.js` first: a test file that starts with it ran in production mode when `.env`
+  said `NODE_ENV=production`.
+- Checks: 389 of 389 tests pass on a throwaway MariaDB (382 before; new in `stripeCatalog.test.js`, `cardSlugs.test.js`
+  and `webhookEndpoint.test.js`); oxlint and the boundary check pass.
 
 ## Product tags, categories and the button label (Nov 4, on `master`; deployed Nov 4)
 
