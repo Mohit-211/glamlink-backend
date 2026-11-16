@@ -6,14 +6,34 @@ const logger = require('../../core/logger');
 const shippo = require('../../integrations/shippoApi');
 const { AccessOrder } = require('../../models');
 const { getSettings } = require('./catalog');
-const { shipFrom, parcelOf } = require('./shipping');
+const { shipFrom, parcelOf, shippingOptions, keychainRates } = require('./shipping');
 
 // Sending the keychain (docs/access.md section 7): an admin buys the order's label from Shippo (or voids it), and
 // Shippo's tracking webhook moves the order to shipped and delivered. A cancelled order ships nothing: no label is
 // bought for it, a label bought before can still be voided, and tracking no longer moves it.
 
 const fail = (status, message, code, details) => ApiError.withCode(status, message, code, details);
-const BAD_GATEWAY = httpStatus.BAD_GATEWAY || 502;
+
+// Shippo's refusals and silences as the admin reads them. Never a 502: Cloudflare, in front of the API, swaps a 502
+// for its own page, and the admin would see no reason at all (Nov 16).
+const labelRefused = (reasons) => fail(
+    httpStatus.UNPROCESSABLE_ENTITY,
+    `Shippo couldn't make the label${reasons.length ? `: ${reasons.join('; ')}` : '.'}`,
+    'LABEL_FAILED',
+);
+const shippoSilent = (message) => fail(httpStatus.SERVICE_UNAVAILABLE, message, 'SHIPPO_UNAVAILABLE');
+
+// A Shippo call for an order, a failure answered as Shippo's refusal or as no answer.
+const askShippo = async (what, call) => {
+    try {
+        return await call();
+    } catch (err) {
+        if (!(err instanceof shippo.ShippoError)) throw err;
+        logger.warn(`${what}: ${err.message}`);
+        if (err.unavailable) throw shippoSilent(`Shippo didn't answer (${err.reason}). Try again in a moment.`);
+        throw fail(httpStatus.UNPROCESSABLE_ENTITY, `Shippo refused: ${err.reason}`, 'SHIPPO_REFUSED');
+    }
+};
 
 // The order's address as taken at payment.
 const orderAddress = (order) => ({
@@ -24,6 +44,7 @@ const orderAddress = (order) => ({
     state: order.shipping_state,
     zip: order.shipping_postal_code,
     country: order.shipping_country || 'US',
+    phone: order.shipping_phone || null,
     email: order.customer_email || null,
 });
 
@@ -37,7 +58,10 @@ const shippableOrder = async (id) => {
     return order;
 };
 
-// Rates for an order's parcel now (the rate chosen at checkout expires, and flat or free shipping has none).
+/**
+ * Rates for an order's parcel now (the rate chosen at checkout expires, and flat or free shipping has none): those a
+ * keychain may ship with, cheapest first, each with the option it stands for today (standard, expedited) or null.
+ */
 const ratesForOrder = async (id) => {
     const order = await shippableOrder(id);
     const settings = await getSettings();
@@ -46,61 +70,115 @@ const ratesForOrder = async (id) => {
     const to = orderAddress(order);
     let customsDeclarationId;
     if (to.country !== from.country) {
-        const declaration = await shippo.customsDeclaration({
+        const declaration = await askShippo(`Customs for order ${order.order_number}`, () => shippo.customsDeclaration({
             description: 'NFC keychain', valueCents: Math.round(Number(order.amount_paid) * 100), weight: parcel.weight,
             massUnit: parcel.mass_unit, signer: from.name || from.company || 'Glamlink',
-        });
+        }));
         customsDeclarationId = declaration.object_id;
     }
-    const quote = await shippo.getRates({ from, to, parcel, customsDeclarationId, metadata: order.order_number });
-    return { order_id: order.id, shipment_id: quote.shipment_id, rates: quote.rates };
+    const quote = await askShippo(
+        `Rates for order ${order.order_number}`,
+        () => shippo.getRates({ from, to, parcel, customsDeclarationId, metadata: order.order_number }),
+    );
+    const optionOf = Object.fromEntries(shippingOptions(quote.rates).map((option) => [option.shippo_rate_id, option.rate_id]));
+    const rates = keychainRates(quote.rates).map((rate) => ({ ...rate, option: optionOf[rate.rate_id] || null }));
+    return { order_id: order.id, shipment_id: quote.shipment_id, rates };
 };
 
-const labelFailed = (label) => fail(
-    BAD_GATEWAY,
-    `Shippo could not make the label${label?.messages?.length ? `: ${label.messages.join(', ')}` : '.'}`,
-    'LABEL_FAILED',
-);
+// Shippo sells a rate up to 7 days after quoting it.
+const RATE_DAYS = 6;
+// Statuses of a label Shippo is still making.
+const PENDING = ['QUEUED', 'WAITING'];
+// How often to ask after such a label, and how long after the click to keep asking or to start a second purchase:
+// the answer has to come within the proxies' minute. Tests shorten them.
+const timing = { pollMs: 2000, budgetMs: 20000 };
+const pause = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 /**
- * Buys the order's label: with `rateId` (one of ratesForOrder), else the rate chosen at checkout, else (that rate
- * expired, or shipping was flat or free) today's rate for the same service, or the cheapest.
+ * One purchase with a rate: { label } (made, or still being made) or { reasons } (Shippo refused it). No answer from
+ * Shippo stops everything: a label may have been made, so nothing is bought again until someone has looked.
  */
-const buyOrderLabel = async (id, { rateId } = {}) => {
-    const order = await shippableOrder(id);
-    if (order.shippo_transaction_id && order.label_url) {
-        throw fail(httpStatus.CONFLICT, 'This order already has a label; void it first to buy another.', 'LABEL_EXISTS');
-    }
-    const buy = async (rate) => {
-        try {
-            return await shippo.buyLabel({ rateId: rate, metadata: order.order_number });
-        } catch (err) {
-            logger.warn(`Label for order ${order.order_number} with rate ${rate}: ${err.message}`);
-            return null;
+const tryRate = async (order, rateId, started) => {
+    let label;
+    try {
+        label = await shippo.buyLabel({ rateId, metadata: order.order_number });
+    } catch (err) {
+        if (!(err instanceof shippo.ShippoError)) throw err;
+        logger.warn(`Label for order ${order.order_number} with rate ${rateId}: ${err.message}`);
+        if (err.unavailable) {
+            throw shippoSilent(`Shippo didn't answer (${err.reason}). A label may have been made: look in Shippo's dashboard before buying again.`);
         }
-    };
-    let chosen = { rate_id: rateId || order.shippo_rate_id, provider: order.carrier, service: order.service };
-    let label = chosen.rate_id ? await buy(chosen.rate_id) : null;
-    if (!label || label.status !== 'SUCCESS') {
-        if (rateId) throw labelFailed(label);
-        const { rates } = await ratesForOrder(id);
-        chosen = rates.find((r) => r.provider === order.carrier && r.service === order.service) || rates[0];
-        if (!chosen) throw fail(httpStatus.BAD_REQUEST, 'No shipping rates available', 'NO_SHIPPING_RATES');
-        label = await buy(chosen.rate_id);
-        if (!label || label.status !== 'SUCCESS') throw labelFailed(label);
+        return { reasons: [err.reason] };
     }
+    while (PENDING.includes(label.status) && Date.now() - started < timing.budgetMs) {
+        await pause(timing.pollMs);
+        label = await shippo.getTransaction(label.transaction_id).catch(() => label);
+    }
+    if (label.status === 'SUCCESS' || PENDING.includes(label.status)) return { label };
+    const reasons = label.messages.length ? label.messages : [`Shippo answered ${label.status || 'without a status'}`];
+    logger.warn(`Label for order ${order.order_number} with rate ${rateId}: ${label.status} (${label.transaction_id}): ${reasons.join('; ')}`);
+    return { reasons };
+};
+
+// The label on the order: the rate it was bought with, its file and tracking (none yet while Shippo is making it).
+const saveLabel = async (order, label, chosen) => {
+    const made = label.status === 'SUCCESS';
     await order.update({
         shippo_rate_id: chosen.rate_id,
         shippo_transaction_id: label.transaction_id,
         tracking_number: label.tracking_number,
         tracking_link: label.tracking_url,
         label_url: label.label_url,
-        label_created_at: new Date(),
+        label_created_at: made ? new Date() : null,
         carrier: chosen.provider || order.carrier,
         service: chosen.service || order.service,
-        fulfillment_status: order.fulfillment_status === 'pending' ? 'processing' : order.fulfillment_status,
+        fulfillment_status: made && order.fulfillment_status === 'pending' ? 'processing' : order.fulfillment_status,
     });
     return order;
+};
+
+/**
+ * Buys the order's label. With `rateId` (one of ratesForOrder), that rate only. Otherwise the rate chosen at checkout
+ * while Shippo still sells it, else today's rate for the same service, else for the option chosen (standard,
+ * expedited), else the standard one. Shippo's refusal answers 422 LABEL_FAILED with its reasons; no answer, 503
+ * SHIPPO_UNAVAILABLE, and nothing more is tried. A label Shippo is still making is kept on the order without its file:
+ * asking again picks it up (409 LABEL_PENDING until it is done).
+ */
+const buyOrderLabel = async (id, { rateId } = {}) => {
+    const started = Date.now();
+    const order = await shippableOrder(id);
+    if (order.shippo_transaction_id) {
+        if (order.label_url) throw fail(httpStatus.CONFLICT, 'This order already has a label; void it first to buy another.', 'LABEL_EXISTS');
+        const label = await askShippo(`Label of order ${order.order_number}`, () => shippo.getTransaction(order.shippo_transaction_id));
+        if (label.status === 'SUCCESS') return saveLabel(order, label, { rate_id: order.shippo_rate_id });
+        if (PENDING.includes(label.status)) {
+            throw fail(httpStatus.CONFLICT, "Shippo is still making this order's label. Try again in a minute.", 'LABEL_PENDING');
+        }
+        logger.warn(`Label of order ${order.order_number}: ${label.status} (${label.transaction_id}): ${label.messages.join('; ')}`);
+        await order.update({ shippo_transaction_id: null });
+    }
+
+    if (rateId) {
+        const { label, reasons } = await tryRate(order, rateId, started);
+        if (reasons) throw labelRefused(reasons);
+        const rate = await shippo.getRate(rateId).catch(() => null);
+        return saveLabel(order, label, { rate_id: rateId, provider: rate?.provider, service: rate?.service });
+    }
+
+    const fresh = order.shippo_rate_id && Date.now() - new Date(order.created_at).getTime() < RATE_DAYS * 86400e3;
+    if (fresh) {
+        const { label, reasons } = await tryRate(order, order.shippo_rate_id, started);
+        if (label) return saveLabel(order, label, { rate_id: order.shippo_rate_id });
+        if (Date.now() - started > timing.budgetMs) throw labelRefused(reasons);
+    }
+    const { rates } = await ratesForOrder(id);
+    const chosen = rates.find((rate) => rate.provider === order.carrier && rate.service === order.service)
+        || rates.find((rate) => rate.option === order.shipping_option)
+        || rates.find((rate) => rate.option === 'standard');
+    if (!chosen) throw fail(httpStatus.BAD_REQUEST, 'No shipping rates available', 'NO_SHIPPING_RATES');
+    const { label, reasons } = await tryRate(order, chosen.rate_id, started);
+    if (reasons) throw labelRefused(reasons);
+    return saveLabel(order, label, chosen);
 };
 
 // Voids an unused label (Shippo refunds it); the order waits for a new one, unless it was cancelled.
@@ -111,7 +189,7 @@ const voidOrderLabel = async (id) => {
     if (['shipped', 'delivered'].includes(order.fulfillment_status)) {
         throw fail(httpStatus.CONFLICT, 'This parcel is already on its way.', 'LABEL_IN_USE');
     }
-    const refund = await shippo.refundLabel(order.shippo_transaction_id);
+    const refund = await askShippo(`Voiding the label of order ${order.order_number}`, () => shippo.refundLabel(order.shippo_transaction_id));
     await order.update({
         shippo_transaction_id: null, label_url: null, label_created_at: null, tracking_number: null, tracking_link: null,
         tracking_status: null, tracking_status_details: null, fulfillment_status: order.fulfillment_status === 'cancelled' ? 'cancelled' : 'pending',
@@ -162,4 +240,4 @@ const handleShippoEvent = async (event) => {
     return true;
 };
 
-module.exports = { ratesForOrder, buyOrderLabel, voidOrderLabel, isShippoCall, handleShippoEvent };
+module.exports = { ratesForOrder, buyOrderLabel, voidOrderLabel, isShippoCall, handleShippoEvent, timing };

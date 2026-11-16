@@ -1,8 +1,36 @@
 # Progress
 
 Newest first. Each phase lists its commits; branches chain from `main` (old code) to the current one. `master` holds
-every phase below and is the code deployed on api.glamlink.net (the Nov 1–4 work since Nov 4). glamlink.net moves to
-the new site and this API at the switch of Nov 5.
+every phase below and is the code deployed on api.glamlink.net (the Nov 1–4 work since Nov 4). glamlink.net runs the
+new site and this API since the switch of Nov 5.
+
+## Labels that say why, shipping by option (Nov 16, branch `work/shipping-labels`)
+
+The client, Nov 16: "Buy Label" in the admin panel always said "Couldn't buy the label", though rates showed at
+checkout and labels could be bought in Shippo itself; and checkout listed about 16 carriers' services ("Can we
+simplify the customer-facing options to Standard Shipping and Expedited Shipping?").
+
+- **Why no reason showed:** a refused label answered 502 `LABEL_FAILED` with Shippo's reasons, and Cloudflare, in front
+  of api.glamlink.net, replaces any 502 from the server with its own `error code: 502` (checked on a public 502 that
+  day). The admin panel read no message and fell back to "Couldn't buy the label". No answer is a 502 now
+  (`core/http/status.js` has none): Shippo's refusal is 422 `LABEL_FAILED` with its reasons, and a service that fails
+  is a 503 (`SHIPPO_UNAVAILABLE`, `PAYMENT_UNAVAILABLE`, `SHIPPING_UNAVAILABLE`, `ADDRESS_CHECK_UNAVAILABLE`,
+  `GOOGLE_UNAVAILABLE`, `YOUTUBE_UNAVAILABLE`), which Cloudflare passes on.
+- **Buying the label** (`fulfillment.js`): the checkout's rate is tried only while Shippo sells it (a week), then
+  today's rate for the same service, the same option, or the standard one; never USPS Media Mail, which the old
+  fallback (the cheapest rate) could pick. No answer from Shippo stops at once (503: a label may exist; the old code
+  went on to buy another). A label Shippo is still making (`QUEUED`) is kept on the order without its PDF, and asking
+  again picks it up (409 `LABEL_PENDING` until done) instead of buying a second one. The admin's own pick records its
+  carrier and service (the order kept the checkout's). Shippo's reasons, and the transaction, are logged.
+- **Shipping by option** (`shipping.js`): Standard is Shippo's cheapest rate a keychain may use; Expedited the
+  cheapest express service Shippo expects sooner (none when nothing is quicker). The website sees `{ rate_id, label,
+  amount_cents, estimated_days }`, no carrier. The option's id is what comes back to choose it: the Shippo rate id the
+  website sent before never matched the next quote's new rates, so any choice but the cheapest silently reverted (the
+  tests' fake Shippo answered the same ids every time; it now makes new ones, as Shippo does).
+- Orders keep `shipping_option` and `shipping_phone` (migration `20261116-0100`; orders paid before take the phone
+  from their checkout). `integrations/shippoApi.js`: Shippo's field errors in one line, `unavailable` for no answer,
+  30 seconds for a label, `getRate` and `getTransaction`.
+- Tests: 397 of 397 (8 new in `test/shipping.test.js`). Admin panel: 270 of 270; website: types and lint.
 
 ## The switch to live (Nov 5, on `master`)
 

@@ -190,7 +190,7 @@ Logs: `pm2 logs glamlink-api`, and `/var/www/storage/logs`.
      payment method domains `glamlink.net`, `www.glamlink.net` and `test.glamlink.net` in both modes (Apple Pay
      needs them).
    - **Customer portal** (Settings > Billing > Customer portal): save a configuration in each mode; until then
-     `POST /access/billing-portal` (the website's "Manage billing") answers 502 `PAYMENT_UNAVAILABLE`. On: update payment methods, invoice history.
+     `POST /access/billing-portal` (the website's "Manage billing") answers 503 `PAYMENT_UNAVAILABLE`. On: update payment methods, invoice history.
      Subscription cancellation: off (the website has its own Cancel), or at the end of the billing period with
      proration off. Switching plans: off. Default return URL `https://glamlink.net/dashboard` (the API sends its own).
      Add the business name and the terms and privacy links.

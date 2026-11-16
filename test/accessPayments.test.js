@@ -108,8 +108,11 @@ describe('a guest buys Pro + keychain', () => {
         assert.deepEqual([seat.source, seat.status, seat.stripe_subscription_id], ['stripe', 'active', subscriptionId]);
         const payment = await row('SELECT payment_type, payment_status, amount, receipt_url FROM payments WHERE transaction_id = ?', [invoiceId]);
         assert.deepEqual([payment.payment_type, payment.payment_status, Number(payment.amount)], ['NFC_WITH_SUBSCRIPTION', 'SUCCESS', 54.98]);
-        const order = await row('SELECT fulfillment_status, shipping_address_line_1, shipping_amount FROM access_orders WHERE business_card_id = ?', [card.id]);
-        assert.deepEqual([order.fulfillment_status, order.shipping_address_line_1, Number(order.shipping_amount)], ['pending', '1 Main St', 5]);
+        const order = await row('SELECT fulfillment_status, shipping_address_line_1, shipping_amount, shipping_option, shippo_rate_id, service FROM access_orders WHERE business_card_id = ?', [card.id]);
+        assert.deepEqual(
+            [order.fulfillment_status, order.shipping_address_line_1, Number(order.shipping_amount), order.shipping_option, order.shippo_rate_id, order.service],
+            ['pending', '1 Main St', 5, 'flat', null, 'Standard Shipping'],
+        );
         const checkout = (await app.request('GET', `/api/v1/access/checkout/${checkoutId}`, { headers: { 'x-card-token': card.token } })).body.data;
         assert.equal(checkout.status, 'paid');
         assert.deepEqual(checkout.card, { business_card_id: card.id, status: 'accepted', business_card_link: checkout.card.business_card_link });

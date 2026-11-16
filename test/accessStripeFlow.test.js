@@ -345,7 +345,7 @@ describe('Stripe customers and repeated requests', () => {
         assert.equal((await row('SELECT stripe_customer_id FROM users WHERE id = ?', [owner.id])).stripe_customer_id, paid.body.data.stripe_customer_id);
     });
 
-    test('Stripe trouble is a 502; the checkout quoted again is paid under a new key (BE-14, BE-40)', async () => {
+    test('Stripe trouble is a 503 (Cloudflare hides a 502); the checkout quoted again is paid under a new key (BE-14, BE-40)', async () => {
         const card = await cardWithAddress();
         const first = await quote({ business_card_id: card.id, plan_type: 'nfc_only' }, card.headers);
         const id = first.body.data.checkout_id;
@@ -356,7 +356,7 @@ describe('Stripe customers and repeated requests', () => {
         };
         const failed = await pay(id, card.headers);
         stripe.client.paymentIntents.create = create;
-        assert.deepEqual([failed.status, failed.body.code], [502, 'PAYMENT_UNAVAILABLE']);
+        assert.deepEqual([failed.status, failed.body.code], [503, 'PAYMENT_UNAVAILABLE']);
         assert.equal((await row('SELECT status FROM access_checkouts WHERE id = ?', [id])).status, 'open');
         const firstKey = stripe.callsOf('paymentIntents.create').at(-1).options.idempotencyKey;
 

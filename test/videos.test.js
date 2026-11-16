@@ -129,7 +129,7 @@ describe('importing', () => {
         youtube.videoDetails = async () => { throw new Error('quota'); };
         const res = await admin('POST', '/videos/admin/import', { url: 'zyxwvutsrqp' });
         youtube.videoDetails = details;
-        assert.deepEqual([res.status, res.body.code], [502, 'YOUTUBE_UNAVAILABLE']);
+        assert.deepEqual([res.status, res.body.code], [503, 'YOUTUBE_UNAVAILABLE']);
     });
 });
 

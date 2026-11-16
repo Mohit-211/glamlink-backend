@@ -46,10 +46,49 @@ const parcelOf = (settings) => {
     return { length: String(p.length), width: String(p.width), height: String(p.height), distance_unit: p.distance_unit, weight: String(p.weight), mass_unit: p.mass_unit };
 };
 
+// What buyers choose from (the client, Nov 16: "Standard Shipping" and "Expedited Shipping", not every carrier and
+// service), each one Shippo's rate behind it: standard the cheapest rate, expedited the cheapest express service
+// (Priority Mail, 2nd Day Air, …) that Shippo expects sooner, left out when none is quicker. A flat or free price
+// (the settings) is one option. The option's id is its `rate_id`, the same in every quote, so a choice survives the
+// new Shippo rates of the next quote.
+const OPTION_LABELS = { standard: 'Standard Shipping', expedited: 'Expedited Shipping', flat: 'Standard Shipping', free: 'Free Shipping' };
+const SHIPPING_OPTIONS = Object.keys(OPTION_LABELS);
+// USPS Media and Library Mail carry books and media only: never a keychain.
+const MEDIA_ONLY = /media.mail|library.mail/;
+const EXPRESS = /priority|express|(^|[\s_])air([\s_]|$)|next.day|second.day|2.day|3.day|overnight|expedited/;
+const serviceText = (rate) => `${rate.service_token || ''} ${rate.service || ''}`.toLowerCase();
+const sooner = (rate, than) => rate.estimated_days == null || than.estimated_days == null || rate.estimated_days < than.estimated_days;
+
+// Shippo's rates a keychain may ship with, cheapest first.
+const keychainRates = (rates) => rates.filter((rate) => !MEDIA_ONLY.test(serviceText(rate))).toSorted((a, b) => a.amount_cents - b.amount_cents);
+
+// An option, { rate_id, label, amount_cents, estimated_days }, with the rate behind it (shippo_rate_id, provider,
+// service, service_token).
+const optionFor = (id, rate) => ({
+    rate_id: id, label: OPTION_LABELS[id], amount_cents: rate.amount_cents, estimated_days: rate.estimated_days ?? null,
+    shippo_rate_id: rate.rate_id, provider: rate.provider, service: rate.service, service_token: rate.service_token ?? null,
+});
+
+// The options for Shippo's rates: [standard, expedited?].
+const shippingOptions = (rates) => {
+    const usable = keychainRates(rates);
+    const [standard] = usable;
+    if (!standard) return [];
+    const expedited = usable.find((rate) => rate !== standard && EXPRESS.test(serviceText(rate)) && sooner(rate, standard));
+    return [optionFor('standard', standard), ...(expedited ? [optionFor('expedited', expedited)] : [])];
+};
+
+// An option as the website sees it. Checkouts quoted before Nov 16 hold Shippo's rates themselves: named by carrier.
+const publicOption = (option) => option && {
+    rate_id: option.rate_id,
+    label: option.label || [option.provider, option.service].filter(Boolean).join(' ') || 'Shipping',
+    amount_cents: option.amount_cents,
+    estimated_days: option.estimated_days ?? null,
+};
+
 /**
- * The shipping options for a card's keychain: { address, shipment_id, options }, each option
- * { rate_id, amount_cents, provider, service, estimated_days, duration_terms }, cheapest first.
- * `keychainCents` is the keychain's value, for the customs declaration when it leaves the US.
+ * The shipping options for a card's keychain: { address, shipment_id, options }, each option as shippingOptions makes
+ * it, standard first. `keychainCents` is the keychain's value, for the customs declaration when it leaves the US.
  */
 const quoteShipping = async ({ card, settings, keychainCents }) => {
     const address = await shippingAddressOf(card);
@@ -58,9 +97,14 @@ const quoteShipping = async ({ card, settings, keychainCents }) => {
     }
     const { mode, flat_amount_cents: flat } = settings.shipping;
     if (mode === 'free' || mode === 'flat') {
-        const amount = mode === 'free' ? 0 : flat;
-        const service = mode === 'free' ? 'Free shipping' : 'Standard shipping';
-        return { address, shipment_id: null, options: [{ rate_id: mode, amount_cents: amount, provider: null, service, estimated_days: null, duration_terms: null }] };
+        return {
+            address,
+            shipment_id: null,
+            options: [{
+                rate_id: mode, label: OPTION_LABELS[mode], amount_cents: mode === 'free' ? 0 : flat, estimated_days: null,
+                shippo_rate_id: null, provider: null, service: OPTION_LABELS[mode], service_token: null,
+            }],
+        };
     }
     const from = shipFrom();
     const parcel = parcelOf(settings);
@@ -77,16 +121,17 @@ const quoteShipping = async ({ card, settings, keychainCents }) => {
         quote = await shippo.getRates({ from, to: address, parcel, customsDeclarationId, metadata: `card ${card.id}` });
     } catch (err) {
         logger.warn(`Shipping rates for card ${card.id}: ${err.message}`);
-        throw fail(httpStatus.BAD_GATEWAY || 502, 'Shipping rates are not available right now. Please try again.', 'SHIPPING_UNAVAILABLE');
+        throw fail(httpStatus.SERVICE_UNAVAILABLE, 'Shipping rates are not available right now. Please try again.', 'SHIPPING_UNAVAILABLE');
     }
-    if (!quote.rates.length) throw fail(httpStatus.BAD_REQUEST, 'No shipping rates available', 'NO_SHIPPING_RATES');
-    return {
-        address,
-        shipment_id: quote.shipment_id,
-        options: quote.rates.map(({ rate_id, amount_cents, provider, service, estimated_days, duration_terms }) => ({
-            rate_id, amount_cents, provider, service, estimated_days, duration_terms,
-        })),
-    };
+    const options = shippingOptions(quote.rates);
+    if (!options.length) {
+        const why = quote.messages.map((m) => m.text || m.code).filter(Boolean).join('; ');
+        logger.warn(`No shipping rates for card ${card.id}${why ? `: ${why}` : ''}`);
+        throw fail(httpStatus.BAD_REQUEST, 'No shipping rates available', 'NO_SHIPPING_RATES');
+    }
+    return { address, shipment_id: quote.shipment_id, options };
 };
 
-module.exports = { quoteShipping, shippingAddressOf, shipFrom, parcelOf };
+module.exports = {
+    quoteShipping, shippingAddressOf, shipFrom, parcelOf, shippingOptions, keychainRates, publicOption, SHIPPING_OPTIONS, OPTION_LABELS,
+};

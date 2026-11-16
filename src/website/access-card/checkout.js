@@ -10,7 +10,7 @@ const { assertNoAccountFor } = require('./cardOwnership');
 const { seatOf, isPro, keychainsOf } = require('./seats');
 const catalog = require('./catalog');
 const { ensureStripeProduct, ensureListPrice, ensureCoupon, productByCode } = require('./stripeCatalog');
-const { quoteShipping, shippingAddressOf } = require('./shipping');
+const { quoteShipping, shippingAddressOf, publicOption } = require('./shipping');
 const { activate, purchaseType } = require('./payments');
 const { syncCheckout, stopCheckout } = require('./checkoutSync');
 const { stripeUnavailable, isMissing } = require('./stripeErrors');
@@ -48,10 +48,10 @@ const sameRequest = async (checkout, { card, planCode, rateId }) => {
 
 /**
  * Quotes a plan for a card (the route checks that the caller is its buyer, owner or an admin). `rateId` picks a
- * shipping option; the cheapest is chosen otherwise. An open checkout for the same card is reused. A payment already
- * under way for the card (BE-02) is looked up at Stripe first: paid or being paid, this answers CHECKOUT_IN_PROGRESS
- * with its checkout_id; still payable, the same request gets that checkout back (pending, with its secret), and another
- * plan, rate or address stops it at Stripe before a new quote is made. Returns the checkout.
+ * shipping option by its id (standard, expedited); standard otherwise. An open checkout for the same card is reused.
+ * A payment already under way for the card (BE-02) is looked up at Stripe first: paid or being paid, this answers
+ * CHECKOUT_IN_PROGRESS with its checkout_id; still payable, the same request gets that checkout back (pending, with its
+ * secret), and another plan, rate or address stops it at Stripe before a new quote is made. Returns the checkout.
  */
 const quote = async ({ card, planCode, rateId }) => {
     const plan = await AccessPlan.findOne({ where: { code: planCode || '', is_active: true } });
@@ -169,10 +169,11 @@ const view = (checkout, { state = null, card = null } = {}) => {
         status,
         plan_type: checkout.plan_code,
         lines: checkout.lines,
+        // The options by name only (Standard, Expedited): the carriers behind them stay here.
         shipping: checkout.shipping && {
             address: checkout.shipping.address,
-            options: checkout.shipping.options,
-            selected: checkout.shipping.selected,
+            options: checkout.shipping.options.map(publicOption),
+            selected: publicOption(checkout.shipping.selected),
         },
         subtotal_cents: checkout.subtotal_cents,
         shipping_cents: checkout.shipping_cents,
@@ -376,7 +377,7 @@ const payCheckout = async (checkoutId) => {
  * (confirmPayment). Paying again while it is pending gives the same secret, once Stripe has said it is not paid yet;
  * a payment the bank is confirming answers CHECKOUT_IN_PROGRESS. A checkout paid meanwhile, or with nothing to pay (a $0
  * first invoice, a free keychain), answers { paid: true, checkout_id }, activated before the answer. Stripe's own
- * refusals answer 502 PAYMENT_UNAVAILABLE.
+ * refusals answer 503 PAYMENT_UNAVAILABLE.
  */
 const pay = async (checkoutId) => {
     try {

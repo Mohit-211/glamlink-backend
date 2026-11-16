@@ -17,14 +17,14 @@ const notFound = (what = 'Video') => ApiError.withCode(httpStatus.NOT_FOUND, `${
 
 const notConfigured = () => ApiError.withCode(httpStatus.SERVICE_UNAVAILABLE, 'YouTube is not set up on the server (YOUTUBE_API_KEY).', 'YOUTUBE_NOT_CONFIGURED');
 
-// YouTube's answer, or a 503 (no key) / 502 (YouTube failed) the admin can act on.
+// YouTube's answer, or a 503 the admin can act on: YOUTUBE_NOT_CONFIGURED (no key) or YOUTUBE_UNAVAILABLE (YouTube failed).
 const fromYoutube = async (call) => {
     if (!configured()) throw notConfigured();
     try {
         return await call();
     } catch (err) {
         logger.warn(`YouTube: ${err.message}`);
-        throw ApiError.withCode(httpStatus.BAD_GATEWAY, 'YouTube did not answer. Try again in a moment.', 'YOUTUBE_UNAVAILABLE');
+        throw ApiError.withCode(httpStatus.SERVICE_UNAVAILABLE, 'YouTube did not answer. Try again in a moment.', 'YOUTUBE_UNAVAILABLE');
     }
 };
 

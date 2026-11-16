@@ -224,14 +224,14 @@ const mapPins = async (query = {}) => {
 const TYPE_WORDS = { esthetician: 'esthetician', 'med-spa': 'med spa', 'hair-stylist': 'hair salon' };
 const notConfigured = () => ApiError.withCode(httpStatus.SERVICE_UNAVAILABLE, 'Google listings are not set up (GOOGLE_API_KEY).', 'GOOGLE_NOT_CONFIGURED');
 
-// Google's answer, or 503 (no key) / 502 (Google failed).
+// Google's answer, or a 503: GOOGLE_NOT_CONFIGURED (no key) or GOOGLE_UNAVAILABLE (Google failed).
 const fromGoogle = async (call) => {
     if (!configured()) throw notConfigured();
     try {
         return await call();
     } catch (err) {
         logger.warn(`Google Places: ${err.message}`);
-        throw ApiError.withCode(httpStatus.BAD_GATEWAY, 'Google did not answer. Try again in a moment.', 'GOOGLE_UNAVAILABLE');
+        throw ApiError.withCode(httpStatus.SERVICE_UNAVAILABLE, 'Google did not answer. Try again in a moment.', 'GOOGLE_UNAVAILABLE');
     }
 };
 

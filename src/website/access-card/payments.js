@@ -16,6 +16,7 @@ const {
 } = require('../../integrations/mailer/email.service');
 const { saveSeatFromStripe, seatOf, isPro, keychainsOf, syncLegacyFields } = require('./seats');
 const { getSettings } = require('./catalog');
+const { SHIPPING_OPTIONS } = require('./shipping');
 const { endSubscriptionNow } = require('./subscriptions');
 const { settleCardType } = require('./cardOwnership');
 
@@ -205,9 +206,11 @@ const activate = async (checkoutId, { invoice, intent }) => {
             receipt_url: invoice?.hosted_invoice_url || null,
         }, { transaction });
 
-        // Every purchase is an order for the admin; a keychain order also ships, by the rate chosen at checkout.
+        // Every purchase is an order for the admin; a keychain order also ships, by the option chosen at checkout and the
+        // Shippo rate behind it (a checkout quoted before Nov 16 chose the rate itself).
         const address = keychain ? checkout.shipping?.address : null;
         const rate = keychain ? checkout.shipping?.selected : null;
+        const option = rate && SHIPPING_OPTIONS.includes(rate.rate_id) ? rate.rate_id : null;
         const notGiven = [
             extraPro && 'they already had Access Pro',
             endedPro && 'its Access Pro subscription had been cancelled',
@@ -230,11 +233,13 @@ const activate = async (checkoutId, { invoice, intent }) => {
             shipping_state: address?.state || null,
             shipping_postal_code: address?.zip || null,
             shipping_country: address?.country || null,
+            shipping_phone: address?.phone || null,
             fulfillment_status: keychain ? (extraKeychain ? 'cancelled' : 'pending') : null,
+            shipping_option: option,
             carrier: rate?.provider || null,
             service: rate?.service || null,
             shippo_shipment_id: keychain ? checkout.shipping?.shipment_id || null : null,
-            shippo_rate_id: rate && !['flat', 'free'].includes(rate.rate_id) ? rate.rate_id : null,
+            shippo_rate_id: rate ? rate.shippo_rate_id || (option ? null : rate.rate_id) : null,
             ...(notGiven && {
                 cancel_reason: `Paid but not given (${notGiven}): refund it in Stripe.`,
                 // Nothing of it was given: the whole order is cancelled.

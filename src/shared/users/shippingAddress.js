@@ -56,7 +56,7 @@ const saveShippingAddress = async ({ body, name, userId = null, roleId = null, e
         checked = await shippo.validateAddress(original);
     } catch (err) {
         logger.warn(`Address check failed: ${err.message}`);
-        throw fail(httpStatus.BAD_GATEWAY || 502, 'The address could not be checked right now. Please try again.', 'ADDRESS_CHECK_UNAVAILABLE');
+        throw fail(httpStatus.SERVICE_UNAVAILABLE, 'The address could not be checked right now. Please try again.', 'ADDRESS_CHECK_UNAVAILABLE');
     }
     if (checked.result === 'invalid') {
         const why = checked.reasons.map((reason) => reason.message).filter(Boolean).join(', ') || 'Invalid address';

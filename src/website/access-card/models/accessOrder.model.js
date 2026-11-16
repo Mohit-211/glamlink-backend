@@ -115,6 +115,9 @@ AccessOrder.init(
       defaultValue: "US",
     },
 
+    // The recipient's phone, for the carriers that want one on the label.
+    shipping_phone: { type: DataTypes.STRING(50), allowNull: true },
+
     shipping_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
@@ -133,7 +136,9 @@ AccessOrder.init(
       allowNull: true,
     },
 
-    // The rate chosen at checkout, the label bought with Shippo, and Shippo's tracking.
+    // The option chosen at checkout (standard, expedited, flat, free) and the rate behind it, the label bought with
+    // Shippo, and Shippo's tracking.
+    shipping_option: { type: DataTypes.STRING(20), allowNull: true },
     carrier: { type: DataTypes.STRING(100), allowNull: true },
     service: { type: DataTypes.STRING(150), allowNull: true },
     shippo_shipment_id: { type: DataTypes.STRING, allowNull: true },

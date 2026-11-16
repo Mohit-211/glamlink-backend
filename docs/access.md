@@ -189,7 +189,7 @@ admin approval (Mohit, Nov 1). The flow:
   email, else a new one. A stored customer Stripe no longer knows (deleted, or from the other mode on a test copy of
   live data) is made again.
 - **Stripe's refusals** on these calls (quote, pay, the subscription's cancel and resume, the billing portal) are
-  logged with Stripe's words and answer 502 `PAYMENT_UNAVAILABLE` ("Payments are not available right now. Please try
+  logged with Stripe's words and answer 503 `PAYMENT_UNAVAILABLE` ("Payments are not available right now. Please try
   again in a few minutes."). A card decline happens in the browser (Stripe.js). Other Stripe calls in the API still
   answer `PAYMENT_FAILED`.
 
@@ -229,7 +229,7 @@ shipping is activated by `/pay` itself, which answers `{ paid: true, checkout_id
 first failure (`past_due_since`). `GET /access/subscription` adds `past_due` (Stripe's `past_due` or `unpaid`) and
 `last_payment_failed_at`. `POST /access/billing-portal` (a signed-in professional; `return_url` on the website's or
 an allowed origin) answers `{ url }`, a Stripe billing portal session where the person updates their card and pays;
-404 `NO_CUSTOMER` before any Stripe payment, 502 `PAYMENT_UNAVAILABLE` while the portal is not set up in that Stripe
+404 `NO_CUSTOMER` before any Stripe payment, 503 `PAYMENT_UNAVAILABLE` while the portal is not set up in that Stripe
 mode.
 
 **Never refunded by the API** (Mohit, Nov 1): nothing calls Stripe's refunds. A person's own cancel ends Pro at the end
@@ -272,15 +272,24 @@ with no proration and no refund. Any refund is made by hand in Stripe's dashboar
   (`SHIPPO_ADDRESS_VALIDATION=v2`; Shippo enables it through sales), otherwise the standard check
   (`POST /addresses` with `validate`). A corrected address comes back for the customer to accept. Addresses gain a
   second street line.
-- **Rates:** `POST /shipments` with the validated address and the keychain parcel; the customer picks from the
-  returned services (cheapest first). **Default:** live rates; admins can set shipping to free or a flat amount.
+- **Rates:** `POST /shipments` with the validated address and the keychain parcel. Since Nov 16 (the client: "we just
+  don't need customers seeing every available carrier and service") the customer chooses between two options, each
+  Shippo's rate behind it: **Standard Shipping**, the cheapest rate, and **Expedited Shipping**, the cheapest express
+  service (Priority Mail, 2nd Day Air, …) that Shippo expects sooner, left out when none is quicker. USPS Media Mail
+  (books and media only) is never used. The option's id (`standard`, `expedited`) is what the website sends back, so
+  the choice holds although each quote gets new Shippo rates; the order keeps the option, the rate behind it and the
+  recipient's phone. **Default:** live rates; admins can set shipping to free or a flat amount (one option).
 - **Where it ships:** **Default** United States only, as today. Canada can be switched on in settings (the
   shipment then carries a customs declaration).
 - **Ship-from address and parcel** come from settings and `.env` (the warehouse address is hard-coded today).
-- **Labels:** an admin buys the label from the order screen (`POST /transactions` with the chosen rate, re-rated
-  if it has expired); the order gets the tracking number, tracking link and label PDF. A label can be voided. A
-  cancelled order ships nothing (Nov 1): buying its label answers 409 `ORDER_CANCELLED`, a label bought before can
-  still be voided (the order stays cancelled), and tracking no longer moves it.
+- **Labels:** an admin buys the label from the order screen (`POST /transactions` with the chosen rate while Shippo
+  still sells it, a week; else today's rate for the same service, else for the same option); the order gets the
+  tracking number, tracking link and label PDF. A label can be voided. A cancelled order ships nothing (Nov 1):
+  buying its label answers 409 `ORDER_CANCELLED`, a label bought before can still be voided (the order stays
+  cancelled), and tracking no longer moves it. Since Nov 16 the admin sees why a purchase failed: Shippo's refusal is
+  422 `LABEL_FAILED` with its reasons, and no answer from Shippo is 503 `SHIPPO_UNAVAILABLE`, after which nothing more
+  is bought (the label may exist). A label Shippo is still making stays on the order without its PDF until asked
+  again. The API answers no 502: Cloudflare, in front of it, replaces a 502 with its own page, message and code lost.
 - **Tracking:** Shippo's `track_updated` webhook moves the order to shipped and delivered. The webhook URL carries
   a secret token (`SHIPPO_WEBHOOK_TOKEN`); Shippo's HMAC signature is checked too once Shippo sets it up
   (`SHIPPO_WEBHOOK_HMAC_SECRET`).
