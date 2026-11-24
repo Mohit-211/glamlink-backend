@@ -9,6 +9,10 @@ const { toSlug } = require("../../core/utils/slug");
 const { freeSlug, slugTaken } = require("../../core/db/freeSlug");
 const { indexMentions, mentionsOf, articleIdsFeaturing } = require("./mentions.service");
 const { videosOfTopic } = require("../watch");
+const { pageCards } = require("../profiles");
+const { toPublicCard, withoutOffers } = require("../access-card");
+const sequelize = require("../../core/db/central.db");
+const topicItems = require("./topicItems.service");
 const {
   Journal,
   Author,
@@ -21,7 +25,6 @@ const {
   JournalFaqMapping,
   JournalTopicMapping,
   JournalTopicParagraphMapping,
-  JournalTopicProfessionalMapping,
   PodcastSchedule,
   User,
   JournalTopicProductMapping,
@@ -46,6 +49,24 @@ const articleSlug = async (value, title, id = null) => {
   if (await slugTaken(Journal, slug, id)) throw refuseSlug("This slug is taken.");
   return slug;
 };
+
+// An article's topics, in its order (A-CNT-1, Nov 24): links to topics it no longer lists are deleted for good, new
+// ones are added (a link deleted softly before comes back: the unique key counts deleted rows, which made every such
+// save answer 500 and leave the article with no topics), and every link takes the article's order. One transaction.
+const setArticleTopics = (journalId, topicIds) =>
+  sequelize.transaction(async (transaction) => {
+    await sequelize.query(
+      `DELETE FROM journal_topic_mappings WHERE journal_id = :journalId${topicIds.length ? " AND topic_id NOT IN (:topicIds)" : ""}`,
+      { replacements: { journalId, topicIds }, transaction },
+    );
+    for (const [index, topicId] of topicIds.entries()) {
+      await sequelize.query(
+        `INSERT INTO journal_topic_mappings (journal_id, topic_id, sort_order) VALUES (:journalId, :topicId, :order)
+         ON DUPLICATE KEY UPDATE deleted_at = NULL, sort_order = :order`,
+        { replacements: { journalId, topicId, order: index + 1 }, transaction },
+      );
+    }
+  });
 
 const createJournal = async (reqBody, files) => {
   const isPublished = reqBody.status === "published";
@@ -678,21 +699,7 @@ const updateJournal = async (reqBody, id, files) => {
       }
     }
 
-    await JournalTopicMapping.destroy({
-      where: {
-        journal_id: id,
-      },
-    });
-
-    if (topicIds.length) {
-      await JournalTopicMapping.bulkCreate(
-        topicIds.map((topicId, index) => ({
-          journal_id: id,
-          topic_id: topicId,
-          sort_order: index + 1,
-        })),
-      );
-    }
+    await setArticleTopics(id, topicIds);
   }
 
   // ==========================
@@ -1308,149 +1315,101 @@ const getAllJournalTopics = async (query = {}) => {
   return topics;
 };
 
-// withEmails: professionals' emails are for admins only (the public topic page leaves them out).
-// A topic by its id or its slug (GET /journal/topic/:id takes either).
-const getJournalTopicById = async (id, { withEmails = false } = {}) => {
+// Newest first: an article's publish date, else when it was made.
+const articleDate = (article) => new Date(article.publish_date || article.created_at || 0).getTime();
+// A link's place in the topic's order (a row from a belongsToMany include, with its link model's fields).
+const linkOrder = (through) => (row) => Number(row[through]?.sort_order ?? 0);
+
+// A topic's professionals and brands (one link table), in the topic's order. The public gets the pages that show (Nov
+// 24, W-1): each professional's live card only as anyone may see it (cardPublic: no plan, account, subscription or
+// hidden phone), with the page's slug; brands as the Brands page lists them. Admins get every linked account, the
+// professionals' emails, and their active cards whole.
+const topicPeople = async (topicId, { admin = false } = {}) => {
+  const [links] = await sequelize.query(
+    `SELECT m.user_id, COALESCE(u.professional_type, 'individual') AS type FROM journal_topic_professional_mappings m
+     JOIN users u ON u.id = m.user_id AND u.account_type = 'professional' AND u.is_active = 1 AND u.deleted_at IS NULL
+     WHERE m.topic_id = :topicId AND m.deleted_at IS NULL ORDER BY m.sort_order ASC, m.id ASC`,
+    { replacements: { topicId } },
+  );
+  const ids = [...new Set(links.map((link) => Number(link.user_id)))];
+  const pages = await pageCards(ids, { hidden: admin });
+  const typed = (type) => ids.filter((id) => pages.has(id) && links.find((link) => Number(link.user_id) === id).type === type);
+  const individuals = typed("individual");
+  const brands = typed("brand").map((id) => pages.get(id));
+  if (!individuals.length) return { professionals: [], brands };
+
+  const users = await User.unscoped().findAll({
+    where: { id: individuals },
+    attributes: admin ? ["id", "email"] : ["id"],
+    include: [
+      { model: Profile, as: "user_profile", attributes: ["name"], required: false },
+      {
+        model: BusinessCard,
+        as: "user_business_cards",
+        where: { is_active: true, ...(admin ? {} : { status: "accepted" }) },
+        required: false,
+        include: [
+          { model: BusinessLocation, as: "locations" },
+          { model: BusinessGalleryMedia, as: "images" },
+          { model: BusinessHour, as: "business_hour" },
+          ...(admin
+            ? [{ model: User, as: "business_user", required: false, attributes: ["id", "subscription_status", "subscription_started_at", "subscription_renewal_at"] }]
+            : []),
+        ],
+      },
+    ],
+  });
+  const byId = new Map(users.map((user) => [Number(user.id), user.toJSON()]));
+  const professionals = individuals.filter((id) => byId.has(id)).map((id) => {
+    const user = byId.get(id);
+    const cards = Array.isArray(user.user_business_cards) ? user.user_business_cards : [];
+    // The account's newest live (for admins: active) card.
+    const card = cards.toSorted((a, b) => Number(b.id) - Number(a.id))[0] ?? null;
+    return {
+      id,
+      ...(admin && { email: user.email }),
+      name: user.user_profile?.name || pages.get(id).name || null,
+      slug: pages.get(id).slug,
+      business_card: card ? (admin ? withoutOffers(card) : toPublicCard(card)) : null,
+    };
+  });
+  return { professionals, brands };
+};
+
+// A topic's page (GET /journal/topic/:id, by its id or slug). For the public (Nov 24: W-1, A-CNT-3): only published
+// articles and products, and the professionals and brands whose pages show; for admins (`admin`) drafts and hidden pages
+// too, with the professionals' emails. Articles and videos come newest first; professionals, brands and products in the
+// topic's order. Since Nov 24 the topic has `brands` (rows as GET /profiles answers them).
+const getJournalTopicById = async (id, { admin = false } = {}) => {
+  const shown = admin ? {} : { status: "published" };
   const topic = await JournalTopic.findOne({
     where: {
       ...(/^\d+$/.test(String(id)) ? { id } : { slug: String(id) }),
       is_active: true,
     },
     include: [
-      // ==========================
-      // Journals
-      // ==========================
       {
         model: Journal,
         as: "journals",
-        through: {
-          attributes: ["sort_order"],
-        },
-        where: {
-          is_active: true,
-        },
+        through: { attributes: ["sort_order"], where: { deleted_at: null } },
+        where: { is_active: true, ...shown },
         required: false,
         include: [
-          {
-            model: Author,
-            as: "journal_author",
-            attributes: ["id", "name", "profile_image"],
-          },
-          {
-            model: JournalCategory,
-            as: "journal_category",
-            attributes: ["id", "title", "slug"],
-          },
+          { model: Author, as: "journal_author", attributes: ["id", "name", "profile_image"] },
+          { model: JournalCategory, as: "journal_category", attributes: ["id", "title", "slug"] },
         ],
       },
-
-      // ==========================
-      // Professionals
-      // ==========================
-      {
-        model: User,
-        as: "professionals",
-        through: {
-          attributes: ["sort_order"],
-        },
-        attributes: withEmails ? ["id", "email"] : ["id"],
-        where: {
-          is_active: true,
-          account_type: "professional",
-          professional_type: "individual",
-        },
-        required: false,
-
-        include: [
-          // ==========================
-          // User Profile
-          // ==========================
-          {
-            model: Profile,
-            as: "user_profile",
-            attributes: ["name"],
-            required: false,
-          },
-
-          // ==========================
-          // Business Cards
-          // ==========================
-          {
-            model: BusinessCard,
-            as: "user_business_cards",
-            where: {
-              is_active: true,
-            },
-            required: false,
-
-            include: [
-              // ==========================
-              // Business Locations
-              // ==========================
-              {
-                model: BusinessLocation,
-                as: "locations",
-              },
-
-              // ==========================
-              // Business Images
-              // ==========================
-              {
-                model: BusinessGalleryMedia,
-                as: "images",
-              },
-
-              // ==========================
-              // Business Hours
-              // ==========================
-              {
-                model: BusinessHour,
-                as: "business_hour",
-              },
-
-              // ==========================
-              // Business User
-              // ==========================
-              {
-                model: User,
-                as: "business_user",
-                required: false,
-                attributes: [
-                  "id",
-                  "subscription_status",
-                  "subscription_started_at",
-                  "subscription_renewal_at",
-                ],
-              },
-            ],
-          },
-        ],
-      },
-
-      // ==========================
-      // Shops
-      // ==========================
       {
         model: Shop,
         as: "shops",
-        through: {
-          attributes: ["sort_order"],
-        },
-        where: {
-          is_active: true,
-        },
+        through: { attributes: ["sort_order"], where: { deleted_at: null } },
+        where: { is_active: true, ...shown },
         required: false,
       },
-
-      // ==========================
-      // Podcasts
-      // ==========================
       {
         model: PodcastSchedule,
         as: "podcasts",
-        through: {
-          attributes: ["sort_order"],
-        },
+        through: { attributes: ["sort_order"] },
         required: false,
       },
     ],
@@ -1461,32 +1420,11 @@ const getJournalTopicById = async (id, { withEmails = false } = {}) => {
   }
 
   const data = topic.toJSON();
+  data.journals = (data.journals || []).toSorted((a, b) => articleDate(b) - articleDate(a) || Number(b.id) - Number(a.id));
+  data.shops = (data.shops || []).toSorted((a, b) => linkOrder("JournalTopicProductMapping")(a) - linkOrder("JournalTopicProductMapping")(b));
+  Object.assign(data, await topicPeople(topic.id, { admin }));
 
-  // ==========================
-  // Normalize Professionals
-  // ==========================
-  if (Array.isArray(data.professionals)) {
-    data.professionals = data.professionals.map((professional) => {
-      const businessCards = Array.isArray(
-        professional.user_business_cards,
-      )
-        ? professional.user_business_cards
-        : [];
-
-      const businessCard = businessCards.length
-        ? businessCards[0]
-        : null;
-
-      return {
-        id: professional.id,
-        email: professional.email,
-        name: professional.user_profile?.name || null,
-        business_card: businessCard,
-      };
-    });
-  }
-
-  // Its videos (website/watch), in the topic's order.
+  // Its videos (website/watch), newest first.
   data.videos = await videosOfTopic(topic.id);
 
   return data;
@@ -1595,7 +1533,7 @@ const updateJournalTopic = async (id, body, files) => {
     await topic.update(updateData);
   }
 
-  return getJournalTopicById(id, { withEmails: true });
+  return getJournalTopicById(id, { admin: true });
 };
 
 const deleteJournalTopic = async (body) => {
@@ -1782,26 +1720,13 @@ const updateJournalTopicMappings = async (journalId, body) => {
     }
   }
 
-  await JournalTopicMapping.destroy({
-    where: {
-      journal_id: journalId,
-    },
-  });
-
-  if (topicIds.length) {
-    const mappingData = topicIds.map((topicId, index) => ({
-      journal_id: journalId,
-      topic_id: topicId,
-      sort_order: index + 1,
-    }));
-
-    await JournalTopicMapping.bulkCreate(mappingData);
-  }
+  await setArticleTopics(journalId, topicIds);
 
   return getJournalTopicMappings(journalId);
 };
 
-const getJournalTopicParagraphs = async (topicId) => {
+// A topic's paragraphs, from published articles only unless an admin asks (A-CNT-3, Nov 24).
+const getJournalTopicParagraphs = async (topicId, { admin = false } = {}) => {
   const topic = await JournalTopic.findOne({
     where: {
       id: topicId,
@@ -1823,6 +1748,7 @@ const getJournalTopicParagraphs = async (topicId) => {
         as: "journal",
         where: {
           is_active: true,
+          ...(admin ? {} : { status: "published" }),
         },
         required: true,
         attributes: ["id", "title", "slug", "content"],
@@ -1921,70 +1847,23 @@ const updateJournalTopicParagraphs = async (topicId, body) => {
 
   await JournalTopicParagraphMapping.bulkCreate(mappingData);
 
-  return getJournalTopicParagraphs(topicId);
+  return getJournalTopicParagraphs(topicId, { admin: true });
 };
 
+// PUT /journal/topic/:id/professionals { professional_ids }: the topic's professionals, all at once, in this order
+// (topicItems.setItems). Since Nov 24 the topic's brands, in the same link table, stay (PUT .../brands sets them), and a
+// professional taken off is one the AI won't put back.
 const updateJournalTopicProfessionals = async (topicId, body) => {
-  const topic = await JournalTopic.findOne({
-    where: {
-      id: topicId,
-      is_active: true,
-    },
-  });
+  const topic = await topicItems.topicOrNotFound(topicId);
+  await topicItems.setItems(topic.id, "professional", parseIds(body.professional_ids), { label: "professional IDs" });
+  return getJournalTopicById(topic.id, { admin: true });
+};
 
-  if (!topic) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Topic not found");
-  }
-
-  const professionalIds = parseIds(body.professional_ids);
-
-  // ==========================
-  // Validate Professionals
-  // ==========================
-  if (professionalIds.length) {
-    const professionals = await User.findAll({
-      where: {
-        id: professionalIds,
-        account_type: "professional",
-        professional_type: "individual",
-        is_active: true,
-      },
-      attributes: ["id"],
-    });
-
-    if (professionals.length !== professionalIds.length) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        "One or more professional IDs are invalid",
-      );
-    }
-  }
-
-  // ==========================
-  // Replace Existing Mappings
-  // ==========================
-  await JournalTopicProfessionalMapping.destroy({
-    where: {
-      topic_id: topicId,
-    },
-    force: true,
-  });
-
-  // ==========================
-  // Create New Mappings
-  // ==========================
-  if (professionalIds.length) {
-    await JournalTopicProfessionalMapping.bulkCreate(
-      professionalIds.map((professionalId, index) => ({
-        topic_id: topicId,
-        user_id: professionalId,
-        sort_order: index + 1,
-      })),
-    );
-  }
-
-  // Return complete Topic
-  return getJournalTopicById(topicId, { withEmails: true });
+// PUT /journal/topic/:id/brands { brand_ids } (Nov 24): the topic's brands, all at once, in this order.
+const updateJournalTopicBrands = async (topicId, body) => {
+  const topic = await topicItems.topicOrNotFound(topicId);
+  await topicItems.setItems(topic.id, "brand", parseIds(body.brand_ids), { label: "brand IDs" });
+  return getJournalTopicById(topic.id, { admin: true });
 };
 
 const updateJournalTopicShops = async (topicId, body) => {
@@ -2044,7 +1923,7 @@ const updateJournalTopicShops = async (topicId, body) => {
   }
 
   // Return complete Topic
-  return getJournalTopicById(topicId, { withEmails: true });
+  return getJournalTopicById(topicId, { admin: true });
 };
 
 const updateJournalTopicPodcasts = async (topicId, body) => {
@@ -2104,7 +1983,7 @@ const updateJournalTopicPodcasts = async (topicId, body) => {
   }
 
   // Return complete Topic
-  return getJournalTopicById(topicId, { withEmails: true });
+  return getJournalTopicById(topicId, { admin: true });
 };
 
 module.exports = {
@@ -2146,8 +2025,9 @@ module.exports = {
   getJournalTopicMappings,
   updateJournalTopicMappings,
 
-  // Topic Professionals
+  // Topic Professionals and Brands
   updateJournalTopicProfessionals,
+  updateJournalTopicBrands,
 
   // Topic Products
   updateJournalTopicShops,

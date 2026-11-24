@@ -148,7 +148,13 @@ module.exports = {
     GOOGLE_API_KEY: envVars.GOOGLE_API_KEY,
     // YouTube Data API v3, for the Watch videos (website/watch): the playlists' new uploads and pasted links.
     YOUTUBE_API_KEY: envVars.YOUTUBE_API_KEY,
-    
+    // OpenAI (integrations/openai.js): the app's skin analysis, and since Nov 24 the topics' AI runs
+    // (website/content/topicAi.service.js), on OPENAI_TOPIC_MODEL (gpt-6-luna, OpenAI's low-cost GPT-6 tier, by default)
+    // at OPENAI_TOPIC_EFFORT (its reasoning effort: none, low, medium, high, xhigh or max).
+    OPENAI_API_KEY: envVars.OPENAI_API_KEY,
+    OPENAI_TOPIC_MODEL: envVars.OPENAI_TOPIC_MODEL || 'gpt-6-luna',
+    OPENAI_TOPIC_EFFORT: envVars.OPENAI_TOPIC_EFFORT || 'medium',
+
     DELETED_EMAIL: envVars.DELETED_EMAIL,
     DELETED_NAME: envVars.DELETED_NAME,
 

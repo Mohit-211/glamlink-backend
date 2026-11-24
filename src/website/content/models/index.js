@@ -11,6 +11,8 @@ const JournalTopicPodcastMapping = require('./journalTopicPodcastMapping.model')
 const JournalTopicProductMapping = require('./journalTopicProductMapping.model');
 const JournalTopicProfessionalMapping = require('./journalTopicProfessionalMapping.model');
 const JournalTopicParagraphMapping = require('./journalTopicParagraphMapping.model');
+const JournalTopicAiRun = require('./journalTopicAiRun.model');
+const JournalTopicAiItem = require('./journalTopicAiItem.model');
 const Author = require('./author.model');
 const PodcastSchedule = require('./podcastSchedule.model');
 const Education = require('./education.model');
@@ -313,4 +315,4 @@ const associate = ({ User }) => {
   });
 };
 
-module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, Author, PodcastSchedule, Education, Event, Shop, ProductTag, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment, SiteSetting, JournalMention }, associate };
+module.exports = { models: { Journal, JournalCategory, JournalDownload, JournalShop, JournalFaq, JournalFaqMapping, JournalTopic, JournalTopicMapping, JournalTopicPodcastMapping, JournalTopicProductMapping, JournalTopicProfessionalMapping, JournalTopicParagraphMapping, JournalTopicAiRun, JournalTopicAiItem, Author, PodcastSchedule, Education, Event, Shop, ProductTag, Ad, Blog, BlogCategory, BlogCategoryMapping, BlogAttachment, SiteSetting, JournalMention }, associate };

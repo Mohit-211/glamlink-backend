@@ -9,7 +9,8 @@ const { toSlug } = require("../../core/utils/slug");
 const { slugTaken } = require("../../core/db/freeSlug");
 const { isYes, wholeNumber } = require("../../core/utils/formValues");
 const Education = require("./models/education.model");
-const { Event, Shop, JournalTopic, User } = require("../../models");
+const { Event, Shop, JournalTopic } = require("../../models");
+const { professionalAccount } = require("../../shared/identity");
 const { pageLinks, visibleAccountId } = require("../profiles");
 const { PRODUCT_CATEGORIES, productCategory, categoryField, buttonLabelField } = require("./productForm");
 const { tagsByIds, adminTagId } = require("./productTags.service");
@@ -42,7 +43,7 @@ const getModel = (type) => {
 const accountField = async (value, field) => {
   if (value === null || value === "") return null;
   const id = wholeNumber(value);
-  const account = id && (await User.findOne({ where: { id, account_type: "professional", is_active: true }, attributes: ["id", "professional_type"] }));
+  const account = id && (await professionalAccount(id, { attributes: ["id", "professional_type"] }));
   if (!account || (field === "brand_id" && account.professional_type !== "brand")) {
     throw ApiError.withCode(httpStatus.BAD_REQUEST, `${field} must be ${field === "brand_id" ? "a brand" : "a professional"} account.`, "INVALID_PRODUCT", { field });
   }

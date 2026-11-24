@@ -248,12 +248,19 @@ const readCard = (body = {}, { current = null, files } = {}) => {
     // A brand's title (its tagline), specialties and booking method are optional.
     const brand = (card.professional_type ?? current?.professional_type) === 'brand';
 
-    // "Claim this profile" on a Google listing in the directory: its place id, kept for an admin to verify.
-    // Only on a create; an admin changes it afterwards.
-    if (creating && str(body.claimed_place_id)) {
-        const placeId = str(body.claimed_place_id);
-        if (!/^[A-Za-z0-9_-]{10,255}$/.test(placeId)) throw invalid('claimed_place_id', 'That listing could not be claimed.');
-        card.claimed_place_id = placeId;
+    // A Google listing claim: "Claim this profile" on a listing in the directory, or since Nov 24 the form's "Fetch info
+    // from Google" (on an edit too). Its place id stays on the card; while the card is live the listing leaves the
+    // directory's Google results, and an admin can verify or reject it. On an edit, another listing replaces the claim
+    // (to be verified again), the same one changes nothing, and "" withdraws it.
+    if (has(body, 'claimed_place_id')) {
+        const placeId = str(body.claimed_place_id) || null;
+        if (placeId && !/^[A-Za-z0-9_-]{10,255}$/.test(placeId)) throw invalid('claimed_place_id', 'That listing could not be claimed.');
+        if (creating) {
+            if (placeId) card.claimed_place_id = placeId;
+        } else if (placeId !== (current.claimed_place_id || null)) {
+            card.claimed_place_id = placeId;
+            card.claim_verified_at = null;
+        }
     }
 
     set('name', limited(required('name', 'name', 'Name'), LIMITS.name, 'name', 'Name'));

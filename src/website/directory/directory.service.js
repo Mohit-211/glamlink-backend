@@ -247,14 +247,17 @@ const cached = async (key, make) => {
     return value;
 };
 
-// The place ids claimed and checked: by approved applications (the retired directory form), or by Access cards whose
-// claim an admin verified.
+// A card that is live: what a claim needs to take its Google listing out of the directory.
+const LIVE_CARD = "c.status = 'accepted' AND c.is_active = 1 AND c.deleted_at IS NULL";
+
+// The place ids claimed: by approved applications (the retired directory form), or by live Access cards. Since Nov 24
+// (Mohit) a card's claim counts as soon as the card is live, verified or not; an admin who rejects it clears it, and
+// the listing shows again. (Before, only a claim an admin had verified counted.)
 const claimedPlaces = async (placeIds) => {
     if (!placeIds.length) return new Map();
     const rows = await DirectoryApplication.findAll({ where: { place_id: placeIds, status: 'approved' }, attributes: ['id', 'place_id'] });
     const [cards] = await sequelize.query(
-        `SELECT id, claimed_place_id FROM business_cards
-         WHERE claimed_place_id IN (:placeIds) AND claim_verified_at IS NOT NULL AND deleted_at IS NULL`,
+        `SELECT c.id, c.claimed_place_id FROM business_cards c WHERE c.claimed_place_id IN (:placeIds) AND ${LIVE_CARD}`,
         { replacements: { placeIds } },
     );
     return new Map([...rows.map((row) => [row.place_id, row.id]), ...cards.map((card) => [card.claimed_place_id, card.id])]);
@@ -294,6 +297,29 @@ const googleListings = async (query = {}) => {
     return { count: rows.length, rows };
 };
 
+// The session token a browser sends to group its autocomplete requests with the details call that ends them (a UUID).
+const sessionOf = (query) => {
+    const session = String(query.session ?? '').trim();
+    if (!session) return undefined;
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(session)) throw refuse('session', 'session is the search\'s token: 8 to 64 letters, digits, - or _.');
+    return session;
+};
+
+// GET /directory/google/autocomplete?q=&session=&lat=&lng= (Nov 24): the Access form's "Fetch info from Google" search
+// bar, as the person types: up to 5 businesses, near the point when given. `claimed`: a live card (or an approved
+// listing) already holds it. Ends with GET /directory/google/places/:placeId and the same session.
+const googleAutocomplete = async (query = {}) => {
+    const q = String(query.q ?? '').trim();
+    if (q.length < 2 || q.length > 120) throw refuse('q', 'Search for 2 to 120 characters.');
+    const sessionToken = sessionOf(query);
+    const point = await pointFrom({ lat: query.lat, lng: query.lng });
+    const key = JSON.stringify(['autocomplete', q.toLowerCase(), point?.latitude.toFixed(1), point?.longitude.toFixed(1)]);
+    const found = await fromGoogle(() => cached(key, () => places.autocomplete({ input: q, sessionToken, ...point })));
+    const claimed = await claimedPlaces(found.map((place) => place.place_id));
+    const rows = found.slice(0, 5).map((place) => ({ ...place, claimed: claimed.has(place.place_id) }));
+    return { count: rows.length, rows };
+};
+
 // GET /directory/google/search?q=: the apply form's "Find my business on Google": up to 5 matches for a business name
 // and place.
 const googleSearch = async (query = {}) => {
@@ -311,15 +337,57 @@ const googleSearch = async (query = {}) => {
     }));
 };
 
-// GET /directory/google/places/:placeId: a Google listing as the apply form's fields, to claim it (or start from it).
-const googlePlace = async (placeId) => {
+// A web link as the card stores one, or null.
+const webLinkOrNull = (value) => {
+    try {
+        const url = new URL(String(value ?? ''));
+        return ['http:', 'https:'].includes(url.protocol) && value.length <= 1000 ? value : null;
+    } catch {
+        return null;
+    }
+};
+
+// A Google listing as the Access card form's own fields (Nov 24), for "Fetch info from Google": what Google knows
+// replaces what the person typed; a field Google doesn't know is null (or [] for a list) and the form keeps theirs. The
+// phone as the card takes it (10 digits; a number outside the US and Canada is null), the bio only when Google's summary
+// fits the card's 80 characters, the address as the card's main location with Google's point (no geocoding needed),
+// and the hours as lines. `claimed_place_id` goes back with the card: it claims the listing.
+const cardFields = (place) => {
+    const digits = String(place.phone ?? '').replace(/\D/g, '');
+    const phone = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null;
+    const summary = String(place.summary ?? '').trim();
+    return {
+        claimed_place_id: place.place_id,
+        business_name: place.name ? place.name.slice(0, 150) : null,
+        phone,
+        website: webLinkOrNull(place.website),
+        bio: summary && summary.length <= 80 ? summary : null,
+        locations: place.address ? [{
+            label: (place.name || 'Location 1').slice(0, 100),
+            location_type: 'exact_address',
+            address: place.address.slice(0, 255),
+            city: place.city,
+            state: place.state,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            is_primary: true,
+        }] : [],
+        business_hour: (place.hours || []).slice(0, 14).map((note) => ({ note: String(note).slice(0, 255) })),
+    };
+};
+
+// GET /directory/google/places/:placeId: a Google listing as the apply form's fields (`form`), and since Nov 24 as the
+// Access card form's (`card`), to claim it or start from it. `session`: the autocomplete session this call ends.
+const googlePlace = async (placeId, query = {}) => {
     if (!/^[\w-]{10,300}$/.test(String(placeId))) throw refuse('place_id', 'Not a Google place id.');
-    const place = await fromGoogle(() => places.details(placeId));
+    const sessionToken = sessionOf(query);
+    const place = await fromGoogle(() => places.details(placeId, { sessionToken }));
     if (!place) throw ApiError.withCode(httpStatus.NOT_FOUND, 'Google has no such place.', 'NOT_FOUND');
     const claimed = await claimedPlaces([place.place_id]);
     return {
         place_id: place.place_id,
         claimed: claimed.has(place.place_id),
+        card: cardFields(place),
         form: {
             place_id: place.place_id,
             phone: place.phone,
@@ -364,12 +432,14 @@ const googlePhoto = async (query = {}) => {
 // --- Claims of Google listings, made through the Access form (admin)
 
 const CLAIM = `SELECT c.id AS business_card_id, c.name, c.business_name, c.email, c.professional_type, c.status, c.user_id,
-    c.claimed_place_id AS place_id, c.claim_verified_at AS verified_at, c.created_at
+    c.claimed_place_id AS place_id, c.claim_verified_at AS verified_at, c.created_at, (${LIVE_CARD}) AS live
     FROM business_cards c WHERE c.claimed_place_id IS NOT NULL AND c.deleted_at IS NULL`;
-const claimRow = (row) => ({
+const claimRow = ({ live, ...row }) => ({
     ...row,
     business_card_id: Number(row.business_card_id),
     user_id: row.user_id === null ? null : Number(row.user_id),
+    // Nov 24: the card is live, so the listing is out of the directory's Google results, verified or not.
+    hides_listing: Boolean(Number(live)),
     // Google's page for the listing, for the admin to compare with the card
     maps_url: `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(row.place_id)}`,
 });
@@ -384,8 +454,9 @@ const claims = async (query = {}) => {
     return { count: Number(count), rows: rows.map(claimRow) };
 };
 
-// PUT /directory/claims/:cardId { action: verify | reject }. A verified claim takes the Google listing out of the
-// directory; a rejected one is cleared from the card.
+// PUT /directory/claims/:cardId { action: verify | reject }. A claim takes the Google listing out of the directory
+// while its card is live (Nov 24; before, only once verified); verifying marks it checked, and a rejected one is
+// cleared from the card, so the listing shows again.
 const reviewClaim = async (cardId, body = {}) => {
     if (!['verify', 'reject'].includes(body.action)) throw refuse('action', 'action is verify or reject.');
     const [[card]] = await sequelize.query(`${CLAIM} AND c.id = :cardId`, { replacements: { cardId: Number(cardId) || 0 } });
@@ -398,11 +469,13 @@ const reviewClaim = async (cardId, body = {}) => {
     } else {
         await sequelize.query('UPDATE business_cards SET claimed_place_id = NULL, claim_verified_at = NULL WHERE id = :cardId',
             { replacements: { cardId: card.business_card_id } });
-        return { ...claimRow(card), place_id: null, verified_at: null, rejected: true };
+        return { ...claimRow(card), place_id: null, verified_at: null, hides_listing: false, rejected: true };
     }
     const [[updated]] = await sequelize.query(`${CLAIM} AND c.id = :cardId`, { replacements: { cardId: card.business_card_id } });
     return claimRow(updated);
 };
 
 // googleCache: for tests, which clear it between cases.
-module.exports = { search, listing, filters, mapPins, googleListings, googleSearch, googlePlace, googlePhoto, claims, reviewClaim, googleCache: cache };
+module.exports = {
+    search, listing, filters, mapPins, googleListings, googleAutocomplete, googleSearch, googlePlace, googlePhoto, claims, reviewClaim, googleCache: cache,
+};

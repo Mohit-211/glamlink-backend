@@ -207,10 +207,10 @@ describe('typed addresses placed in Las Vegas (Nov 1)', () => {
     });
 });
 
-describe('claims made through the Access form (Nov 1)', () => {
+describe('claims made through the Access form (Nov 1; hidden while the card is live since Nov 24)', () => {
     let admin, claimant;
-    const card = (name, placeId) => insert("INSERT INTO business_cards (name, email, status, slug, business_card_link, claimed_place_id) VALUES (?, ?, 'draft', ?, ?, ?)",
-        [name, `${name.replace(/\W/g, '')}@claim.example`, name.replace(/\W/g, '').toLowerCase(), `https://glamlink.net/access/${name.replace(/\W/g, '').toLowerCase()}`, placeId]);
+    const card = (name, placeId, status = 'draft') => insert("INSERT INTO business_cards (name, email, status, slug, business_card_link, claimed_place_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, `${name.replace(/\W/g, '')}@claim.example`, status, name.replace(/\W/g, '').toLowerCase(), `https://glamlink.net/access/${name.replace(/\W/g, '').toLowerCase()}`, placeId]);
     const googleNames = async () => {
         directoryService.googleCache.clear();
         return (await get(`/directory/google?lat=${VEGAS.latitude}&lng=${VEGAS.longitude}`)).body.data.rows.map((r) => r.name);
@@ -223,17 +223,21 @@ describe('claims made through the Access form (Nov 1)', () => {
         claimant = await card(`Glow Owner ${stamp}`, PLACES[0].place_id);
     });
 
-    test('until an admin verifies it, the Google listing stays; admins see the claims to check first', async () => {
+    test('a draft\'s claim leaves the Google listing in; admins see the claims to check first', async () => {
         assert.ok((await googleNames()).includes('Glow Skin Studio'));
         assert.equal((await get('/directory/claims')).status, 401);
         const res = await app.request('GET', '/api/v1/directory/claims?status=pending', { headers: admin });
         assert.equal(res.status, 200, res.body.message);
         const row = res.body.data.rows.find((r) => r.business_card_id === claimant);
-        assert.deepEqual([row.place_id, row.verified_at], [PLACES[0].place_id, null]);
+        assert.deepEqual([row.place_id, row.verified_at, row.hides_listing], [PLACES[0].place_id, null, false]);
         assert.match(row.maps_url, /place_id:/);
     });
 
-    test('a verified claim takes the listing out; no second card can have it; a rejected claim is cleared', async () => {
+    test('once the card is live its claim takes the listing out, verified or not; no second card can be verified for it; a rejected claim is cleared', async () => {
+        await q("UPDATE business_cards SET status = 'accepted' WHERE id = ?", [claimant]);
+        assert.ok(!(await googleNames()).includes('Glow Skin Studio'), 'out before any admin looked');
+        const pending = (await app.request('GET', '/api/v1/directory/claims?status=pending', { headers: admin })).body.data.rows.find((r) => r.business_card_id === claimant);
+        assert.equal(pending.hides_listing, true);
         const verified = await review(claimant, 'verify');
         assert.equal(verified.status, 200, verified.body.message);
         assert.ok(verified.body.data.verified_at);
@@ -245,5 +249,9 @@ describe('claims made through the Access form (Nov 1)', () => {
         assert.equal((await q('SELECT claimed_place_id FROM business_cards WHERE id = ?', [rival]))[0].claimed_place_id, null);
         assert.equal((await review(rival, 'verify')).status, 404, 'nothing left to verify');
         assert.equal((await review(claimant, 'keep')).status, 400);
+        // Rejecting the live card's claim brings the listing back.
+        const rejected = await review(claimant, 'reject');
+        assert.deepEqual([rejected.status, rejected.body.data.hides_listing], [200, false]);
+        assert.ok((await googleNames()).includes('Glow Skin Studio'));
     });
 });

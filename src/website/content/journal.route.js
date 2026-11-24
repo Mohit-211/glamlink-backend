@@ -4,6 +4,7 @@ const router = express.Router();
 const { requireAdmin } = require('../../shared/admin');
 
 const journalController = require("./journal.controller");
+const topicController = require("./topic.controller");
 
 // ==========================================
 // Journal
@@ -91,6 +92,30 @@ router.put(
   "/topic/:id/professionals", requireAdmin,
   journalController.updateJournalTopicProfessionals,
 );
+
+// ==========================================
+// Topic Brands (Nov 24)
+// ==========================================
+
+router.put("/topic/:id/brands", requireAdmin, journalController.updateJournalTopicBrands);
+
+// ==========================================
+// Topic items, by hand or by the AI (Nov 24)
+// ==========================================
+
+router.get("/topic/:id/items", requireAdmin, topicController.listItems);
+
+router.post("/topic/:id/items", requireAdmin, topicController.addItems);
+
+router.put("/topic/:id/items/:type/order", requireAdmin, topicController.orderItems);
+
+router.delete("/topic/:id/items/:type/:itemId", requireAdmin, topicController.removeItem);
+
+router.post("/topic/:id/ai-runs", requireAdmin, topicController.startRun);
+
+router.get("/topic/:id/ai-runs", requireAdmin, topicController.listRuns);
+
+router.get("/topic/:id/ai-runs/:runId", requireAdmin, topicController.getRun);
 
 // ==========================================
 // Topic Products

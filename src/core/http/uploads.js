@@ -65,6 +65,10 @@ const storage = multer.diskStorage({
   },
 });
 
+// What browsers send as a .csv file's type: Excel on Windows says application/vnd.ms-excel (A-CNT-5), others
+// text/plain or one of the CSV names. Taken only for a .csv file name.
+const CSV_TYPES = ["text/csv", "application/vnd.ms-excel", "application/csv", "text/x-csv", "application/x-csv", "text/plain", "text/comma-separated-values"];
+
 // Validate file type
 function checkFileType(file, cb) {
   const allowedFiletypes = [
@@ -90,6 +94,7 @@ function checkFileType(file, cb) {
 
   const isValidExtension = allowedFiletypes.includes(fileExtension);
   const isValidMimeType =
+    (fileExtension === "csv" && CSV_TYPES.includes(file.mimetype)) ||
     file.mimetype.startsWith("image/") ||
     file.mimetype.startsWith("video/") ||
     file.mimetype.startsWith("application/pdf") ||
@@ -111,8 +116,9 @@ function checkFileType(file, cb) {
   }
 }
 
-// Get file extension based on MIME type
+// Get file extension based on MIME type (a CSV keeps .csv, whatever type it came as)
 function getFileExtension(file) {
+  if (path.extname(file.originalname).toLowerCase() === ".csv" && CSV_TYPES.includes(file.mimetype)) return "csv";
   const mimeToExtMap = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",

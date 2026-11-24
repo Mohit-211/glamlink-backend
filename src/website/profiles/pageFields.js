@@ -2,7 +2,8 @@
 // text cleaned like the card bio; images are uploads on the API host; `social` is a list of links. Since Nov 3: the
 // hero's `intro`, the Quick Info's `category` (a brand's from the list in quickInfo.js, a professional's as they name
 // it) and `shipping`, and the `about_image`. Admins also set the slug, whether the page is listed, and featuring. A
-// refusal names the field (400 INVALID_PAGE); the page's media and education use the same refusals.
+// refusal names the field (400 INVALID_PAGE); the page's media and education use the same refusals. Since Nov 24 admins
+// also take a professional's pin off the directory map (`is_on_map`).
 const sanitizeHtml = require('sanitize-html');
 const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
@@ -129,6 +130,8 @@ const pageFields = (body, { admin = false, type = 'individual' } = {}) => {
     if (admin) {
         if (body.slug !== undefined) fields.slug = slug(body.slug);
         if (body.is_listed !== undefined) fields.is_listed = isYes(body.is_listed);
+        // Nov 24: off the directory map (the pin only); owners never set it.
+        if (body.is_on_map !== undefined) fields.is_on_map = isYes(body.is_on_map);
         if (body.is_featured !== undefined) fields.is_featured = isYes(body.is_featured);
         if (body.featured_order !== undefined && body.featured_order !== '') {
             const order = wholeNumber(body.featured_order);

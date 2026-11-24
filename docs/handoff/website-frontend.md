@@ -24,6 +24,10 @@ two newer Nov 3 rows, which need no migration.
 **Nov 4:** product tags, categories and the button label (the Nov 4 row, sections 10.3 and 10.14) are built and tested
 on the backend's `master`, not deployed; deploying them takes `npm run migrate`.
 
+**Nov 24:** "Fetch info from Google" on the Access form, the topic page's fixes and brands, admin-only map pins and the
+Meta Pixel (the Nov 24 row; sections 9.1, 10.13, 10.19 and 11) are built and tested on the backend's `master`, not
+deployed; deploying them takes `npm run migrate`.
+
 ## Checklist before the switch
 
 Found by reviewing the website code (`glamlink_web`, Oct 16) against the new backend. Details in the sections below.
@@ -77,6 +81,7 @@ Newest first. Each entry says what changed in the API and what the website must 
 
 | Date | Change | Website |
 | --- | --- | --- |
+| Nov 24 | **"Fetch info from Google", the topic page, map pins** (sections 9.1, 10.13, 10.19; built and tested, not deployed; needs `npm run migrate`). **Google:** new `GET /directory/google/autocomplete?q=&session=` (up to 5 businesses as the person types, `claimed` marked); `GET /directory/google/places/:placeId` takes `session` and adds `card`, the listing in the Access card form's own field names; a card takes `claimed_place_id` on an edit too (another listing replaces the claim; `""` withdraws it), from an owner on any plan; a claim takes the Google listing out of `GET /directory/google` as soon as the card is live (before: once an admin verified it). **Topics** (10.19): `GET /journal/topic/:id` lists only published articles and products and takes paragraphs from published articles only (A-CNT-3); `professionals` holds only those whose page shows, each `business_card` as anyone may see it (no plan, account or subscription fields; `phone` null when hidden) and with the page's `slug` (W-1); new `brands` (rows as `GET /profiles` answers them); `journals` and `videos` newest first; `shops`, `professionals` and `brands` in the topic's order. Admins now fill topics by hand or with AI, so topic pages will have content. **Map:** an admin can take a professional's pin off `GET /directory/map`; their page and lists stay | **New:** "Fetch info from Google" on the Access form, create and edit (section 10.13: a search bar with "Google Maps" attribution, then the chosen listing's `card` fields replace the form's); a Brands row and the videos (podcast episodes first) on topic pages (W-6); link each professional by `slug`. **New:** the Meta Pixel (section 11) |
 | Nov 16 | **Shipping by option, and no more 502s** (section 9.4, the quote; built and tested, not deployed). The keychain's shipping options are "Standard Shipping" and "Expedited Shipping" (`rate_id` `standard`, `expedited`), `{ rate_id, label, amount_cents, estimated_days }`, no carrier named; choosing one now holds from quote to quote (a Shippo rate id never matched the next quote's new rates, so the cheapest came back). `PAYMENT_UNAVAILABLE`, `SHIPPING_UNAVAILABLE`, `ADDRESS_CHECK_UNAVAILABLE` and `GOOGLE_UNAVAILABLE` are 503s: Cloudflare swapped a 502 for its own page, and the site got no message or code | Names the options by `label` (carrier and service for a checkout quoted before) |
 | Nov 4 | **Product tags, categories and the button label** (sections 10.3 and 10.14; built and tested, not deployed; needs `npm run migrate`). Every product row (the shop's lists, `slug/:slug`, `findById/:id`, a page's products, `/my/products`, the site-wide search) adds `tag` (`{ id, name, is_editorial }` or null) and `button_label` (null when unset), beside `category`. New `GET /discover/shop/tags`: the tags, in the admins' order. `GET /discover/shop/filters` lists the 8 categories first, in their order with zeros, then any other stored category. `/my/products` takes `category` (one of the 8; else 400 `INVALID_PRODUCT`), `button_label` (30 characters) and `tag_id` (an open tag; an editorial one, or changing or clearing one an admin set, is 403 `TAG_ADMIN_ONLY`) | **New:** the tag top-left on product cards and the product page; the button reads `button_label`, else "Shop now"; the category filter shows all 8. In the dashboard's Products: Category (a select of the 8), Tag (the open tags; an editorial one shown, locked) and Button label |
 | Nov 3 | **Shop sorting, price bands and saved products** (section 10.3; built and tested, not deployed; no migration). `GET /discover/shop` takes `sort` (`featured`, `newest`, `price_asc`, `price_desc`, `name`), `min_price` (in the band) and `max_price` (not), and `ids` (up to 100 saved products, in their order unless sorted); a value it cannot take is 400 `INVALID_SHOP_QUERY`. `GET /discover/shop/filters` adds `price: { min, max }` (null when no product has a price) | **New:** sorting and price bands on /shop, and saved products (their ids in a cookie, most recent first). Don't call the list with an empty `ids`: it would answer every product |
@@ -431,7 +436,8 @@ exactly what to change. In short:
   API ignores `offer_promotion` and `promotion_details` on input and leaves them out of every card answer.
 - **Professional or brand, and claims** (Nov 1): the Access form is the one way in. A card says whether it is a
   professional's or a brand's (`professional_type`), and can claim a Google listing from the directory
-  (`claimed_place_id`), which an admin verifies (section 10.13).
+  (`claimed_place_id`), which an admin verifies (section 10.13). Since Nov 24 the form's "Fetch info from Google" claims
+  too, on a create or an edit, and the listing leaves the directory's Google results once the card is live.
 
 ### 9.1 The card's fields (done Oct 16)
 
@@ -442,7 +448,7 @@ only the fields it sends.
 | Field | Rule (refusal: 400 `INVALID_CARD`, `details.field` in brackets) |
 | --- | --- |
 | `professional_type` | Nov 1. `individual` (a beauty or wellness professional) or `brand` [`professional_type`]; a create without it is a professional's. On a guest's create the account takes it when the card goes live (made now, or an app account converted). On a signed-in create (and a claim) the account takes it while it has no other live card and no products; otherwise the card takes the account's type, and the answer's `professional_type` says which. An edit that sends it changes the card's type only, so the website sends it on a create only. Pages, products, `/brands` and the directory read the account's type |
-| `claimed_place_id` | Nov 1, create only: the Google listing's `place_id` from "Claim This Profile" (10 to 255 letters, digits, `_` or `-`) [`claimed_place_id`]. Never in a public answer; an admin verifies it (section 10.13) |
+| `claimed_place_id` | Nov 1: the Google listing's `place_id` from "Claim This Profile" (10 to 255 letters, digits, `_` or `-`) [`claimed_place_id`]; else 400 `INVALID_CARD` (`details.field: "claimed_place_id"`). Since Nov 24 also on an edit, from "Fetch info from Google" (the `card` of section 10.13 carries it), by the owner on any plan (it is not a change of details): another listing replaces the claim and needs verifying again, the same one changes nothing, `""` withdraws it. Never in a public answer (the owner's and admins' card answers carry it); an admin verifies or rejects it (section 10.13) |
 | `name`, `business_name` | Required, at most 100 / 150 characters |
 | `professional_title` | Required for a professional, at most 100 characters; optional for a brand (Nov 1) |
 | `email` | Required, valid |
@@ -1325,28 +1331,60 @@ pages come first in their order, then by name.
 - `latitude` and `longitude` are rounded to 3 decimals (about 100 m: an exact address is public on the card already,
   and a city's point is the city's own). `specialty` is the page's category, else its primary specialty; `state` is a
   U.S. state's two-letter code, else as stored.
+- Nov 24: an admin can take a professional's pin off the map (Mohit: only admins may); the map leaves it out, while
+  their page, `GET /directory/search` and `GET /profiles` still show them. Nothing to change on the website.
 
 **Google's listings: `GET /directory/google`** with `lat` and `lng` (or `location`), `type` (`esthetician`, `med-spa`,
 `hair-stylist`) and `q` (words): `{ count, rows }`, up to 20 rows of `{ place_id, name, address, city, state, rating,
 review_count, photo_url, maps_url, website, type, distance_miles }`, by Google's relevance. Listings already claimed
-(an approved application's `place_id`, or since Nov 1 a card's claim an admin verified) and closed businesses are
-left out. `photo_url` is the API's own link (`/directory/google/photo?...`, a redirect to Google's image), so no key
+(an approved application's `place_id`, or since Nov 1 a card's claim an admin verified; since Nov 24 any claim of a live
+card, verified or not) and closed businesses are left out. `photo_url` is the API's own link (`/directory/google/photo?...`, a redirect to Google's image), so no key
 reaches the browser.
 
-**Claiming and starting from Google** (through the Access form since Nov 1):
+**Claiming and starting from Google** (through the Access form since Nov 1; "Fetch info from Google" since Nov 24):
 
-1. `GET /directory/google/search?q=<business name, city>`: a plain array of up to 5 `{ place_id, name, address, city,
-   state, claimed }`. It served the retired form's "Find my business on Google"; the Access form does not use it.
-2. `GET /directory/google/places/:placeId`: `{ place_id, claimed, form, name, address, rating, review_count, maps_url,
-   photos }`, where `form` holds the fields Google knows: `place_id`, `phone`, `website`, `bio`, `locations` (one exact
-   address, primary) and `business_hours` (`[{ note: "Monday: 9:00 AM – 5:00 PM" }]`). Google does not know the
-   person's name, title or email: the form asks for them. The Access form fills its empty fields from this (the card's
-   bio is at most 80 characters of text).
-3. Create the card with `claimed_place_id` (section 9.1; on a create only). The claim is never public. An admin
-   verifies it (`GET /directory/claims`, `PUT /directory/claims/:cardId`; the admin panel's Listing Claims); only then
-   does the listing leave Google's list, and `claimed` turns true. A rejected claim is cleared from the card. Before
-   Nov 1 this step was `POST /directory/applications` with `place_id`, and approving the application took the listing
-   out.
+Mohit (Nov 24): the Access card form, on a create and on an edit in the dashboard, gets a small **"Fetch info from
+Google"** button. It opens a search bar where the person finds their business; the business info Google has (name,
+phone, website, address, hours, a short description) **replaces what they typed**, field by field, and the card claims
+the listing, so their Google listing no longer shows among the directory's Google results (their own profile does).
+
+1. **The search bar:** `GET /directory/google/autocomplete?q=<what they typed>&session=<token>` (optional `lat` and
+   `lng` to favour places near the visitor): `{ count, rows }`, up to 5 businesses (not streets or towns) in the US and
+   Canada: `{ place_id, name, address, claimed }`. `address` is Google's short line ("South Las Vegas Boulevard, Las
+   Vegas, NV, USA", or null). `claimed` is true when a live card (or an approved listing) holds that listing already:
+   say so ("Already on Glamlink: if this is yours, continue and our team will check"), and still let them pick it.
+   Make one `session` per search (a UUID v4, `crypto.randomUUID()`), the same for every keystroke and for step 2, then
+   a new one for the next search: Google bills the keystrokes and the pick as one session. Wait for 3 characters and
+   about 300 ms of no typing before asking. Show "Google Maps" (the logo, or the words) under the list: Google requires
+   it wherever its results show outside a Google map. 400 `INVALID_DIRECTORY_QUERY` with `details.field` (`q`: 2 to 120
+   characters; `session`: 8 to 64 letters, digits, `-` or `_`).
+2. **The pick:** `GET /directory/google/places/:placeId?session=<the same token>`: `{ place_id, claimed, card, form,
+   name, address, rating, review_count, maps_url, photos }`. **`card`** (Nov 24) is the listing in the Access card
+   form's own field names, ready to apply:
+
+   ```json
+   { "claimed_place_id": "ChIJ…", "business_name": "Luxe Lash Lounge", "phone": "7025550142",
+     "website": "https://luxelash.example/", "bio": "Lash extensions and lifts.",
+     "locations": [{ "label": "Luxe Lash Lounge", "location_type": "exact_address",
+       "address": "200 S Las Vegas Blvd, Las Vegas, NV 89101, USA", "city": "Las Vegas", "state": "NV",
+       "latitude": 36.1691, "longitude": -115.1405, "is_primary": true }],
+     "business_hour": [{ "note": "Monday: 9:00 AM – 6:00 PM" }, { "note": "Tuesday: Closed" }] }
+   ```
+
+   Replace each form field Google knows; keep the person's where `card` has null (`phone` outside the US and Canada,
+   `bio` when Google's summary is over the card's 80 characters, `website` when Google has none) or an empty list.
+   `locations[0]` replaces the card's main location and keeps the others (it carries Google's point, so the API
+   geocodes nothing). Google does not know the person's name, title, email, specialties or social links, and its photos
+   may not be copied: the form keeps asking for those. Let the person review before saving: nothing is stored until
+   they save the card. `form` is the older shape (the retired form's field names), kept for "Claim This Profile".
+3. **Saving:** send `claimed_place_id` with the card, on a create or an edit (section 9.1). It is never public. While
+   the card is live the listing leaves the directory's Google results, verified or not (a draft's claim waits for the
+   card to go live); an admin still checks every claim (the admin panel's Listing Claims) and rejecting one clears it
+   from the card, which brings the listing back. Before Nov 24 only a verified claim took the listing out.
+
+`GET /directory/google/search?q=<business name, city>` (a plain array of up to 5 `{ place_id, name, address, city,
+state, claimed }`) served the retired form's "Find my business on Google"; it still answers, but the search bar above
+is cheaper and made for typing. Before Nov 1, claiming was `POST /directory/applications` with `place_id`.
 
 Google calls cost money: the API keeps answers six hours and allows 30 Google searches a minute per address (300
 photos). Without the server's Google key these answer 503 `GOOGLE_NOT_CONFIGURED`. The mock provider is gone from
@@ -1513,3 +1551,66 @@ every page that shows products, which is cheap at this size (if per-page tags su
 it, ask). Changes made outside the API's calls (account details edited in the app, a plan ending) show when the cache
 expires. Once the route is live, send us its address and the secret for the server's settings.
 
+
+### 10.19 Topic pages (Nov 24; built and tested, not deployed)
+
+Mohit (Nov 24): admins now fill topics, by hand or by running an AI over the site, with articles, videos (The Beauty
+Vault's episodes are videos), professionals, brands and products; the admin keeps editing what the AI picked. So topic
+pages will have content, and the public answer changed to show only what is public.
+
+`GET /journal/topic/:id` (an id or a slug; no sign-in) answers the topic's fields as before, plus:
+
+| Field | Since Nov 24 |
+| --- | --- |
+| `journals` | Published articles only (drafts were listed: A-CNT-3), newest first (`publish_date`, else when made). Each with `journal_author` and `journal_category` as before |
+| `shops` | Published products only (A-CNT-3), in the topic's order |
+| `professionals` | Only those whose page shows (a live card, not unlisted), in the topic's order: `{ id, name, slug, business_card }`. **`slug`** is new: link to `/profiles/<slug>`. `business_card` is their live card as anyone may see it (W-1): no `user_id`, `plan_type`, `nfc_status`, `business_user` (the subscription), claim or retired offer fields, and `phone` is null when its owner hides it; `locations`, `images` and `business_hour` as before. A professional without a live card is no longer listed |
+| `brands` | New: the topic's brands whose page shows, in the topic's order, as `GET /profiles` lists them: `{ id, slug, type, name, image, tagline, city, state, specialty, category, category_label, shipping, is_featured }`. Show them like the Brands page's cards, linked to `/profiles/<slug>` |
+| `videos` | Published videos, newest first (it was the links' order): video cards with `series`. Show them (W-6): the podcast's episodes are those with `series.slug` `beauty-vault-podcast` |
+| `podcasts` | Unchanged: the podcast schedule's entries |
+
+`GET /journal/topic/:id/paragraphs` takes paragraphs from published articles only. An admin's token still gets drafts,
+hidden pages, the professionals' emails and their whole cards (the admin panel's screens send one); the website never
+sends one. The `topics` refresh tag (section 10.18) comes when an admin changes a topic's items or an AI run adds some.
+
+## 11. The Meta Pixel (Nov 24)
+
+Mohit (Nov 24): add the Meta Pixel to the website (pixel `912316254992720`). It is the website's alone: nothing in the
+API changes, and the admin panel does not get it. Meta's code, as Mohit sent it:
+
+```html
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '912316254992720');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=912316254992720&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+```
+
+In the Next.js app (App Router):
+
+1. **Load it once, in the root layout**, with `next/script` (`id="meta-pixel"`, `strategy="afterInteractive"`), the
+   script's body as its child (or `dangerouslySetInnerHTML`), and the `<noscript>` image in the body. The pixel id can
+   live in an env value (`NEXT_PUBLIC_META_PIXEL_ID`) so test.glamlink.net can leave it out or use a test pixel.
+2. **Count page views on navigation:** the snippet's `fbq('track', 'PageView')` runs on the first load only; the App
+   Router changes pages without reloading. Add a small client component in the layout that calls
+   `window.fbq?.('track', 'PageView')` when `usePathname()` or `useSearchParams()` changes (wrap it in `<Suspense>`, as
+   `useSearchParams` needs), skipping its first run, which the snippet already counted.
+3. **Content Security Policy**, if the site sends one: allow `https://connect.facebook.net` in `script-src`, and
+   `https://www.facebook.com` in `img-src` and `connect-src`.
+4. **Events worth sending** (Meta's standard names; not asked for yet): `Lead` when the newsletter sign-up or "Apply
+   for Feature" succeeds, `CompleteRegistration` after sign-up, `InitiateCheckout` when an Access checkout opens and
+   `Purchase` (`{ value, currency: 'USD' }`) when its poll answers paid. Send them only after the API's 2xx.
+5. **Privacy:** the pixel shares visits with Meta for advertising: say so in the privacy policy, and if visitors from
+   places with consent laws (the EU, the UK) matter, load it only after consent.

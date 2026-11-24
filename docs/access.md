@@ -27,7 +27,7 @@ form does, and ignores anything else. The admin panel shows exactly these.
 | Field | Rules |
 | --- | --- |
 | `professional_type` | Who the card is for (Nov 1): `individual` (a beauty or wellness professional; the default when none is sent) or `brand`; anything else is 400 `INVALID_CARD` [`professional_type`]. Brands and professionals use the same form; a brand's title, specialties and booking method are optional. The account takes the card's type when it is made or converted for the card, or, for an existing professional, while nothing depends on its own type yet (section 5). An edit that sends it changes the card's type only, not the account's (pages, products and the directory read the account's) |
-| `claimed_place_id` | Create only (Nov 1): the Google listing the person claims from the directory ("Claim This Profile"), 10 to 255 letters, digits, `_` or `-` (else 400 `INVALID_CARD` [`claimed_place_id`]). Never in a public answer. An admin verifies it (section 8); then the listing leaves the directory's Google results |
+| `claimed_place_id` | Create only (Nov 1): the Google listing the person claims from the directory ("Claim This Profile"), 10 to 255 letters, digits, `_` or `-` (else 400 `INVALID_CARD` [`claimed_place_id`]). Never in a public answer. An admin verifies it (section 8); then the listing leaves the directory's Google results. Since Nov 24 (Mohit): also on an edit, from the form's "Fetch info from Google" (another listing is a new claim, unverified; `""` withdraws it), by the owner on any plan; and the listing leaves the Google results as soon as the card is live, verified or not (a rejection brings it back) |
 | `name`, `business_name` | Required, text |
 | `professional_title` | Required for a professional; optional for a brand (Nov 1) |
 | `email` | Required. The card's public contact email (also the account email for a guest purchase) |
@@ -314,7 +314,7 @@ New endpoints (the admin panel needs new screens for them; see its handoff note)
 - Listing claims (Nov 1): `GET /directory/claims` lists the cards that claim a Google listing, those to verify first;
   `PUT /directory/claims/:cardId` `{ action: verify | reject }`. A verified claim takes the listing out of the
   directory's Google results (409 `PLACE_ALREADY_CLAIMED` when another card's verified claim has it); a rejected one
-  is cleared from the card.
+  is cleared from the card. Since Nov 24 a live card's claim takes the listing out before any check (`hides_listing`).
 - Directory applications: the website's form is retired (Nov 1: `POST /directory/applications` answers 410
   `FORM_RETIRED`); the admin screens stay for the applications still pending and for listings admins add.
 
@@ -413,4 +413,5 @@ renewal now keeps Pro for at most 21 days, section 5):
 - Brands get their own list on the website (`/brands`, from `GET /profiles?type=brand`), apart from the professionals
   near a place (`GET /directory/search?type=individual`).
 - "Claim This Profile" on a Google listing goes through the Access form; an admin verifies the claim before the
-  Google listing leaves the directory.
+  Google listing leaves the directory. Changed Nov 24: the listing leaves as soon as the claiming card is live, and
+  admins reject false claims afterwards.

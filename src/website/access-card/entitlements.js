@@ -50,10 +50,13 @@ const LOCATION_KEYS = ['label', 'location_type', 'address', 'city', 'state', 'la
  * Refuses an owner's edit of a live card that their plan does not allow: UPGRADE_REQUIRED naming the feature.
  * `edit` is what cardWriter read from the request: { card, locations, hours, media }.
  */
+// A Google listing claim is not a change of the card's details: owners claim on any plan (Nov 24).
+const CLAIM_FIELDS = ['claimed_place_id', 'claim_verified_at'];
+
 const checkOwnerEdit = async (cardDoc, edit, rights) => {
     if (cardDoc.status !== 'accepted') return;
     const current = cardDoc.get({ plain: true });
-    const changed = changedFields(edit.card, current);
+    const changed = changedFields(edit.card, current).filter((key) => !CLAIM_FIELDS.includes(key));
 
     const { media } = edit;
     let mediaChanged = Boolean(media.profileImage) || media.add.length > 0 || media.removeIds.length > 0;

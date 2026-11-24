@@ -1,9 +1,12 @@
+const fs = require('fs');
 const httpStatus = require('../../core/http/status');
 const catchAsync = require('../../core/http/catchAsync');
 const responseWrapper = require('../../core/http/responseWrapper');
+const { isYes } = require('../../core/utils/formValues');
 const profileService = require('./profile.service');
 const profileAdminService = require('./profileAdmin.service');
 const pageAnalytics = require('./pageAnalytics.service');
+const brandImport = require('./brandImport');
 
 const listProfiles = catchAsync(async (req, res) => {
     const data = await profileService.listProfiles(req.query);
@@ -70,6 +73,27 @@ const createBrandPage = catchAsync(async (req, res) => {
     return responseWrapper(res, data, 'Brand page created.', httpStatus.CREATED);
 });
 
+// POST /profiles/admin/brands/import (Nov 24): the CSV as the file `csv_file` (or its text as `csv`); `dry_run=true`
+// checks it without making anything. The uploaded file is not kept.
+const importBrands = catchAsync(async (req, res) => {
+    const file = req.files?.csv_file?.[0];
+    try {
+        const input = file ? await fs.promises.readFile(file.path) : req.body.csv;
+        const dryRun = isYes(req.body.dry_run ?? req.query.dry_run);
+        const data = await brandImport.importBrands(input, { dryRun });
+        return responseWrapper(res, data, dryRun ? 'Checked: nothing was imported.' : `${data.created} brands imported.`);
+    } finally {
+        if (file?.path) fs.unlink(file.path, () => {});
+    }
+});
+
+// GET /profiles/admin/brands/import/template: the CSV to fill in.
+const brandTemplate = (req, res) => {
+    res.attachment('glamlink-brands-template.csv');
+    res.type('text/csv; charset=utf-8');
+    return res.send(brandImport.template());
+};
+
 const invite = catchAsync(async (req, res) => {
     const data = await profileAdminService.invite(req.params.userId);
     return responseWrapper(res, data, 'Email sent.');
@@ -87,5 +111,6 @@ const adminAnalytics = catchAsync(async (req, res) => {
 
 module.exports = {
     listProfiles, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, profileMedia, profileEducation,
-    profileEducationItem, trackEvent, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, invite, adminAnalytics,
+    profileEducationItem, trackEvent, adminListPages, adminGetPage, adminUpdatePage, createBrandPage, importBrands, brandTemplate, invite,
+    adminAnalytics,
 };

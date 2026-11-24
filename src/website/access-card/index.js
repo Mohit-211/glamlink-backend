@@ -25,6 +25,10 @@ module.exports = {
         run: () => require('./checkoutSync').sweepCheckouts().catch((err) => logger.error('Access checkout sweep', err)),
     }],
     // For other modules and data migrations.
+    // Nov 24: what anyone may see of a card (a topic page's professionals' cards), and any card without the retired
+    // special offer's fields (as every card answer is). Plain objects.
+    toPublicCard: (card) => require('./entitlements').withoutOffers(require('./cardPublic').toPublicCard(card)),
+    withoutOffers: (card) => require('./entitlements').withoutOffers(card),
     sanitizeBio,
     bioMarkupRemoved,
     publicLink,

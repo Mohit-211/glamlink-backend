@@ -169,9 +169,9 @@ const getAllJournalTopics = catchAsync(async (req, res) => {
 });
 
 const getJournalTopicById = catchAsync(async (req, res) => {
-  // A public page: professionals' emails only for an admin.
+  // A public page: drafts, hidden pages and professionals' emails only for an admin.
   const isAdmin = Boolean(await identifyAdmin(req));
-  const data = await journalService.getJournalTopicById(req.params.id, { withEmails: isAdmin });
+  const data = await journalService.getJournalTopicById(req.params.id, { admin: isAdmin });
 
   return responseWrapper(res, data, "");
 });
@@ -243,6 +243,13 @@ const updateJournalTopicProfessionals = catchAsync(async (req, res) => {
   return responseWrapper(res, data, "Topic professionals updated successfully");
 });
 
+// Nov 24: the topic's brands, all at once.
+const updateJournalTopicBrands = catchAsync(async (req, res) => {
+  const data = await journalService.updateJournalTopicBrands(req.params.id, req.body);
+
+  return responseWrapper(res, data, "Topic brands updated successfully");
+});
+
 // ==========================
 // Topic Products
 // ==========================
@@ -274,7 +281,9 @@ const updateJournalTopicPodcasts = catchAsync(async (req, res) => {
 // ==========================
 
 const getJournalTopicParagraphs = catchAsync(async (req, res) => {
-  const data = await journalService.getJournalTopicParagraphs(req.params.id);
+  // Paragraphs of draft articles only for an admin.
+  const isAdmin = Boolean(await identifyAdmin(req));
+  const data = await journalService.getJournalTopicParagraphs(req.params.id, { admin: isAdmin });
 
   return responseWrapper(res, data, "");
 });
@@ -326,8 +335,9 @@ module.exports = {
   getJournalTopicMappings,
   updateJournalTopicMappings,
 
-  // Topic Professionals
+  // Topic Professionals and Brands
   updateJournalTopicProfessionals,
+  updateJournalTopicBrands,
 
   // Topic Products
   updateJournalTopicShops,

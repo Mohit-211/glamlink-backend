@@ -9,8 +9,8 @@ const { stateCode, stateName } = require('../../core/utils/usStates');
 const { productsOfAccount, articlesOfAccount } = require('../content');
 const { videosOfAccount } = require('../watch');
 const { issuesOfAccount } = require('../magazine');
-const { pageList, visiblePage, filterPages, pageSpecialties, SORTS, SPECIALTY_LENGTH } = require('./profileQuery');
-const { toRow, toDetail } = require('./profilePublic');
+const { pageList, visiblePage, filterPages, pageSpecialties, pageRows, topicCandidates, SORTS, SPECIALTY_LENGTH } = require('./profileQuery');
+const { toRow, toDetail, parseJson, plainText } = require('./profilePublic');
 const { BRAND_CATEGORIES, SHIPPING } = require('./quickInfo');
 const { pageMedia } = require('./profileMedia.service');
 const { publishedItems, publishedItem } = require('./profileEducation.service');
@@ -167,6 +167,34 @@ const topicsOf = async (userId) => {
     return rows.map((t) => ({ id: Number(t.id), name: t.name, slug: t.slug }));
 };
 
+// Nov 24. The list rows of these accounts' visible pages, by account id (a topic's professionals and brands). With
+// `hidden`, every professional account among them, with `visible` (for admins).
+const pageCards = async (userIds, { hidden = false } = {}) => {
+    const rows = await pageRows(userIds, { hidden });
+    return new Map([...rows].map(([id, row]) => [id, { ...toRow(row), ...(hidden && { visible: Boolean(Number(row.visible)) }) }]));
+};
+
+// Nov 24. What the topics' AI reads of each visible page of a type ('individual' or 'brand'): { id, slug, name,
+// tagline, category, specialties, city, state, about } with `about` the page's own words (else the card's bio, else the
+// listing's) as plain text, at most 600 characters.
+const aiCandidates = async (type) => {
+    const rows = await topicCandidates(type);
+    return rows.map((row) => {
+        const specialties = parseJson(row.specialties, []);
+        return {
+            id: Number(row.id),
+            slug: row.slug,
+            name: row.name || null,
+            tagline: row.tagline || null,
+            category: toRow(row).category_label,
+            specialties: [row.specialty, ...(Array.isArray(specialties) ? specialties : [])].filter((s, i, all) => typeof s === 'string' && s && all.indexOf(s) === i),
+            city: row.city || null,
+            state: row.state || null,
+            about: plainText([row.intro, row.about || row.card_bio || row.listing_bio].filter(Boolean).join(' '), 600),
+        };
+    });
+};
+
 // The account behind a visible page's slug, or 404.
 const visibleAccount = async (slug) => {
     const row = await visiblePage(slug);
@@ -226,5 +254,5 @@ const profileEducationItem = async (slug, itemSlug) => publishedItem(await visib
 
 module.exports = {
     listProfiles, pageFilters, searchPages, getProfile, profileProducts, profileArticles, profileVideos, profileMagazine, profileMedia,
-    profileEducation, profileEducationItem, visibleAccount, topicsOf, notFound,
+    profileEducation, profileEducationItem, visibleAccount, topicsOf, pageCards, aiCandidates, notFound,
 };

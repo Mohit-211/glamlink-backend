@@ -1,8 +1,9 @@
 // Accounts and sign-in: registration, email links, sessions, and who is calling.
 const { authenticate, optionalAuth, requireProfessional, identify } = require('./authenticate');
 const { createSession, revokeUserSessions, tokenFromRequest } = require('./sessions');
-const { normalizeEmail, createAccount, accessCardOwner, setPasswordLink, setProfessionalType, isAppAccount } = require('./account.service');
+const { normalizeEmail, createAccount, accessCardOwner, setPasswordLink, setProfessionalType, isAppAccount, professionalAccount } = require('./account.service');
 const { mergeDuplicateAccounts } = require('./accountMerge');
+const { revokeEmailTokens } = require('./emailToken.service');
 
 module.exports = {
     // Mounted under /api/v1 by src/routes.js, in this order. Loaded on demand, so requiring this module for
@@ -25,4 +26,6 @@ module.exports = {
     setProfessionalType,
     isAppAccount,
     mergeDuplicateAccounts,
+    revokeEmailTokens,
+    professionalAccount,
 };

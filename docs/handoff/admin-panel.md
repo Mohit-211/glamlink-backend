@@ -20,6 +20,11 @@ backend, not deployed. The panel's screens for them come later; the endpoints ar
 **Nov 4:** product tags, categories and the button label (the Nov 4 row, section 8.3) are built and tested on the
 backend's `master`, not deployed. Deploying them takes `npm run migrate`.
 
+**Nov 24:** brands in bulk from a CSV, brands without an email, pins off the directory map, the claims' new rule and
+topics filled by hand or by AI (the Nov 24 row; sections 8.6, 8.14, 8.15, 8.16 and 8.17) are built and tested on the
+backend's `master`, not deployed. Deploying them takes `npm run migrate`, and the AI needs
+`OPENAI_API_KEY` on the server (else its routes answer 503 `AI_NOT_CONFIGURED`).
+
 ## Checklist before the switch
 
 Found by reviewing the admin panel code (Oct 16) against the new backend; checked again on Oct 30 against the panel's
@@ -58,6 +63,7 @@ Newest first. Each entry says what changed in the API and what the admin panel m
 
 | Date | Change | Admin panel |
 | --- | --- | --- |
+| Nov 24 | **Brands in bulk, pins off the map, topics by hand or by AI** (Mohit's requests of Nov 24; sections 8.6, 8.14 to 8.17; built and tested, not deployed; needs `npm run migrate`). **Brands** (8.15): `GET /profiles/admin/brands/import/template` (the CSV to fill in) and `POST /profiles/admin/brands/import` (the file `csv_file`, or `csv` as text; `dry_run=true` checks only): each row a brand page without a login, answered row by row (`created`, `ready`, `skipped`, `failed`, with `warnings`); `POST /profiles/admin/brands` takes no email too; `PUT /profiles/admin/:userId` takes `email` for a brand page an admin made, while nobody has signed in and it has no Access card (409 `ALREADY_CLAIMED`, 409 `EMAIL_NOT_EDITABLE` otherwise; 409 `ACCOUNT_EXISTS` for an email in use); the invite answers 409 `NO_EMAIL` without one; the list and the view answer `email` (the view `claimed` too). A `.csv` is taken in any type browsers send for it (A-CNT-5: Excel on Windows). **Map** (8.16): `is_on_map` on `PUT /profiles/admin/:userId` (`false` takes a professional's pin off the directory map; owners can't set it); the list answers it and takes `on_map=true\|false`; the view's `page.is_on_map`. **Claims** (8.14): a claim takes the Google listing out of the directory as soon as its card is live, verified or not (before: once verified); rows answer `hides_listing`; owners can claim from an edit too. **Topics** (8.17): `GET`/`POST /journal/topic/:id/items`, `PUT …/items/:type/order`, `DELETE …/items/:type/:itemId` (articles, videos, professionals, brands, products; each with `source` and the AI's `score` and `reason`; suggestions apart), `POST`/`GET /journal/topic/:id/ai-runs` and `GET …/ai-runs/:runId` (202 while it works; `apply` or `suggest`; 409 `AI_RUN_IN_PROGRESS`, 503 `AI_NOT_CONFIGURED`), `PUT /journal/topic/:id/brands` `{ brand_ids }`; `PUT …/professionals` keeps the topic's brands; `GET /journal/topic/:id` with the admin token adds `brands` and gives each professional a `slug`. Ten new admin routes (289 in all) | **New:** Import brands (template link, file pick, a dry run's row report, then Import; the report kept on screen), an Email field and "No email yet" state on brand pages (Invite enabled once there is one), a "Show on directory map" switch and an "Off the map" filter on Pages, Listing Claims saying "Hidden from Google results" (`hides_listing`), and a topic screen: the items by kind with an AI badge and reason, add (pickers), remove, reorder (professionals, brands, products), "Run AI" (kinds, Attach now or Suggest, notes) with the run's progress and report, and the suggestions to take or dismiss |
 | Nov 16 | **Labels that say why, shipping by option** (section 7.3; built and tested, not deployed; needs `npm run migrate`). An order has `shipping_option` (`standard`, `expedited`, `flat`, `free`) and `shipping_phone`. `POST …/label`: Shippo's refusal is 422 `LABEL_FAILED` with its reasons, no answer 503 `SHIPPO_UNAVAILABLE` (nothing more is bought), a label still being made comes back without `label_url` (409 `LABEL_PENDING` until done). `GET …/rates` leaves Media Mail out and tags each option's rate. The API answers no 502 anywhere now: Cloudflare showed its own page instead, so the panel saw no message ("Couldn't buy the label") | Shows the option chosen, a "Check again" for a label being made, the option tags on today's rates, and a no-answer message that warns a label may have been bought |
 | Nov 4 | **Product tags, categories and the button label** (section 8.3; built and tested, not deployed; needs `npm run migrate`). Tags: `GET /discover/shop/tags` (public) and, for admins, `POST /discover/shop/tags` `{ name, is_editorial }`, `PUT /discover/shop/tags/:id` `{ name?, is_editorial? }`, `PUT /discover/shop/tags/order` `{ ids }` and `DELETE /discover/shop/tags/:id` (answers `{ id, products_untagged }`); 400 `INVALID_TAG`, 409 `TAG_EXISTS` (a name in any case), 404. Products (`POST /discover/shop`, `PUT /discover/shop/:id`) take `category` (one of 8, by its label or slug; `""` clears; anything else 400 `INVALID_PRODUCT`), `tag_id` (any tag; `""` or `null` clears) and `button_label` (30 characters; `""` clears). Every product answer carries `tag` (`{ id, name, is_editorial }` or null), `button_label` and `category`: the admin list, `findById`, and now the create and edit answers too. Four new admin routes (279 in all) | **New:** a Product Tags screen (add, rename, editorial or open, order, delete; deleting says how many products lost the tag) and, on the product form, Category (a select of the 8), Tag (the list, editorial ones marked) and Button label ("Shop now" when empty) |
 | Nov 3 | **Profile pages in the owner's design** (section 8.6; built and tested, not deployed). `PUT /profiles/admin/:userId` also takes `intro`, `category` (a brand's: one of 8 keys; a professional's: a specialty's name), `shipping` and `about_image`, and, as the owner sends them, the images as files (`profile_image`, `images` the cover, `about_image`); the view's `page` answers the four fields. Thirteen new admin routes (275 in all) for any page's Media & Images (`/profiles/admin/:userId/media`: list, add, `import-card`, order, edit with `is_hidden`, delete), Education (`/profiles/admin/:userId/education`: list, one, add, edit, order, delete) and article images (`/profiles/admin/:userId/uploads`). Owners' media and education show at once; admins hide media (`is_hidden`) or unpublish education (`status: "draft"`) | **Done on Nov 3** in the panel (uncommitted on `main`, its `progress.md` pass 12): `/pages/:userId` in tabs, with the four fields (images upload through `POST /journal/upload` and are sent as links; the new file fields aren't used), Media & Images (Hide and Show, captions, order, delete, photos, MP4s with posters, links, the card import), Education (drafts, Publish and Unpublish, order, the editor's `article` mode with pictures through `.../uploads`) and a read-only Tagged in (`GET /profiles/:slug/articles` and `/videos?series=beauty-vault-podcast`). Page analytics name the five new events |
@@ -446,11 +452,11 @@ through the Access form and are verified under Listing Claims (section 8.14).
 
 | Method | Path | Body or query | Answers |
 | --- | --- | --- | --- |
-| GET | `/profiles/admin/list` | `search`, `type` (`brand`, `individual`), `featured`, `page`, `limit` (50) | `{ count, rows }` by name: the public row plus `featured_order`, `is_listed`, `created_by_admin`, `has_live_card`, `visible`, `claimed` (the account has a password) |
-| GET | `/profiles/admin/:userId` | | `{ user_id, slug, page, visible, hidden_because, public }`: what is set on the page, whether it shows (`hidden_because`: `no_live_card`, `unlisted`) and the page as the public sees it |
-| PUT | `/profiles/admin/:userId` | `slug` (3 to 60 letters, digits and dashes; free), `is_listed`, `is_featured`, `featured_order`, `tagline`, `about`, `website`, `social` (`[{ title, url }]`), `image`, `cover_image` (links from `POST /journal/upload`, or `""`); since Nov 3 `intro` (300 characters), `category`, `shipping` (`local`, `nationwide`, `international`), `about_image`, and the images as files as the owner sends them (`profile_image`, `images` the cover, `about_image`) | The same view |
-| POST | `/profiles/admin/brands` | `name`, `email` (required), and any field above | 201, the view. The brand's account has no password; its page shows without a card. 409 `ACCOUNT_EXISTS` (`details.user_id`) when the email has an account: edit that account's page |
-| POST | `/profiles/admin/:userId/invite` | | Emails a "Set your password" link (7 days) so the brand can sign in. 409 `ALREADY_CLAIMED` when the account has a password |
+| GET | `/profiles/admin/list` | `search`, `type` (`brand`, `individual`), `featured`, `page`, `limit` (50); Nov 24 `on_map` (`true` or `false`: the pages on or off the directory map) | `{ count, rows }` by name: the public row plus `featured_order`, `is_listed`, `created_by_admin`, `has_live_card`, `visible`, `claimed` (the account has a password); Nov 24 `is_on_map` and `email` (null: the account has none yet) |
+| GET | `/profiles/admin/:userId` | | `{ user_id, slug, email, claimed, page, visible, hidden_because, public }`: the account's sign-in `email` and whether anyone has signed in (`claimed`; both Nov 24), what is set on the page (Nov 24: `page.is_on_map`), whether it shows (`hidden_because`: `no_live_card`, `unlisted`) and the page as the public sees it |
+| PUT | `/profiles/admin/:userId` | `slug` (3 to 60 letters, digits and dashes; free), `is_listed`, `is_featured`, `featured_order`, `tagline`, `about`, `website`, `social` (`[{ title, url }]`), `image`, `cover_image` (links from `POST /journal/upload`, or `""`); since Nov 3 `intro` (300 characters), `category`, `shipping` (`local`, `nationwide`, `international`), `about_image`, and the images as files as the owner sends them (`profile_image`, `images` the cover, `about_image`); since Nov 24 `is_on_map` (section 8.16) and `email` (section 8.15) | The same view |
+| POST | `/profiles/admin/brands` | `name`, `email` (optional since Nov 24), and any field above | 201, the view. The brand's account has no password; its page shows without a card. 409 `ACCOUNT_EXISTS` (`details.user_id`) when the email has an account: edit that account's page |
+| POST | `/profiles/admin/:userId/invite` | | Emails a "Set your password" link (7 days) so the brand can sign in. 409 `ALREADY_CLAIMED` when the account has a password; Nov 24: 409 `NO_EMAIL` when it has no email yet |
 
 Refusals: 400 `INVALID_PAGE` with `details.field`.
 
@@ -556,19 +562,143 @@ renaming one makes a new slug unless `slug` is sent (section 9).
 Since Nov 1 an owner on Free is refused their own numbers (403 `UPGRADE_REQUIRED`, `analytics`: profile analytics are
 Access Pro's); this admin call, and the card analytics with an admin token, answer for every page and card.
 
-### 8.14 Listing claims (Nov 1)
+### 8.14 Listing claims (Nov 1; hidden while live since Nov 24)
 
 "Claim This Profile" on one of the directory's Google listings now opens the website's Access form, which fills itself
 from the listing and keeps its `place_id` on the new card (`claimed_place_id`). The claim is never shown publicly. An
 admin checks it; only a verified claim takes the Google listing out of the directory's Google results (as an
 approved application's `place_id` does).
 
+**Since Nov 24** (Mohit): the Access form also has "Fetch info from Google" (on a create and on an owner's edit), which
+claims the listing it fills from, and **a claim takes the Google listing out of the directory's Google results as soon
+as its card is live**, verified or not; a draft's claim waits for the card to go live. Admins still check every claim:
+rejecting one clears it from the card and the listing shows again; verifying marks it checked. Each row answers
+`hides_listing` (true while the card is live: the listing is out). An owner who picks another listing makes a new,
+unverified claim, and the old listing comes back.
+
 | Method | Path | Query or body | Answers |
 | --- | --- | --- | --- |
-| GET | `/directory/claims` | `status` (`pending` or `verified`; every claim without it), `page`, `limit` (12, at most 50) | `{ count, rows }`, claims to verify first, then newest: `{ business_card_id, name, business_name, email, professional_type, status, user_id, place_id, verified_at, created_at, maps_url }`. `status` is the card's own (a guest's draft too); `verified_at` is null while it waits; `maps_url` opens the listing on Google Maps, to compare with the card |
+| GET | `/directory/claims` | `status` (`pending` or `verified`; every claim without it), `page`, `limit` (12, at most 50) | `{ count, rows }`, claims to verify first, then newest: `{ business_card_id, name, business_name, email, professional_type, status, user_id, place_id, verified_at, created_at, maps_url, hides_listing }` (`hides_listing` Nov 24). `status` is the card's own (a guest's draft too); `verified_at` is null while it waits; `maps_url` opens the listing on Google Maps, to compare with the card |
 | PUT | `/directory/claims/:cardId` | `{ action: "verify" \| "reject" }` | The claim as it is now. Verify sets `verified_at` and takes the listing out of the Google results; 409 `PLACE_ALREADY_CLAIMED` ("Card N already has this listing.") when another card's verified claim has it. Reject clears the claim from the card and answers it with `place_id: null`, `verified_at: null` and `rejected: true`; the listing stays (or comes back). 404 `NOT_FOUND` for a card with no claim; 400 `INVALID_DIRECTORY_QUERY` for another `action` |
 
-Check that the claim is genuine before verifying: the card's email and phone against the listing's.
+Check that the claim is genuine before verifying: the card's email and phone against the listing's. Since the listing
+leaves the Google results before anyone checks, reject a false claim quickly: Listing Claims could show the
+unverified ones first with "Hidden from Google results" (`hides_listing`).
+
+### 8.15 Brands in bulk, and brands without an email (Nov 24)
+
+Mohit (Nov 24): admins add brands in bulk from a CSV; a brand's email is optional. Each row becomes a brand page with no
+login, exactly as "Add brand" makes one (section 8.6): the page shows at once, without a card, and the brand claims it
+later through the "Set your password" email.
+
+| Method | Path | Body or query | Answers |
+| --- | --- | --- | --- |
+| GET | `/profiles/admin/brands/import/template` | | The CSV to fill in (`glamlink-brands-template.csv`): every column, and one example brand to delete |
+| POST | `/profiles/admin/brands/import` | The file as `csv_file` (a form), or JSON `{ csv: "<the text>" }`; `dry_run` (`true`: check every row, make nothing) | `{ dry_run, total, created, ready, skipped, failed, with_warnings, ignored_columns, rows }` (below). 400 `INVALID_CSV` for a file that can't be read, has no `name` column or no rows, or holds over 500 rows or 2 MB |
+
+**The columns** (headers in any case and spacing; the alternatives in brackets are read too; others are ignored and
+listed in `ignored_columns`): `name` [brand, brand name, company] (required, 150 characters), `email` [email address]
+(optional), `website`, `instagram`, `tiktok`, `facebook`, `youtube`, `linkedin` (a link, or a handle: `@glowco` becomes
+`https://www.instagram.com/glowco`), `category` (a key or label of the 8: `skincare`, "Body & Bath", "Skincare Brand"…),
+`shipping` (`local`, `nationwide`, `international`, or their labels), `tagline` (150), `intro` (300), `about` (2,000
+characters of text: a blank line starts a paragraph), `slug` (else made from the name), `listed` and `featured` (yes or
+no; yes and no by default), `image` and `cover_image` (only links to images already uploaded to the API). Excel's CSV
+in UTF-8 or Windows-1252 (accents read right), with commas, semicolons or tabs.
+
+**Each row** answers `{ row, name, email, status, code, field, message, user_id, slug, warnings }`, `row` numbered as
+the spreadsheet numbers it (the header is row 1; empty rows are left out):
+
+| `status` | Meaning |
+| --- | --- |
+| `created` (`ready` in a dry run) | The brand page was made (would be): `user_id`, `slug` |
+| `skipped` | Already here, nothing wrong: `ACCOUNT_EXISTS` (the email has an account; `user_id` is it) or `BRAND_EXISTS` (a brand of that name, whatever the case, accents and punctuation; `user_id` is it). Importing the same file again therefore adds nothing |
+| `failed` | Fix it and upload again: `INVALID_PAGE` with `field` (no name, a bad email, a slug taken, a text over its limit), `DUPLICATE_IN_FILE` (an earlier row has this name or email: the message names it), `INVALID_CSV` (more values than columns: a value with a comma needs quotes) |
+
+`warnings` lists what a row's brand was made without: a website or social link that isn't a link, an unknown category
+or shipping, an image that isn't an upload on the API ("website: website must be a web link. (left out)").
+
+Suggested screen: "Import brands" on Pages: a link to the template, the file pick, **Check** (a dry run: the counts and
+the rows that are skipped, failed or warned, by row number), then **Import** (the same file again, without `dry_run`),
+keeping the report on screen. The import makes no emails: invite brands one by one when they have an email.
+
+**Brands without an email.** `POST /profiles/admin/brands` takes no `email` too. On such a page, `GET
+/profiles/admin/:userId` and the list answer `email: null`; `PUT /profiles/admin/:userId` with `email` sets it (or
+corrects one: a link sent to the old address stops working; `""` clears it) on a brand page an admin made (by hand or
+by the import), while nobody has signed in to the account and it has no Access card: 409 `ACCOUNT_EXISTS`
+(`details.user_id`) for an email another account has, 409 `ALREADY_CLAIMED` once someone has signed in (`claimed:
+true`: the owner changes it in their account), 409 `EMAIL_NOT_EDITABLE` for any other account (one the admin did not
+make as a brand page, or one with a card, whose payments and emails go by its email). `POST /profiles/admin/:userId/invite` answers 409
+`NO_EMAIL` until there is one. A brand without an email is a brand everywhere else: a product's `brand_id`, an
+article's featured account, a magazine feature, a video's people, a topic's brands.
+
+### 8.16 Off the directory map (Nov 24)
+
+Mohit (Nov 24): an admin, and only an admin, can take a professional off the directory's hero map (`GET
+/directory/map`, which shows professionals only). Their page, the directory's list of professionals near the visitor
+and the Professionals page still show them; to hide a page everywhere, unlist it (`is_listed: false`).
+
+- `PUT /profiles/admin/:userId` with `is_on_map: false` takes the pin off; `true` puts it back. Owners' own page edits
+  (`/my/profile`) never change it.
+- `GET /profiles/admin/:userId` answers `page.is_on_map` (true for a page that never had it set); the list answers
+  `is_on_map` per row and takes `on_map=false` (the pages off the map) or `on_map=true`.
+
+Suggested: a "Show on directory map" switch on a professional's page screen, and an "Off the map" filter on Pages.
+
+### 8.17 Topics: by hand or by AI (Nov 24)
+
+Mohit (Nov 24): an admin makes a topic, then either attaches articles, podcast episodes and other videos,
+professionals, brands and products by hand, or runs the AI, which reads what the site has and attaches what fits; the
+admin keeps editing, adding and deleting either way. The AI is OpenAI's `gpt-6-luna` (the server's
+`OPENAI_TOPIC_MODEL`), and it only ever picks among what the public sees: published articles, videos and products, and
+the professional and brand pages that show.
+
+**The items.** One call lists everything on a topic; the older pickers (`PUT /journal/topic/:id/professionals`,
+`/shops`, `/podcasts`, `/paragraphs`, an article's or a video's own topics) keep working on the same links.
+
+| Method | Path | Body | Answers |
+| --- | --- | --- | --- |
+| GET | `/journal/topic/:id/items` | | `{ topic: { id, name, slug }, items, suggestions }`, each by kind: `article`, `video`, `professional`, `brand`, `product` |
+| POST | `/journal/topic/:id/items` | `{ type, id }` or `{ items: [{ type, id }] }` (up to 100) | The list. Each goes after the kind's last; one already there stays where it is. Drafts may be added (the public sees them once published). 400 `INVALID_TOPIC_ITEM` with `details.field` (`type`, `id`: "There is no brand 12 that can go on a topic.", `items`) |
+| DELETE | `/journal/topic/:id/items/:type/:itemId` | | The list. Takes the item off (or dismisses a suggestion), and the AI won't bring it back. 404 when it is neither on the topic nor suggested |
+| PUT | `/journal/topic/:id/items/:type/order` | `{ ids }` | The list: these first, in this order, then the rest as they were. Professionals, brands and products only: articles and videos show newest first (400, `details.field: "type"`); an id not on the topic is 400 (`ids`) |
+| PUT | `/journal/topic/:id/brands` | `{ brand_ids }` | The topic (as `GET /journal/topic/:id` answers it), its brands set all at once in this order, like `/professionals`. 400 "One or more brand IDs are invalid" |
+
+An item: `{ type, id, title, slug, image, status, source, ai, … }`, where `status` is `published` or `draft` (for
+articles, videos and products) or `visible` or `hidden` (for pages), `source` is `ai` or `admin`, and `ai` is null or
+`{ status, score (0 to 100), reason, run_id }` (the AI's reason for the editor). Articles add `date`, videos `series`
+and `date`, pages `tagline`, `city`, `state`, `category_label`, products `brand` and `price`. `suggestions` holds what a
+suggest run picked that isn't on the topic yet, best first: take one with `POST …/items` (it then counts as the AI's),
+dismiss one with `DELETE …/items/:type/:itemId`.
+
+Since Nov 24 `PUT /journal/topic/:id/professionals` leaves the topic's brands alone (they share a link table), and
+`GET /journal/topic/:id` with the admin token adds `brands` and each professional's page `slug`; it lists every linked
+professional (hidden pages and those without a live card too, with their email), while the public sees only those
+whose page shows, without plan or account fields (W-1), and only published articles and products (A-CNT-3).
+
+**The AI.**
+
+| Method | Path | Body or query | Answers |
+| --- | --- | --- | --- |
+| POST | `/journal/topic/:id/ai-runs` | `types` (some of `article`, `video`, `professional`, `brand`, `product`; all by default), `mode` (`apply`, the default: put the picks on the topic; or `suggest`: leave them for an admin), `instructions` (notes for the AI, 1,000 characters: "Focus on at-home routines"), `limits` (`{ product: 5 }`: the most new picks per kind, 1 to 30; 8 articles, 6 videos, 8 professionals, 6 brands and 8 products by default), `min_score` (60 by default) | **202**, the run with `status: "running"`. 409 `AI_RUN_IN_PROGRESS` (`details.run_id`) while the topic has one working; 503 `AI_NOT_CONFIGURED` without the server's OpenAI key; 400 `INVALID_AI_RUN` with `details.field` |
+| GET | `/journal/topic/:id/ai-runs/:runId` | | The run: `{ id, topic_id, status (running, done, failed), mode, types, instructions, model, reasoning_effort, admin_id, considered, added, suggested, input_tokens, output_tokens, picks, error, started_at, finished_at }` |
+| GET | `/journal/topic/:id/ai-runs` | `page`, `limit` | `{ count, rows }`, newest first, without `picks` |
+
+A run takes from a few seconds to a minute or two: poll `GET …/ai-runs/:runId` every 2 or 3 seconds until `status` is no
+longer `running`, then reload the items. `picks` holds every pick the model made, best first: `{ type, id, title,
+score, reason, outcome }`, where `outcome` is `added` (now on the topic), `suggested`, `already_on` (an admin added it
+meanwhile), `low_score` (under `min_score`: not used) or `over_limit` (past the kind's limit: not used). The AI never
+picks what the topic has, or what an admin took off or dismissed, so running it again only looks for more. `error`
+names the kinds that failed ("video: OpenAI did not answer. Try again in a moment."); a run is `failed` only when every
+kind failed, and one cut short by a server restart shows as failed after 30 minutes (two clicks at once start one run). `considered` counts the items the
+model read; the tokens are what OpenAI bills (at gpt-6-luna's $0.10 and $0.50 a million tokens in and out, a run of every kind costs around a cent).
+
+On a topic the website already lists, an `apply` run's picks show at once (topics have no draft state): use `suggest`
+there to review first.
+
+Suggested screen: the topic's page in the panel with a tab per kind (items with an "AI" badge and its reason on hover,
+Remove, drag to order where it applies, Add with the existing pickers), a **Run AI** button opening the kinds, "Attach
+now" or "Suggest first", the notes and the limits, then the run's progress and its report (added, suggested, and what
+was left out, with the reasons), and a Suggestions list with Add and Dismiss.
 
 ## 9. Behaviour the sections above leave out (checked Oct 30)
 
@@ -593,9 +723,8 @@ Check that the claim is genuine before verifying: the card's email and phone aga
 
 **CSV import** (`POST /discover/:type/csv-upload`)
 
-- The file goes in `csv_file`. Only the type `text/csv` is accepted today: a browser that types the file
-  `application/vnd.ms-excel` (Windows with Excel) gets 400 "Error: Invalid file type! Allowed: Images, Videos, Audio,
-  Docs." (A-CNT-5, backend fix pending).
+- The file goes in `csv_file`. Since Nov 24 a `.csv` is taken in any type browsers send for it (`text/csv`,
+  `application/vnd.ms-excel` from Excel on Windows, `text/plain`, …; A-CNT-5 fixed); before, only `text/csv`.
 - Answers `{ totalRows, inserted, skipped: [{ row, reason }] }`.
 - Each row's image is downloaded inside the request, one at a time, so a large file can outlast Cloudflare (about
   100 s) and answer 524 or 504 while rows keep being added. Reload the list before trying again, or products are added
@@ -626,12 +755,12 @@ Check that the claim is genuine before verifying: the card's email and phone aga
 
 Checked against the code on Oct 30 (backend `master`, `aadb56a`): 259 routes need an admin token, sent as
 `Authorization: Bearer <token>` (what the panel sends) or `x-access-token`; 262 since Nov 1 (the three new ones are
-marked Nov 1), 275 since Nov 3 (thirteen more for profile pages, marked Nov 3) and 279 since Nov 4 (four for product
-tags, marked Nov 4). Any active admin may call any of them: roles and permissions are not checked yet (SEC-05). "(no
+marked Nov 1), 275 since Nov 3 (thirteen more for profile pages, marked Nov 3), 279 since Nov 4 (four for product
+tags, marked Nov 4) and 289 since Nov 24 (ten for the brand import and topics, marked Nov 24). Any active admin may call any of them: roles and permissions are not checked yet (SEC-05). "(no
 screen)" marks a route the panel (`main`, Oct 30) never calls: 38 of the 167 website and shared routes of Oct 30 (the
 panel's Nov 1–2 changes call the three new ones; no screen calls the Nov 3 or Nov 4 ones yet).
 
-### Website and shared (187)
+### Website and shared (197)
 
 **/access** (`src/website/access-card/access.route.js`)
 
@@ -812,6 +941,14 @@ panel's Nov 1–2 changes call the three new ones; no screen calls the Nov 3 or 
 - `DELETE /journal/:id/mentions/:mentionId`
 - `POST /journal/:id/topics`
 - `PUT /journal/topic/:id/professionals`
+- `PUT /journal/topic/:id/brands` (Nov 24)
+- `GET /journal/topic/:id/items` (Nov 24)
+- `POST /journal/topic/:id/items` (Nov 24)
+- `PUT /journal/topic/:id/items/:type/order` (Nov 24)
+- `DELETE /journal/topic/:id/items/:type/:itemId` (Nov 24)
+- `POST /journal/topic/:id/ai-runs` (Nov 24)
+- `GET /journal/topic/:id/ai-runs` (Nov 24)
+- `GET /journal/topic/:id/ai-runs/:runId` (Nov 24)
 - `PUT /journal/topic/:id/shops`
 - `PUT /journal/topic/:id/podcasts`
 - `PUT /journal/topic/:id/paragraphs`
@@ -868,6 +1005,8 @@ panel's Nov 1–2 changes call the three new ones; no screen calls the Nov 3 or 
 
 - `GET /profiles/admin/list`
 - `POST /profiles/admin/brands`
+- `GET /profiles/admin/brands/import/template` (Nov 24)
+- `POST /profiles/admin/brands/import` (Nov 24)
 - `GET /profiles/admin/:userId`
 - `PUT /profiles/admin/:userId`
 - `POST /profiles/admin/:userId/invite`

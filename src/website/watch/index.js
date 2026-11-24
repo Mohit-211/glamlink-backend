@@ -12,8 +12,12 @@ module.exports = {
     // For other modules (loaded when called, so this file stays light):
     // the published videos an account appears in, as { count, rows } of video cards (`series`: one series' slug).
     videosOfAccount: (userId, query) => require('./video.service').videosOfAccount(userId, query),
-    // a topic's published videos, as video cards.
+    // a topic's published videos, as video cards, newest first.
     videosOfTopic: (topicId) => require('./video.service').videosOfTopic(topicId),
+    // Nov 24: these videos as cards with their status (drafts too), newest first (a topic's videos, for admins).
+    videoCards: (ids) => require('./video.service').videoCards(ids),
+    // Nov 24: what the topics' AI reads of the published videos: [{ id, slug, title, series, about }].
+    aiCandidates: (options) => require('./video.service').aiCandidates(options),
     // the site-wide search's video group: { count, rows } with exact matches first.
     searchVideos: ({ q, limit, offset }) => require('./video.service').listVideos({ search: q, limit, page: offset / limit + 1 }, { rank: true }),
     // the sitemap's published videos: [{ id, slug, updated_at }].

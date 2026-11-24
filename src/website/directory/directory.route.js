@@ -14,6 +14,8 @@ router.get('/filters', directoryController.filters);
 
 // Google's listings (each call costs Google fees: limited per address)
 router.get('/google', limitGoogleLookups, directoryController.googleListings);
+// The Access form's "Fetch info from Google" search bar, as the person types (Nov 24)
+router.get('/google/autocomplete', limitGoogleLookups, directoryController.googleAutocomplete);
 router.get('/google/search', limitGoogleLookups, directoryController.googleSearch);
 router.get('/google/places/:placeId', limitGoogleLookups, directoryController.googlePlace);
 router.get('/google/photo', limitGooglePhotos, directoryController.googlePhoto);

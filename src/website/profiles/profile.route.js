@@ -20,6 +20,9 @@ router.post('/:slug/events', limitPageEvents, profileController.trackEvent);
 // so a page whose slug is "admin" still has them.)
 router.get('/admin/list', requireAdmin, profileController.adminListPages);
 router.post('/admin/brands', requireAdmin, profileController.createBrandPage);
+// Brands in bulk from a CSV (Nov 24): the template, and the import (dry_run=true checks it only).
+router.get('/admin/brands/import/template', requireAdmin, profileController.brandTemplate);
+router.post('/admin/brands/import', requireAdmin, profileController.importBrands);
 router.get('/admin/:userId', requireAdmin, profileController.adminGetPage);
 router.put('/admin/:userId', requireAdmin, profileController.adminUpdatePage);
 router.post('/admin/:userId/invite', requireAdmin, profileController.invite);

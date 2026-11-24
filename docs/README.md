@@ -3,7 +3,9 @@
 Start here. Every document below is meant to stay current as work lands. The Oct 30 audit found several had drifted
 from the code (architecture.md, audit.md, access.md, deploy.md, both handoff notes); they were corrected that day.
 On Nov 2 they were updated for the Nov 1–2 work (Access fixes, one form, brands, Stripe), which is built and tested but
-not deployed: what it changed is marked "Nov 1", and progress.md says what is left to do.
+not deployed: what it changed is marked "Nov 1", and progress.md says what is left to do. On Nov 24, for the topics filled
+by hand or by AI, brands in bulk, "Fetch info from Google" on the Access form, map pins and the Meta Pixel (on
+`master`, built and tested, not deployed): their parts are marked "Nov 24"; progress.md lists their open points.
 
 | Document | What it holds |
 | --- | --- |

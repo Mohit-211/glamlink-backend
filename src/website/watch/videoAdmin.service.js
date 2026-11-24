@@ -9,7 +9,8 @@ const { containing } = require('../../core/utils/like');
 const { isYes, wholeNumber } = require('../../core/utils/formValues');
 const { toSlug } = require('../../core/utils/slug');
 const { youtube, configured, videoIdFrom } = require('../../integrations/youtube');
-const { Video, VideoSeries, VideoPerson, JournalTopicVideoMapping, JournalTopic, User } = require('../../models');
+const { Video, VideoSeries, VideoPerson, JournalTopicVideoMapping, JournalTopic } = require('../../models');
+const { professionalAccount } = require('../../shared/identity');
 const { toCard, CARD, SERIES } = require('./video.service');
 
 const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, 'INVALID_VIDEO', { field });
@@ -132,7 +133,7 @@ const setPeople = async (id, body) => {
         const userId = wholeNumber(person?.user_id);
         const role = person?.role ?? 'featured';
         if (!['host', 'guest', 'featured'].includes(role)) throw refuse('people', 'role is host, guest or featured.');
-        const account = userId && (await User.findOne({ where: { id: userId, account_type: 'professional', is_active: true }, attributes: ['id'] }));
+        const account = userId && (await professionalAccount(userId, { attributes: ['id'] }));
         if (!account) throw refuse('people', `${person?.user_id} is not a professional or brand account.`);
         if (!rows.some((row) => row.user_id === userId)) rows.push({ video_id: video.id, user_id: userId, role });
     }

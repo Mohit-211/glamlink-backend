@@ -4,6 +4,111 @@ Newest first. Each phase lists its commits; branches chain from `main` (old code
 every phase below and is the code deployed on api.glamlink.net (the Nov 1–4 work since Nov 4). glamlink.net runs the
 new site and this API since the switch of Nov 5.
 
+## Topics by hand or by AI, brands in bulk, Google info on the Access form, map pins (Nov 24, branch `work/topics-brands-google`; on `master`, not deployed)
+
+Mohit's requests of Nov 24: brands added in bulk from a CSV in the admin panel; a professional taken off the directory's
+map by an admin only ("professionals/brands can't do this by themselves"); the Meta Pixel on the website; on the Access
+card form a small "Fetch info from Google" button opening a Google Places search bar, whose business info (name, phone,
+…) replaces what the person typed, so that a claimed Google profile no longer shows as a search result; and topic pages
+that an admin fills by hand (articles, podcasts, professionals, brands, …) or by running an AI (OpenAI) over the site,
+keeping the power to edit, add and delete after. Backend only; the website and the admin panel build from their
+handoff notes (Nov 24 rows). His answers the same day: a claim takes the Google listing out of the directory **as soon
+as the claiming card is live** (verified or not; an admin's rejection brings it back); removing from the map hides
+**only the pin**; a CSV row's **email is optional**; the model **gpt-6-luna** ("or equivalent"): OpenAI's own docs list it
+(released Sep 22, the low-cost GPT-6 tier, $0.10/$0.50 per million tokens, Structured Outputs, reasoning effort).
+
+- **Brands in bulk** (`profiles/brandImport.js`): `POST /profiles/admin/brands/import` takes the CSV as the file
+  `csv_file` (or its text as `csv`), `dry_run=true` checks it and makes nothing; `GET …/import/template` is the file to
+  fill in. Each row is a brand page without a login, as "Add brand" makes one (`makeBrandPage`, one transaction). A row
+  ends `created` (`ready` in a dry run), `skipped` (its email has an account, or a brand of that name is here: the same
+  file imported twice adds nothing) or `failed` (no name, a bad email, a slug taken, a text over its limit, a name or
+  email an earlier row has), with `warnings` for what was left out (a link that isn't one, an unknown category or
+  shipping, an image that isn't an upload on the API); rows numbered as the spreadsheet numbers them, empty rows left
+  out; UTF-8 or Windows-1252, commas, semicolons or tabs; at most 500 rows, 2 MB. Handles become links
+  (`@glow` → `https://www.instagram.com/glow`), plain About text paragraphs.
+- **Brands without an email:** `POST /profiles/admin/brands` takes no email too. Such an account's email is NULL
+  (`createAccount` stored `''` for none); `PUT /profiles/admin/:userId` sets or corrects `email` on a brand page an
+  admin made, while nobody has signed in and it has no Access card (409 `ALREADY_CLAIMED` or `EMAIL_NOT_EDITABLE`
+  otherwise; links already sent to the old address stop working, `revokeEmailTokens`), and the invite answers 409
+  `NO_EMAIL` until there is one. User names are made unique across every account (`uniqueUserName` unscoped). The User model's default scope (`email <> 'deleted-gmail.com'`) also
+  leaves out every account with no email, so the five places that link content to a professional or brand by id
+  (product owner and brand, article mentions, magazine features, video people, the page admin) now find it through
+  `professionalAccount` (`shared/identity/account.service.js`). The admin list and page view answer `email` (and the
+  view `claimed`).
+- **Off the map:** migration `20261124-0100` (`profile_pages.is_on_map`, 1 by default); admins set `is_on_map` with
+  `PUT /profiles/admin/:userId` (owners' writes never read it); `GET /directory/map` leaves those pins out
+  (`MAP_PAGES`); their page, `GET /directory/search` and `GET /profiles` still show them. The admin list answers
+  `is_on_map` and takes `on_map=true|false`.
+- **"Fetch info from Google"** (`directory.service.js`, `integrations/googlePlaces.js`): new
+  `GET /directory/google/autocomplete?q=&session=&lat=&lng=` on Places Autocomplete (New), businesses only, in the US
+  and Canada, `claimed` marked; `GET /directory/google/places/:placeId` takes the same `session` (Google then bills the
+  search and the details as one session) and adds `card`: the listing in the card form's own fields (`business_name`,
+  the phone as 10 digits, `website`, the summary as `bio` when it fits 80 characters, the address as the main location
+  with Google's point, the hours as lines, `claimed_place_id`); what Google doesn't know is null and the form keeps the
+  person's. A card takes `claimed_place_id` on an edit too (another listing is a new claim, unverified; `""` withdraws
+  it), from an owner on any plan (`entitlements.js`: not a change of details). A live card's claim, verified or not,
+  takes the listing out of `GET /directory/google` (`claimedPlaces`); admins' claims answer `hides_listing`.
+- **Topics** (`content/topicItems.service.js`, `topicAi.service.js`, `topic.controller.js`; migration `20261124-0200`):
+  admins list, add, remove and order a topic's articles, videos (The Beauty Vault's episodes are videos), professionals,
+  brands and products (`/journal/topic/:id/items`), and run the AI (`/journal/topic/:id/ai-runs`): it reads the
+  published articles and videos, the visible professional and brand pages and the published products, asks the model
+  once per kind (in chunks of 200, at most 1,000 a kind: the newest, featured pages first) with a strict JSON schema,
+  keeps picks scored 60 or more (each with a reason), and puts them on the topic (`apply`) or leaves them as
+  suggestions (`suggest`). Nothing a topic has,
+  and nothing an admin took off, is offered again (`journal_topic_ai_items`). A run answers 202 and works in the
+  background (it never rejects: an unhandled rejection stops the server); the panel reads it until done; a run cut
+  short by a restart is closed after 30 minutes (never one this process is working on); one at a time per topic, the
+  topic's row locked while a run starts and while its items change (`lockTopic`). New `PUT /journal/topic/:id/brands`; `PUT …/professionals` no longer deletes the topic's brands (one link
+  table). Model and effort from `OPENAI_TOPIC_MODEL` (gpt-6-luna) and `OPENAI_TOPIC_EFFORT` (medium);
+  `integrations/openai.js` gained the Responses API call (`store: false`), the app's skin analysis untouched.
+- **The topic page** (`GET /journal/topic/:id`): published articles and products only, paragraphs from published
+  articles (A-CNT-3); professionals only while their page shows, each card as anyone may see it, with the page's `slug`
+  (W-1; the retired offer fields left out too); new `brands`; articles and videos newest first (an article's or video's link order is its own order of
+  topics); products, professionals and brands in the topic's order. Admins still get drafts, hidden pages, emails and
+  whole cards.
+- **A-CNT-1:** saving an article's topics deletes only the links it drops, for good, and adds the rest back over
+  softly deleted rows (`setArticleTopics`, one transaction); migration `20261124-0200` brings back the links failed
+  saves took away (an article with no live link: its last deleted batch). **A-CNT-5:** a `.csv` upload is taken in any
+  of the types browsers send for it (`application/vnd.ms-excel` from Excel on Windows), the shop's CSV too.
+- **The Meta Pixel** is the website's (its handoff, section 11): nothing in the API. `check:server` names the OpenAI
+  key; `.env.example` has its section; `core/http/status.js` adds 202.
+- An independent review of the new code (Nov 24) found what was then fixed: a database error inside an AI run could
+  stop the server; two clicks could start two runs, and a slow run could be closed as stale while working; an admin
+  could change the email of any account without a password (now only a brand page an admin made, with no card); user
+  names repeated for brands without an email; the topic page's cards carried the retired offer fields; names in other
+  scripts (資生堂) all looked alike to the import; the AI read the oldest 1,000 pages of a kind. Kept as decided: an
+  owner's claim hides a listing before any admin looks (Mohit's choice; one claim per card at a time). Kept, as nothing
+  tells them apart: an article whose topics were all removed on purpose looks like a failed save, and the migration
+  brings its links back (it prints the articles).
+- Checks: 437 of 437 tests pass on a throwaway MariaDB 10.11 (397 before; new `test/brandImport.test.js` (10),
+  `mapPins.test.js` (3), `googleCardFill.test.js` (6), `topicItems.test.js` (11), `topicAi.test.js` (10), with OpenAI and
+  Google faked; three tests changed with the decisions: claims in `directory.test.js`, a claim on an edit in
+  `cardFields.test.js`, a live card for the professional in `topicPrivacy.test.js`). `npm run lint` passes, no new
+  warnings. Both migrations revert and apply again cleanly.
+
+**For Mohit to do:** with the next deploy, `npm run migrate` (two migrations; the second prints the article links it
+brings back), `OPENAI_API_KEY` in the server's `.env` (`OPENAI_TOPIC_MODEL` and `OPENAI_TOPIC_EFFORT` only to change
+them), then `npm run check:server`. Nothing to turn on at Google: Autocomplete is part of Places API (New), which the
+server key has. Then the website and the admin panel from their Nov 24 handoff rows.
+
+**Open points (Nov 24), for Mohit to decide or watch:**
+
+1. **Topics have no draft state:** an `apply` run's picks show at once on a topic the website lists. Until topics get a
+   draft/published switch (asked, not built), admins use `suggest` on live topics.
+2. **Professionals leave public topic pages** when their page doesn't show (no live card, or unlisted): part of the W-1
+   fix. Admins still see them on the topic.
+3. **An owner's claim hides a Google listing before any admin looks** (the rule Mohit chose): a card owner could hide a
+   competitor's listing until an admin rejects the claim. One claim per card at a time. If it gets abused: an email to
+   support for each new claim, or verification before hiding for claims made on an edit.
+4. **The A-CNT-1 restore** can't tell a failed save from an admin removing all of an article's topics on purpose: check
+   the articles `20261124-0200` prints, and take off any link that should stay off.
+5. **Google's terms** allow storing place ids; the name, phone, address and hours a person takes from Google into their
+   own card are theirs to submit, but the terms have no business-owner carve-out for Places content: a lawyer's call if
+   it matters.
+6. **Not built:** server-side Meta events (the Conversions API); inviting brands in bulk (one at a time); ordering
+   articles and videos within a topic (newest first); the podcast schedule (`podcast_schedules`) in the AI's reading
+   (the episodes are videos).
+
 ## Labels that say why, shipping by option (Nov 16, branch `work/shipping-labels`)
 
 The client, Nov 16: "Buy Label" in the admin panel always said "Couldn't buy the label", though rates showed at

@@ -34,4 +34,8 @@ const consumeEmailToken = async (token, purpose) => {
     return claimed === 1 ? record.user_id : null;
 };
 
-module.exports = { issueEmailToken, consumeEmailToken };
+// Cancels every unused link of an account (Nov 24: an admin changed the email of an account nobody has signed in to,
+// so a link sent to the old address must not set its password).
+const revokeEmailTokens = (userId) => EmailToken.update({ used_at: new Date() }, { where: { user_id: userId, used_at: null } });
+
+module.exports = { issueEmailToken, consumeEmailToken, revokeEmailTokens };

@@ -5,7 +5,8 @@ of Oct 15 (its backend-related items), and the audit of Oct 30 (the website and 
 API contract of both clients). Full reports: see README.md. Status is updated as fixes land; the whole file was
 checked against the code (`aadb56a`) on Oct 30. On Nov 2 the findings that the Nov 1–2 work (Access fixes, one form,
 brands, Stripe; progress.md) fixes were checked against that code and marked "Fixed (Nov 1, not deployed)" with the
-file: it is built and tested, committed on Nov 4, and not deployed.
+file: it is built and tested, committed on Nov 4, and not deployed. On Nov 24 the topics, brands and Google work
+(progress.md) fixed four more, marked "Fixed (Nov 24, not deployed)".
 
 Status: **Fixed** (commit) · **Partly** (what is left) · **Open** (where it is planned) · **App / CRM** (in code we
 do not touch until the app or CRM phase).
@@ -20,13 +21,13 @@ contract review (X-01 from the admin panel review).
 
 | ID | Severity | Finding | Status |
 | --- | --- | --- | --- |
-| A-CNT-1 | Critical | Saving an article with topics soft-deletes its topic links, then the re-insert hits the unique key: 500. Live, all 6 topics list 0 articles (`website/content/journal.service.js:681, 1785, 1798`) | Open (Next 1): `force: true` in one transaction, then restore the links |
+| A-CNT-1 | Critical | Saving an article with topics soft-deletes its topic links, then the re-insert hits the unique key: 500. Live, all 6 topics list 0 articles (`website/content/journal.service.js:681, 1785, 1798`) | Fixed (Nov 24, not deployed): an article's links change in one transaction, the dropped ones deleted for good and the rest added over softly deleted rows (`journal.service.js` `setArticleTopics`); migration `20261124-0200` brings back the links the failed saves took away (an article with no live link: its last deleted batch) |
 | A-OTH-1 | Critical | Login records store no `ip_address`, and the admin panel's Login History crashes on it (`shared/identity/auth.service.js:35-42`) | Open (Next 2), with the panel's null-safe cell |
 | X-01 | Critical | Public forms and card social fields accept any URL, `javascript:` included; the admin panel opens them (`partnershipInquiry.service.js:101`, `access-card/cardFields.js:152-160`) | Open (Next 2): accept only http(s) |
 | SEC-02 | High | `GET /order/getBuinessAddressById/:id` is public, with sequential ids, and returns names, phones and addresses (verified live); no client calls it (`shared/users/address.route.js:11`) | Open (Next 3): remove |
-| W-1 | High | The public `GET /journal/topic/:id` includes featured professionals' whole cards: hidden phone, plan, subscription status, cards of any status (`journal.service.js:1378-1426`) | Open (Next 4): allow-list the fields |
+| W-1 | High | The public `GET /journal/topic/:id` includes featured professionals' whole cards: hidden phone, plan, subscription status, cards of any status (`journal.service.js:1378-1426`) | Fixed (Nov 24, not deployed): the public gets only professionals whose page shows, each live card through `toPublicCard` (no plan, account, subscription or claim fields; the phone only when shown) (`journal.service.js` `topicPeople`); admins still get the whole card |
 | SEC-01 | High | The admin OTP flow gives a 24-hour admin token for a plain-text 6-digit code that never expires; no UI uses it (`shared/admin/adminAuth.route.js:14-16`) | Open (Next 5): remove the three routes |
-| A-CNT-3 | High | Public topic pages list draft articles, draft products and paragraphs from drafts (`journal.service.js:1329-1331, 1439-1441, 1824-1828`) | Open (Next 6) |
+| A-CNT-3 | High | Public topic pages list draft articles, draft products and paragraphs from drafts (`journal.service.js:1329-1331, 1439-1441, 1824-1828`) | Fixed (Nov 24, not deployed): published articles, products and paragraphs only, unless an admin asks (`journal.service.js` `getJournalTopicById`, `getJournalTopicParagraphs`) |
 | OPS-01 | High | The server `.env` says `NODE_ENV=test`; only pm2's env makes the API production. A restart without it turns off rate limits, email, jobs and the secret checks | Open (Next 7): `production` in `.env` (deploy.md, "As deployed") |
 | OPS-02 | High | SQL dumps with personal data in the server's root folder; no verified backup | Open (Next 7) |
 | OPS-03 | High | The CRM's per-minute job is neither awaited nor caught; a database error exits the API (`src/crm/index.js:15-17`, `index.js:39`) | Open (Next 7) |
@@ -35,7 +36,7 @@ contract review (X-01 from the admin panel review).
 | FEAT-01 | High | Contact Us stores messages but emails no one and has no admin screen; the website sends account-deletion requests there (`website/inquiries/contactUs.service.js:7-21`). Contract X-1 | Open (Next 8) |
 | A-ACC-1 | High | The access-orders list reads paging and filters from `req.body` on a GET, so it always shows the newest 10 (`access-card/businessCard.controller.js:303`) | Fixed (Nov 1, not deployed): read from the query string (`access-card/businessCard.controller.js` `getAllAccessOrders`), filters checked, `cancelled` added (`businessCard.service.js`) |
 | A-CNT-4 | High | Products and podcasts still list deleted topics, whose GET answers 404, so their later saves fail (`discover.service.js:273-283`, `podcastSchedule.service.js:73-83`) | Open (Next 8) |
-| A-CNT-5 | High | CSV upload refuses files typed `application/vnd.ms-excel` (Windows with Excel) (`core/http/uploads.js:91-99`) | Open (Next 8) |
+| A-CNT-5 | High | CSV upload refuses files typed `application/vnd.ms-excel` (Windows with Excel) (`core/http/uploads.js:91-99`) | Fixed (Nov 24, not deployed): a `.csv` is taken in any type browsers send for it (`core/http/uploads.js` `CSV_TYPES`) |
 | A-CNT-6 | High | CSV import downloads every row's image inside the request; large files time out and a retry duplicates products (`discover.service.js:540-553`) | Open (Next 8) |
 | A-OTH-3 | High | Ads write the string `"null"` into the INT `height` column: 500 under strict SQL mode (`content/ad.service.js:53, 163-165`) | Open (Next 8) |
 | W-ACC-3 | High | A guest whose email has an app account cannot buy: `ACCOUNT_EXISTS` on every purchase call, and website sign-in refuses the account (`access-card/cardOwnership.js:55-60`) | Fixed (Nov 1, not deployed), by Mohit's decision that an app account must not block a website purchase: its email counts as new (`access-card/cardOwnership.js` `websiteAccountFor`), and the card going live converts the account to a professional one of the card's type (`shared/identity/account.service.js` `accessCardOwner`). Sign-in still refuses app accounts; none is deleted |
@@ -53,7 +54,7 @@ contract review (X-01 from the admin panel review).
 | DATA-01 | Medium | Card handles are not unique, and pages pick one with no tie-break (`profiles/profileQuery.js:102-120`) | Open |
 | DATA-02 | Medium | Deleting a card or a user hard-deletes payment rows and never cancels the Stripe seat | Partly fixed (Nov 1, not deployed): deleting an account, by an admin or the person, ends its Access Pro at Stripe at once with no refund, and the account stays if Stripe refuses (`shared/billing/accountBilling.js`, `access-card/subscriptions.js` `endSeatOfClosedAccount`; BE-15). Open: payment rows are still deleted with a card or an account, as before (an admin's card delete: `businessCard.service.js` `deleteBusinessCard`, BE-19) |
 | TEST-01 | Medium | `npm test` drops every table of `glamlink_test` on whatever host `.env` names (`test/setup.js:8-21`) | Open: refuse non-local hosts |
-| TEST-02 | Medium | 92 endpoints a client uses have no test (journal topics and FAQs, discover CRUD and CSV, ads, access orders, admin users) | Open |
+| TEST-02 | Medium | 92 endpoints a client uses have no test (journal topics and FAQs, discover CRUD and CSV, ads, access orders, admin users) | Partly (Nov 24): the topic page, its pickers for professionals and brands, an article's topics and the new topic endpoints are tested (`test/topicItems.test.js`, `test/topicAi.test.js`); the rest is open |
 | TEST-03 | Medium | No test checks every route's auth rule | Open |
 | DEAD-01 | Medium | The mobile app and the CRM (264 + 1 routes, 2 jobs, Firebase, a Stripe client built at load) run inside the web API | Open (Later) |
 | STR-01 | Medium | The directory feature is spread over four modules | Open (Later) |

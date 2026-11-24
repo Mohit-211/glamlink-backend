@@ -129,14 +129,15 @@ From the Oct 30 audit, in this order; tracked in the website's list and the admi
 
 1. **A-CNT-1:** saving an article with topics answers 500 and soft-deletes its topic links (`journal.service.js:1785`,
    `:1798`, the same at `:681`); live, all 6 topics list 0 articles. Hard-delete in one transaction, then restore the
-   links.
+   links. Built Nov 24, not deployed (with the topics' AI; progress.md).
 2. **For the admin panel's two urgent bugs:** accept only http(s) URLs on the public forms and the card's social
    fields (admin X-01); save `ip_address` on login records (A-OTH-1, `shared/identity/auth.service.js:35-42`).
 3. **SEC-02:** remove the public `GET /order/getBuinessAddressById/:id` (`shared/users/address.route.js:11`), which
    returns names, phones and addresses by sequential id.
-4. **W-1:** allow-list the card fields that `GET /journal/topic/:id` returns (`journal.service.js:1378-1426`).
+4. **W-1:** allow-list the card fields that `GET /journal/topic/:id` returns (`journal.service.js:1378-1426`). Built
+   Nov 24, not deployed.
 5. **SEC-01:** remove the admin OTP routes (`shared/admin/adminAuth.route.js:14-16`).
-6. **A-CNT-3:** published content only on public topic pages.
+6. **A-CNT-3:** published content only on public topic pages. Built Nov 24, not deployed.
 7. **OPS-01 to OPS-03:** `NODE_ENV=production` in the server `.env`; the SQL dumps off the server and a tested
    backup; catch the CRM job's errors or stop it (`src/crm/index.js:15-17`).
 8. **Before the switch:** SEC-03 (uploads parsed only on the routes that take files, after auth), SEC-04 (remove the
@@ -145,6 +146,12 @@ From the Oct 30 audit, in this order; tracked in the website's list and the admi
 9. **After the switch:** the new plans and Stripe (the website's list, "Plans and Stripe"), none started. Nov 2: built
    Nov 1–2, before the switch at Mohit's request, not deployed (progress.md, "Access fixes, one form, brands and
    Stripe"); what is left is the deploy, Stripe's dashboard steps and test-mode purchases.
+
+## Next (Nov 24)
+
+The topics, brands and Google work (progress.md, Nov 24) is on `master`: deploy it (deploy.md, "Once, with the Nov 24
+code"), then the website and the admin panel from their Nov 24 handoff rows. Its open points, for Mohit to decide or
+watch, are listed at the end of that progress entry.
 
 ## Later
 

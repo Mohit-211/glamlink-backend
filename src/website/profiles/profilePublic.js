@@ -9,18 +9,20 @@ const EMPTY = Object.freeze({ count: 0, rows: [] });
 
 const INTRO = 300;
 
-// The hero's intro when the page has none (Nov 3): the card bio as plain text, at most 300 characters (cut at a word,
-// with "…").
-const introFrom = (html) => {
+// Rich text as plain text, at most `max` characters (cut at a word, with "…"); null when empty.
+const plainText = (html, max) => {
     if (typeof html !== 'string' || !html.trim()) return null;
     const words = sanitizeHtml(html.replace(/<\/(p|h[1-6]|li|blockquote|div)>|<br\s*\/?>/gi, ' '), { allowedTags: [], allowedAttributes: {} })
         .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
         .replace(/\s+/g, ' ').trim();
-    if (words.length <= INTRO) return words || null;
-    const cut = words.slice(0, INTRO - 1);
+    if (words.length <= max) return words || null;
+    const cut = words.slice(0, max - 1);
     const space = cut.lastIndexOf(' ');
-    return `${(space > INTRO / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+    return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
 };
+
+// The hero's intro when the page has none (Nov 3): the card bio as plain text, at most 300 characters.
+const introFrom = (html) => plainText(html, INTRO);
 
 // JSON from a text column (raw queries return it as text), or the fallback.
 const parseJson = (value, fallback) => {
@@ -138,4 +140,4 @@ const toDetail = (row, {
     };
 };
 
-module.exports = { toRow, toDetail, parseJson, EMPTY };
+module.exports = { toRow, toDetail, parseJson, plainText, EMPTY };

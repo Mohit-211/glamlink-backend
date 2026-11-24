@@ -108,12 +108,12 @@ const DIRECTORY_PROFILES = `SELECT 'profile' AS kind, u.id, ${SLUG} AS slug, ${N
     ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND (c.id IS NOT NULL OR da.id IS NOT NULL)`;
 
 // The directory map's pins (website/directory, Nov 3): visible professional pages with a slug whose main location has
-// coordinates, with what a pin shows and their featuring.
+// coordinates, with what a pin shows and their featuring. Nov 24: not the pages an admin took off the map (is_on_map).
 const MAP_PAGES = `SELECT u.id, ${SLUG} AS slug, ${NAME} AS name, ${IMAGE} AS image, pp.category AS category, ${SPECIALTY} AS specialty,
     ${CITY} AS city, ${STATE} AS state, ${LATITUDE} AS latitude, ${LONGITUDE} AS longitude,
     COALESCE(pp.is_featured, 0) AS is_featured, COALESCE(pp.featured_order, 0) AS featured_order
     ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND u.professional_type = 'individual' AND ${SLUG} IS NOT NULL
-    AND ${LATITUDE} IS NOT NULL AND ${LONGITUDE} IS NOT NULL`;
+    AND ${LATITUDE} IS NOT NULL AND ${LONGITUDE} IS NOT NULL AND COALESCE(pp.is_on_map, 1) = 1`;
 
 const query = async (sql, replacements) => (await sequelize.query(sql, { replacements }))[0];
 
@@ -126,9 +126,11 @@ const query = async (sql, replacements) => (await sequelize.query(sql, { replace
 //   specialties (HAS_SPECIALTY); category, shipping  the page's keys; state  the spellings of a state (a U.S. state's
 //   code and name) or the text; city; point  { latitude, longitude }: rows get `distance` in miles; radius  miles
 //   from the point.
+// Nov 24 (admin lists): onMap  true or false, the pages on or off the directory map.
 const pageList = async ({
     type, featured, search, limit, offset, admin = false, ranked = false,
     sort = null, specialty = null, category = null, shipping = null, state = null, city = null, point = null, radius = null,
+    onMap = null,
 }) => {
     const where = [ACCOUNT, admin ? `(${EXISTS} OR pp.user_id IS NOT NULL)` : VISIBLE];
     const replacements = { limit, offset };
@@ -137,6 +139,7 @@ const pageList = async ({
         replacements.type = type;
     }
     if (featured) where.push('pp.is_featured = 1');
+    if (onMap !== null) where.push(`COALESCE(pp.is_on_map, 1) = ${onMap ? 1 : 0}`);
     if (search) {
         where.push(SEARCH);
         replacements.term = containing(search);
@@ -174,7 +177,8 @@ const pageList = async ({
     const clause = `WHERE ${where.join(' AND ')}`;
     const extra = admin
         ? `, pp.user_id IS NOT NULL AS has_page, COALESCE(pp.is_listed, 1) AS is_listed, COALESCE(pp.created_by_admin, 0) AS created_by_admin,
-           c.id IS NOT NULL AS has_live_card, (${VISIBLE}) AS visible, u.password IS NOT NULL AS claimed`
+           c.id IS NOT NULL AS has_live_card, (${VISIBLE}) AS visible, u.password IS NOT NULL AS claimed, COALESCE(pp.is_on_map, 1) AS is_on_map,
+           u.email AS email`
         : '';
     const distance = point ? `, ${DISTANCE} AS distance` : '';
     const rank = ranked && search ? `(${NAME} = :exact) DESC, (${NAME} LIKE :prefix) DESC, ` : '';
@@ -282,7 +286,33 @@ const sitemapPages = async () => {
     return rows.map((row) => ({ id: Number(row.id), slug: row.slug, type: row.type, updated_at: row.updated_at }));
 };
 
+// Nov 24. The list rows (ROW) of these accounts' visible pages, by account id: a topic's professionals and brands. With
+// `hidden`, every professional account among them, with `visible` (for admins).
+const pageRows = async (userIds, { hidden = false } = {}) => {
+    const ids = [...new Set(userIds.filter(Boolean).map(Number))];
+    if (!ids.length) return new Map();
+    const rows = await query(
+        `SELECT ${ROW}, (${VISIBLE}) AS visible ${FROM} WHERE ${ACCOUNT} ${hidden ? '' : `AND ${VISIBLE}`} AND u.id IN (:ids)`,
+        { ids },
+    );
+    return new Map(rows.map((row) => [Number(row.id), row]));
+};
+
+// Nov 24. What the topics' AI reads of the visible pages of a type ('individual' or 'brand'): the list row's fields and
+// the page's own words (intro, about), else the card's bio or the listing's. Featured pages first, then the newest
+// (the AI reads at most 1,000 of a kind).
+const topicCandidates = async (type) =>
+    query(
+        `SELECT ${ROW}, ${SPECIALTIES} AS specialties, pp.intro AS intro, pp.about AS about, c.bio AS card_bio, da.bio AS listing_bio
+         ${FROM} WHERE ${ACCOUNT} AND ${VISIBLE} AND u.professional_type = :type ORDER BY COALESCE(pp.is_featured, 0) DESC, u.id DESC`,
+        { type },
+    );
+
+// Nov 24. Every brand account's name as pages show it ({ id, name }), for the brand import to find brands already there,
+// whether or not their page shows.
+const brandNames = async () => query(`SELECT u.id, ${NAME} AS name ${FROM} WHERE ${ACCOUNT} AND u.professional_type = 'brand'`);
+
 module.exports = {
-    pageList, visiblePage, visibleAccountId, pageOf, liveCardId, pageLinks, slugTaken, sitemapPages, filterPages, pageSpecialties,
-    SORTS, SPECIALTY_LENGTH, DIRECTORY_PROFILES, MAP_PAGES,
+    pageList, visiblePage, visibleAccountId, pageOf, liveCardId, pageLinks, pageRows, topicCandidates, brandNames, slugTaken, sitemapPages,
+    filterPages, pageSpecialties, SORTS, SPECIALTY_LENGTH, DIRECTORY_PROFILES, MAP_PAGES,
 };

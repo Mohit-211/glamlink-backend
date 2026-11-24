@@ -122,18 +122,36 @@ const videosOfAccount = async (userId, query = {}) => {
     return page(where, query);
 };
 
-// A topic's published videos, in the topic's order.
+// A topic's published videos, newest first (Nov 24: the links' order is each video's order of its topics, as the
+// video's editor sets them, not the topic's).
 const videosOfTopic = async (topicId) => {
-    const [rows] = await sequelize.query('SELECT video_id FROM journal_topic_video_mappings WHERE topic_id = :id ORDER BY sort_order ASC, id ASC', {
-        replacements: { id: topicId },
-    });
+    const [rows] = await sequelize.query('SELECT video_id FROM journal_topic_video_mappings WHERE topic_id = :id', { replacements: { id: topicId } });
     if (!rows.length) return [];
-    const ids = rows.map((row) => Number(row.video_id));
-    const videos = await Video.findAll({ attributes: CARD, where: { status: 'published', id: ids }, include: [SERIES] });
-    return videos.toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map(toCard);
+    const videos = await Video.findAll({ attributes: CARD, where: { status: 'published', id: rows.map((row) => Number(row.video_id)) }, include: [SERIES], order: NEWEST });
+    return videos.map(toCard);
+};
+
+// Nov 24. These videos as cards with their `status` (drafts too), newest first: a topic's videos as admins see them.
+const videoCards = async (ids) => {
+    if (!ids.length) return [];
+    const videos = await Video.findAll({ attributes: [...CARD, 'status'], where: { id: ids }, include: [SERIES], order: NEWEST });
+    return videos.map((video) => ({ ...toCard(video), status: video.status }));
+};
+
+// Nov 24. What the topics' AI reads of the published videos, newest first (at most `limit`): { id, slug, title, series,
+// about } with `about` the description's start, as plain text.
+const aiCandidates = async ({ limit = 1000 } = {}) => {
+    const videos = await Video.findAll({ attributes: ['id', 'slug', 'title', 'description', 'published_at', 'created_at'], where: { status: 'published' }, include: [SERIES], order: NEWEST, limit });
+    return videos.map((video) => ({
+        id: video.id,
+        slug: video.slug,
+        title: video.title,
+        series: video.series?.name ?? null,
+        about: String(video.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 600) || null,
+    }));
 };
 
 // The sitemap's videos: every published video's id, slug and date of last change.
 const sitemapVideos = () => Video.findAll({ attributes: ['id', 'slug', 'updated_at'], where: { status: 'published' }, order: [['id', 'ASC']], raw: true });
 
-module.exports = { listVideos, getVideo, listSeries, videosOfAccount, videosOfTopic, sitemapVideos, toCard, CARD, SERIES };
+module.exports = { listVideos, getVideo, listSeries, videosOfAccount, videosOfTopic, videoCards, aiCandidates, sitemapVideos, toCard, CARD, SERIES };

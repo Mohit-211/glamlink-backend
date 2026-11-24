@@ -19,11 +19,12 @@ const roleIdFor = (accountType, professionalType) => {
 
 const hashPassword = (password) => bcrypt.hash(password, 10);
 
-// A free user_name from a name ("Jane Doe" -> "janedoe", then "janedoe1", ...).
+// A free user_name from a name ("Jane Doe" -> "janedoe", then "janedoe1", ...). Every account counts, deleted ones and
+// those with no email too (the default scope would miss those: Nov 24).
 const uniqueUserName = async (base, transaction) => {
     const stem = String(base || '').trim().toLowerCase().replace(/[^a-z0-9._]/g, '') || 'user';
     let candidate = stem;
-    for (let n = 1; await User.findOne({ where: { user_name: candidate }, attributes: ['id'], paranoid: false, transaction }); n++) {
+    for (let n = 1; await User.unscoped().findOne({ where: { user_name: candidate }, attributes: ['id'], paranoid: false, transaction }); n++) {
         candidate = `${stem}${n}`;
     }
     return candidate;
@@ -35,6 +36,21 @@ const setProfessionalType = (user, professionalType, { transaction } = {}) => {
     const type = PROFESSIONAL_TYPES.includes(professionalType) ? professionalType : 'individual';
     return user.update({ professional_type: type, role_id: roleIdFor('professional', type) }, { transaction });
 };
+
+// An active professional account (individual or brand) by id, or null, whatever its email. The User model's default
+// scope (email <> 'deleted-gmail.com') also leaves out every account with no email, and a brand page an admin made may
+// have none (Nov 24): code that links content to a professional or brand finds it here.
+const professionalAccount = (id, { attributes, transaction } = {}) =>
+    User.unscoped().findOne({
+        where: {
+            id,
+            account_type: 'professional',
+            is_active: true,
+            [Op.or]: [{ email: null }, { email: { [Op.ne]: 'deleted-gmail.com' } }],
+        },
+        attributes,
+        transaction,
+    });
 
 // An app account (a 'user': not a professional or a brand). It does not stand in the way of an Access card bought on
 // the website with its email: the purchase makes it a professional account (Nov 1).
@@ -53,7 +69,8 @@ const createAccount = async ({
 
     const make = async (transaction) => {
         const user = await User.create({
-            email: normalizeEmail(email),
+            // No email at all (Nov 24: a brand page an admin made without one) is stored as NULL: many may lack one.
+            email: normalizeEmail(email) || null,
             user_name: await uniqueUserName(userName || name, transaction),
             password: passwordHash,
             role_id: roleIdFor(type, proType),
@@ -155,4 +172,5 @@ module.exports = {
     setPasswordLink,
     attachGuestBusinessCards,
     accountView,
+    professionalAccount,
 };

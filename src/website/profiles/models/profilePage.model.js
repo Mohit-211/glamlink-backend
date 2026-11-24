@@ -14,6 +14,8 @@ ProfilePage.init({
     is_listed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     is_featured: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     featured_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    // Nov 24: false takes the page's pin off the directory map (an admin's choice; the page and lists still show it).
+    is_on_map: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     created_by_admin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     tagline: { type: DataTypes.STRING(150), allowNull: true },
     intro: { type: DataTypes.STRING(300), allowNull: true },

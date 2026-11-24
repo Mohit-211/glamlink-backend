@@ -202,17 +202,20 @@ describe('creating and editing through the API', () => {
         assert.equal(media.length, 1);
     });
 
-    test('professional or brand: an owner cannot change it; an admin changes the account with the card', async () => {
+    test('professional or brand: an owner cannot change it (a Google claim may come with an edit since Nov 24); an admin changes the account with the card', async () => {
         await q("INSERT IGNORE INTO roles (id, name, abbreviation) VALUES (8, 'Brand', 'BRND')");
         const user = await q("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1)",
             [`typed-${Date.now()}@test.example`]);
         const userId = user.insertId ?? user;
         const edit = (fields, headers) => app.form('PUT', `/api/v1/businessCard/updateBusinessCard/${cardId}`, { fields, files: {}, headers });
-        // The draft's own edit (its card token): accepted, without the type or a claim
-        const own = await edit({ name: 'Jane Smith', professional_type: 'brand', claimed_place_id: 'ChIJ-not-from-an-edit' }, { 'x-card-token': cardToken });
+        // The draft's own edit (its card token): accepted, without the type; with the claim ("Fetch info from Google", Nov 24)
+        const own = await edit({ name: 'Jane Smith', professional_type: 'brand', claimed_place_id: 'ChIJ-from-an-edit' }, { 'x-card-token': cardToken });
         assert.equal(own.status, 200, own.body.message);
         const [mine] = await q('SELECT professional_type, claimed_place_id FROM business_cards WHERE id = ?', [cardId]);
-        assert.deepEqual(mine, { professional_type: 'individual', claimed_place_id: null });
+        assert.deepEqual(mine, { professional_type: 'individual', claimed_place_id: 'ChIJ-from-an-edit' });
+        // "" withdraws it
+        assert.equal((await edit({ claimed_place_id: '' }, { 'x-card-token': cardToken })).status, 200);
+        assert.equal((await q('SELECT claimed_place_id FROM business_cards WHERE id = ?', [cardId]))[0].claimed_place_id, null);
 
         await q('UPDATE business_cards SET user_id = ? WHERE id = ?', [userId, cardId]);
         const res = await edit({ professional_type: 'brand', professional_title: '' }, { Authorization: `Bearer ${tokens.admin}` });

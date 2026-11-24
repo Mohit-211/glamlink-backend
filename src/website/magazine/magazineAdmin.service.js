@@ -8,7 +8,8 @@ const { containing } = require('../../core/utils/like');
 const { isYes, wholeNumber } = require('../../core/utils/formValues');
 const { toSlug } = require('../../core/utils/slug');
 const { isUploadedImage } = require('../../core/http/uploadedFiles');
-const { MagazineIssue, MagazineFeature, User } = require('../../models');
+const { MagazineIssue, MagazineFeature } = require('../../models');
+const { professionalAccount } = require('../../shared/identity');
 const { toCard, ORDER } = require('./magazine.service');
 
 const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, message, 'INVALID_ISSUE', { field });
@@ -126,7 +127,7 @@ const setFeatures = async (id, body) => {
         const userId = wholeNumber(feature?.user_id);
         const role = feature?.role ?? 'featured';
         if (!['cover', 'featured', 'mentioned'].includes(role)) throw refuse('features', 'role is cover, featured or mentioned.');
-        const account = userId && (await User.findOne({ where: { id: userId, account_type: 'professional', is_active: true }, attributes: ['id'] }));
+        const account = userId && (await professionalAccount(userId, { attributes: ['id'] }));
         if (!account) throw refuse('features', `${feature?.user_id} is not a professional or brand account.`);
         const page = feature?.page_number === undefined ? null : positive(feature.page_number, 'features');
         if (!rows.some((row) => row.user_id === userId)) rows.push({ issue_id: issue.id, user_id: userId, role, page_number: page });

@@ -132,7 +132,8 @@ secrets, and names the rest at its end. For testing mode:
 | `GOOGLE_API_KEY` | The rotated server key | Restricted to Geocoding, Places, Places API (New), Routes and the server's IP. The directory uses Places API (New) (enable it in Google Cloud for this key) and Geocoding |
 | `YOUTUBE_API_KEY` | A key with YouTube Data API v3 | Restricted to that API and the server's IP. Imports each video series' playlist when an admin presses the import button, and the links admins paste; the website then drops its own key |
 | `FIREBASE_*` | Leave empty | Push notifications off. Live: from the service account file |
-| `OPENAI_API_KEY`, `FACEPP_*`, `NUMERAL_*` | Copy from the old `.env` | App features only |
+| `OPENAI_API_KEY` | A key of the OpenAI project that pays for it (copy the old `.env`'s, or make one) | Since Nov 24 the website's topics: an admin's "Run AI" (without it 503 `AI_NOT_CONFIGURED`); also the app's skin analysis. `OPENAI_TOPIC_MODEL` (`gpt-6-luna`) and `OPENAI_TOPIC_EFFORT` (`medium`) only to change them |
+| `FACEPP_*`, `NUMERAL_*` | Copy from the old `.env` | App features only |
 
 Leave `STORAGE_DIR` unset (it defaults to `/var/www/storage`), or set it to the folder from step 1.
 
@@ -406,6 +407,24 @@ pm2 reload glamlink-api
 - Then, in Stripe's dashboard, the steps of section 5 (the webhook's 15 events, Link, the customer portal, Revenue
   recovery); `check:server -- --online` fails until the webhook has every event.
 - Then test in Stripe test mode on test.glamlink.net (progress.md, Nov 1–2): nothing has run against real Stripe yet.
+
+### Once, with the Nov 24 code: topics by AI, brands in bulk, Google info on the Access form
+
+On `master` since Nov 24 (progress.md, Nov 24). Deploy it before the website's and the admin panel's Nov 24 changes,
+which rely on its answers.
+
+```bash
+# after git pull and npm ci --omit=dev, as above
+npm run migrate            # 20261124-0100 (profile_pages.is_on_map) and -0200 (the topics' AI tables; restores article links)
+npm run check:server       # "OpenAI (the topics' AI, on gpt-6-luna at medium effort)" says whether the key is set
+pm2 reload glamlink-api
+```
+
+- Before the reload, put `OPENAI_API_KEY` in `.env` (section 3). Without it everything works but "Run AI".
+- `20261124-0200` prints the topic links it brings back (A-CNT-1: every topic listed 0 articles); an admin can take
+  off any that should stay off, in the topic's items.
+- Google: nothing to enable. The Access form's search bar uses Places API (New)'s Autocomplete, which the server key
+  already has (section 3); Google bills a search as one session ending in its Place Details call.
 
 ## 10. Going back
 

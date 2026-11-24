@@ -520,12 +520,11 @@ const updateBusinessCard = async (id, body, files, { admin = false } = {}) => {
   }
 
   const rights = admin ? await adminRights() : await entitlementsFor(cardDoc.user_id);
-  // Professional or brand, and a Google listing claim, are set when the card is made; afterwards only an admin
-  // changes them (Nov 1).
+  // Professional or brand is set when the card is made; afterwards only an admin changes it (Nov 1). A Google listing
+  // claim may come with any edit since Nov 24 (the form's "Fetch info from Google"; cardFields.js).
   const input = admin ? body : { ...body };
   if (!admin) {
     delete input.professional_type;
-    delete input.claimed_place_id;
   }
   const result = await updateCard(cardDoc, { body: input, files, rights, byOwner: !admin && Boolean(cardDoc.user_id) });
   // An admin's change of type is the account's too: pages, /brands and the directory read the account's type.

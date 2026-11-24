@@ -31,4 +31,10 @@ module.exports = {
     sitemapPages: () => require('./profileQuery').sitemapPages(),
     // An explicit page slug for an account (its card's handle, else free from its name), for a listing's account.
     ensurePageSlug: (userId, name) => require('./profileAdmin.service').ensurePageSlug(userId, name),
+    // Nov 24. The list rows (as GET /profiles answers them) of these accounts' visible pages, as a Map by account id: a
+    // topic's professionals and brands. { hidden: true }: every professional account among them, with `visible`.
+    pageCards: (userIds, options) => require('./profile.service').pageCards(userIds, options),
+    // Nov 24. What the topics' AI reads of the visible pages of a type ('individual' or 'brand'): [{ id, slug, name,
+    // tagline, category, specialties, city, state, about }].
+    aiCandidates: (type) => require('./profile.service').aiCandidates(type),
 };

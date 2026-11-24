@@ -1,4 +1,5 @@
-// The public topic page (GET /journal/topic/:id) does not show professionals' emails; admins still see them.
+// The public topic page (GET /journal/topic/:id) does not show professionals' emails; admins still see them. Since
+// Nov 24 (W-1) the public sees only professionals whose page shows (a live card), each card as anyone may see it.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
@@ -13,6 +14,8 @@ before(async () => {
     await insert("INSERT IGNORE INTO roles (id, name, abbreviation) VALUES (1, 'Super Admin', 'SUP_ADM'), (7, 'Professional', 'PRO')");
     const pro = await insert("INSERT INTO users (email, role_id, account_type, professional_type, status, is_active, email_verified_at) VALUES (?, 7, 'professional', 'individual', 'ACCEPTED', 1, NOW())", [email]);
     await insert('INSERT INTO profiles (user_id, email, name) VALUES (?, ?, ?)', [pro, email, 'Topic Pro']);
+    await insert("INSERT INTO business_cards (user_id, name, email, status, slug, business_card_link) VALUES (?, 'Topic Pro', ?, 'accepted', ?, ?)",
+        [pro, `topic-card-${Date.now()}@card.example`, `topicpro${Date.now()}`, `https://glamlink.net/access/topicpro${Date.now()}`]);
     topicId = await insert("INSERT INTO journal_topics (name, slug) VALUES ('Skin care', ?)", [`skin-care-${Date.now()}`]);
     await insert('INSERT INTO journal_topic_professional_mappings (topic_id, user_id) VALUES (?, ?)', [topicId, pro]);
     const admin = await insert("INSERT INTO admins (name, email, role_id, is_active) VALUES ('Topic Admin', ?, 1, 1)", [`topic-admin-${Date.now()}@test.example`]);

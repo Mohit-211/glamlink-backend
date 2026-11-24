@@ -61,6 +61,8 @@ const settings = () => {
     need('Keychain ship-from address', ['SHIP_FROM_NAME', 'SHIP_FROM_STREET1', 'SHIP_FROM_CITY', 'SHIP_FROM_STATE', 'SHIP_FROM_ZIP', 'SHIP_FROM_PHONE', 'SHIP_FROM_EMAIL'], { required: false });
     need('Google (address coordinates, place details)', ['GOOGLE_API_KEY'], { required: false });
     need('YouTube (the Watch videos)', ['YOUTUBE_API_KEY'], { required: false });
+    // Nov 24: the topics' AI runs (website/content/topicAi.service.js), on OPENAI_TOPIC_MODEL.
+    need(`OpenAI (the topics' AI, on ${config.OPENAI_TOPIC_MODEL} at ${config.OPENAI_TOPIC_EFFORT} effort)`, ['OPENAI_API_KEY'], { required: false });
     need('Super Admin for `npm run auth`', ['SUPER_ADMIN_EMAIL', 'SUPER_ADMIN_PASSWORD'], { required: false });
 };
 

@@ -5,7 +5,8 @@ const httpStatus = require('../../core/http/status');
 const ApiError = require('../../core/http/ApiError');
 const sequelize = require('../../core/db/central.db');
 const { isYes, wholeNumber } = require('../../core/utils/formValues');
-const { JournalMention, Journal, User } = require('../../models');
+const { JournalMention, Journal } = require('../../models');
+const { professionalAccount } = require('../../shared/identity');
 const { pageLinks } = require('../profiles');
 const { handlesIn } = require('./mentionText');
 
@@ -97,7 +98,7 @@ const refuse = (field, message) => ApiError.withCode(httpStatus.BAD_REQUEST, mes
 const addMention = async (journalId, body) => {
     await articleOrNotFound(journalId);
     const id = wholeNumber(body.user_id);
-    const account = id && (await User.findOne({ where: { id, account_type: 'professional', is_active: true }, attributes: ['id'] }));
+    const account = id && (await professionalAccount(id, { attributes: ['id'] }));
     if (!account) throw refuse('user_id', 'user_id must be a professional or brand account.');
     const existing = await JournalMention.findOne({ where: { journal_id: journalId, source: 'editor', user_id: account.id } });
     if (!existing) await JournalMention.create({ journal_id: journalId, source: 'editor', user_id: account.id });

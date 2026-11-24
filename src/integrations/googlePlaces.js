@@ -1,6 +1,8 @@
 // Google Places API (New) and Geocoding, server side (GOOGLE_API_KEY), for the directory (website/directory): beauty
 // businesses near a visitor, one business's details (to prefill the apply form), its photos, and coordinates for
-// addresses. The functions sit on one object so tests can replace them.
+// addresses. Since Nov 24 also Autocomplete (New), for the Access form's "Fetch info from Google" search bar: its
+// requests and the Place Details call that ends them share a session token, so Google bills them as one session.
+// The functions sit on one object so tests can replace them.
 const config = require('../core/config/config');
 const httpClient = require('../core/http/httpClient');
 
@@ -52,10 +54,33 @@ const places = {
         return (data.places || []).map(toPlace);
     },
 
-    // One place with its phone, opening hours and summary, or null.
-    details: async (placeId) => {
+    // Up to 5 businesses (not addresses or areas) whose name or address starts like `input`, in the US and Canada, near a
+    // point when given: [{ place_id, name, address }]. `sessionToken` ties the requests to the details call that follows.
+    autocomplete: async ({ input, sessionToken, latitude, longitude }) => {
+        const body = { input, includedRegionCodes: ['us', 'ca'], languageCode: 'en' };
+        if (sessionToken) body.sessionToken = sessionToken;
+        if (latitude !== undefined && longitude !== undefined) {
+            body.locationBias = { circle: { center: { latitude, longitude }, radius: 50000 } };
+        }
+        const { data } = await httpClient.post(`${PLACES}/places:autocomplete`, body, { headers: { 'X-Goog-Api-Key': config.GOOGLE_API_KEY }, timeout: 15000 });
+        return (data.suggestions || [])
+            .map((suggestion) => suggestion.placePrediction)
+            .filter((p) => p?.placeId && (!p.types || p.types.includes('establishment') || p.types.includes('point_of_interest')))
+            .map((p) => ({
+                place_id: p.placeId,
+                name: p.structuredFormat?.mainText?.text ?? p.text?.text ?? null,
+                address: p.structuredFormat?.secondaryText?.text ?? null,
+            }));
+    },
+
+    // One place with its phone, opening hours and summary, or null. `sessionToken`: the autocomplete session it ends.
+    details: async (placeId, { sessionToken } = {}) => {
         try {
-            const { data } = await httpClient.get(`${PLACES}/places/${encodeURIComponent(placeId)}`, { headers: headers(DETAIL_FIELDS), timeout: 15000 });
+            const { data } = await httpClient.get(`${PLACES}/places/${encodeURIComponent(placeId)}`, {
+                headers: headers(DETAIL_FIELDS),
+                params: sessionToken ? { sessionToken } : undefined,
+                timeout: 15000,
+            });
             return {
                 ...toPlace(data),
                 phone: data.nationalPhoneNumber ?? data.internationalPhoneNumber ?? null,
